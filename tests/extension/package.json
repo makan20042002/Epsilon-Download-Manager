@@ -1,0 +1,1 @@
+{ "name": "makan-extension-tests", "private": true, "scripts": { "test": "node ext.test.js && node content.test.js" }, "devDependencies": { "jsdom": "^26.0.0" } }

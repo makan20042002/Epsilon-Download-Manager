@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Tiny console relay started by Chrome / Edge / Brave / Firefox for native messaging.
+    stdin/stdout are the browser's pipes; requests are forwarded to the running Makan Download Manager
+    over a named pipe (starting it in the background when needed). No WPF, so it launches in a fraction of a second.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MakanNativeHost</AssemblyName>
+    <RootNamespace>MakanNativeHost</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseAppHost>true</UseAppHost>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Keeps the self-contained single-file build small (it ships next to the main app). -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+</Project>

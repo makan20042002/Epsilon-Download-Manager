@@ -1,0 +1,19 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.cs]
+# Keep nullable analysis enabled and prefer explicit, readable code.
+dotnet_diagnostic.IDE0055.severity = suggestion
+csharp_new_line_before_members_in_chained_calls = true
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = false
+
+[*.xaml]
+indent_size = 2

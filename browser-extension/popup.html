@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Epsilon Download Manager</title>
+<style>
+  :root { color-scheme: dark; --bg:#0a0f1c; --panel:#111a2b; --panel2:#172238; --text:#f4f7fb; --muted:#8d9ab2; --accent:#4f8cff; --ok:#2e9e5b; --bad:#d64545; }
+  * { box-sizing: border-box; }
+  body { margin:0; width:380px; max-height:580px; overflow:auto; background:var(--bg); color:var(--text); font:13px/1.4 system-ui,"Segoe UI",sans-serif; }
+  header { display:flex; align-items:center; gap:10px; padding:14px 16px; background:var(--panel); }
+  header img { width:28px; height:28px; }
+  header h1 { font-size:15px; margin:0; font-weight:600; }
+  #state { font-size:12px; color:var(--muted); }
+  #dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--muted); margin-right:6px; }
+  #dot.ok { background:var(--ok); } #dot.idle { background:#d9a441; } #dot.bad { background:var(--bad); }
+  section { padding:12px 16px; border-top:1px solid #1c2740; }
+  h2 { margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  label.row { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; }
+  button { background:var(--panel2); color:var(--text); border:1px solid #26365a; border-radius:8px; padding:7px 12px; font:inherit; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.5; cursor:default; }
+  .item { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid #16213a; }
+  .item:last-child { border-bottom:0; }
+  .item .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item .meta { color:var(--muted); font-size:11px; }
+  .tag { font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; background:#22304a; color:#9db8ff; }
+  .empty, .note { color:var(--muted); font-size:12px; }
+  .err { color:#ff9c9c; font-size:12px; margin-top:6px; word-break:break-word; }
+  textarea { width:100%; height:54px; background:var(--panel); color:var(--text); border:1px solid #26365a; border-radius:8px; padding:6px; font:12px ui-monospace,Consolas,monospace; resize:vertical; }
+  .links { max-height:150px; overflow:auto; margin:8px 0; }
+  .links label { display:flex; gap:6px; align-items:center; padding:2px 0; font-size:12px; }
+  .links span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .seg { display:flex; gap:2px; background:var(--panel2); border:1px solid #26365a; border-radius:8px; padding:2px; }
+  .seg button { flex:1; background:transparent; border:0; border-radius:6px; padding:6px 8px; font-size:12px; }
+  .seg button.on { background:var(--accent); color:#fff; }
+</style>
+</head>
+<body>
+<header>
+  <img src="icons/icon48.png" alt="">
+  <div><h1 data-t="Epsilon Download Manager">Epsilon Download Manager</h1><div id="state"><span id="dot"></span><span id="stateText" data-t="Checking…">Checking…</span></div></div>
+</header>
+
+<section>
+  <label class="row"><span data-t="Take over browser downloads">Take over browser downloads</span><input type="checkbox" id="enabled"></label>
+  <div id="lastError" class="err" hidden></div>
+</section>
+
+<section>
+  <h2 data-t="Media on this page">Media on this page</h2>
+  <div id="media"><div class="empty" data-t="Play a video or audio on the page and it will show up here.">Play a video or audio on the page and it will show up here.</div></div>
+  <div id="overlayInfo" class="note" style="margin-top:8px"></div>
+</section>
+
+<section>
+  <h2 data-t="Links on this page">Links on this page</h2>
+  <div class="actions"><button id="grab" data-t="Download all links…">Download all links…</button></div>
+  <div class="note" style="margin-top:6px" data-t="Opens a window in Epsilon with every link of the page (file name, type, size) so you can tick what to download.">Opens a window in Epsilon with every link of the page (file name, type, size) so you can tick what to download.</div>
+  <div class="note" style="margin-top:4px" data-t="Tip: select some links on the page with the mouse and click the “Download with Epsilon” bar that appears at the bottom-left.">Tip: select some links on the page with the mouse and click the “Download with Epsilon” bar that appears at the bottom-left.</div>
+  <div id="grabResult" class="note" style="margin-top:6px"></div>
+</section>
+
+<section>
+  <h2 data-t="Appearance">Appearance</h2>
+  <div class="seg" id="themeSeg">
+    <button data-theme="auto" data-t="Auto">Auto</button>
+    <button data-theme="dark" data-t="Dark">Dark</button>
+    <button data-theme="light" data-t="Light">Light</button>
+  </div>
+  <div class="note" style="margin-top:6px" data-t="Sets the look of the “Download this video” button and menu shown on web pages. “Auto” follows the browser's own colour scheme.">Sets the look of the “Download this video” button and menu shown on web pages. “Auto” follows the browser's own colour scheme.</div>
+</section>
+
+<section>
+  <h2 data-t="Don't take over these sites">Don't take over these sites</h2>
+  <textarea id="exclude" placeholder="one per line, e.g. example.com" data-t-placeholder="one per line, e.g. example.com"></textarea>
+  <div class="actions" style="margin-top:8px"><button id="save" data-t="Save">Save</button><button id="open" data-t="Open Epsilon">Open Epsilon</button></div>
+  <div id="saved" class="note" hidden data-t="Saved.">Saved.</div>
+</section>
+
+<script src="i18n.js"></script>
+<script src="popup.js"></script>
+<div style="text-align:center;padding:10px 0 4px;font-size:11px;opacity:.72">Created by Makan A.D. · <a href="https://makanlab.tech" target="_blank" rel="noopener">makanlab.tech</a></div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Build output - this is where the large, self-contained .exe (and everything else `dotnet publish`/`dotnet build`
+# produces) lives. None of it belongs in the repository: it's regenerated from source by anyone who builds the
+# project, and committing it is exactly what runs into GitHub's 100 MB per-file limit. Use a GitHub Release to
+# actually distribute the built Setup.exe/zips instead - Releases allow files up to 2 GB and are what they're for.
+bin/
+obj/
+publish/
+installer-output/
+*.exe
+*.msi
+*.pdb
+
+# Local test/dev artifacts
+tests/**/node_modules/
+tests/**/bin/
+tests/**/obj/
+*.user
+.vs/
+.vscode/
+
+# OS noise
+.DS_Store
+Thumbs.db

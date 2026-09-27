@@ -1,0 +1,39 @@
+<Window Style="{StaticResource AppWindow}" x:Class="MakanDownloadManager.InputDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add Download" Width="720" SizeToContent="Height" WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{DynamicResource Panel}" Foreground="{DynamicResource Text}">
+  <Grid Margin="22">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <TextBlock Grid.Row="0" Text="Link (URL)" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+    <TextBox x:Name="UrlBox" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" FontSize="15" Padding="9" Margin="0,0,0,10" ToolTip="HTTP or HTTPS link. The file name is taken from the server."/>
+
+    <TextBlock Grid.Row="1" Text="Save to folder" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+    <TextBox x:Name="FolderBox" Grid.Row="1" Grid.Column="1" Padding="8" Margin="0,0,0,10" ToolTip="Leave empty to use your default download folder"/>
+    <Button Grid.Row="1" Grid.Column="2" Content="Browse…" Click="Browse_Click" Margin="6,0,0,10"/>
+
+    <TextBlock Grid.Row="2" Text="Connections" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+    <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,10">
+      <Slider x:Name="ConnSlider" Minimum="1" Maximum="16" Value="4" Width="220" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"/>
+      <TextBlock Text="{Binding ElementName=ConnSlider, Path=Value, StringFormat={}{0:0}}" Margin="12,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+      <TextBlock Text="  (more connections = faster on most servers)" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
+    </StackPanel>
+
+    <TextBlock Grid.Row="3" Text="Speed limit (KB/s)" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+    <TextBox x:Name="LimitBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Padding="8" Margin="0,0,0,10" Text="0" ToolTip="0 = unlimited"/>
+
+    <TextBlock Grid.Row="4" Text="Cookie (optional)" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+    <TextBox x:Name="CookieBox" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Padding="8" Margin="0,0,0,10" ToolTip="Cookie header for sites that need you to be logged in"/>
+
+    <TextBlock Grid.Row="5" Text="Referrer (optional)" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+    <TextBox x:Name="RefBox" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Padding="8" Margin="0,0,0,18" ToolTip="Page the download link came from"/>
+
+    <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Content="Cancel" Click="Cancel_Click" IsCancel="True"/>
+      <Button Content="Add" Click="Continue_Click" IsDefault="True" Background="{DynamicResource AccentDark}" Foreground="{DynamicResource OnAccent}"/>
+    </StackPanel>
+  </Grid>
+</Window>

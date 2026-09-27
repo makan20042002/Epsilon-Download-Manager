@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MakanDownloadManager</AssemblyName>
+    <RootNamespace>MakanDownloadManager</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>Assets\makan.ico</ApplicationIcon>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- WPF + WinForms in one project: WinForms' implicit usings would make Application, MessageBox, Clipboard, Timer, Point, Path... ambiguous. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <!-- The WPF SDK leaves these two out of the implicit usings, but the engine and services need them. -->
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\makan.ico" />
+    <!-- Epsilon UI kit fonts (Inter, JetBrains Mono, Space Grotesk - all SIL Open Font License, free to bundle).
+         Referenced as e.g. FontFamily="pack://application:,,,/Assets/Fonts/#Inter" once windows are updated to use them. -->
+    <Resource Include="Assets\Fonts\Inter-Regular.ttf" />
+    <Resource Include="Assets\Fonts\Inter-Medium.ttf" />
+    <Resource Include="Assets\Fonts\Inter-SemiBold.ttf" />
+    <Resource Include="Assets\Fonts\Inter-Bold.ttf" />
+    <Resource Include="Assets\Fonts\JetBrainsMono-Regular.ttf" />
+    <Resource Include="Assets\Fonts\JetBrainsMono-Medium.ttf" />
+    <Resource Include="Assets\Fonts\JetBrainsMono-Bold.ttf" />
+    <Resource Include="Assets\Fonts\SpaceGrotesk-Medium.ttf" />
+    <Resource Include="Assets\Fonts\SpaceGrotesk-Bold.ttf" />
+    <!-- Styles for the standard controls (both themes). Loaded and self-tested at start-up (ThemeManager), NOT compiled: a mistake in it can never break the build. -->
+    <Page Remove="Themes\ControlStyles.xaml" />
+    <Resource Include="Themes\ControlStyles.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+  </ItemGroup>
+</Project>

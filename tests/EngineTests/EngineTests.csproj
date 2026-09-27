@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compiles the real engine sources on any OS (no WPF / SQLite needed) and runs them against a local HTTP server. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseAppHost>false</UseAppHost>
+    <RestoreSources Condition="Exists('/tmp/nofeed')">/tmp/nofeed</RestoreSources>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="*.cs" />
+    <Compile Include="..\..\MakanDownloadManager\Models\*.cs" />
+    <Compile Include="..\..\MakanDownloadManager\Services\Torrent\*.cs" />
+    <Compile Include="..\..\updater\FileSwap.cs" />
+    <Compile Include="..\..\MakanDownloadManager\Services\*.cs"
+             Exclude="..\..\MakanDownloadManager\Services\DownloadDb.cs;..\..\MakanDownloadManager\Services\HistoryService.cs;..\..\MakanDownloadManager\Services\DbQueueStore.cs;..\..\MakanDownloadManager\Services\DesktopServices.cs" />
+  </ItemGroup>
+</Project>

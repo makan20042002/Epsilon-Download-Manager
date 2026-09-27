@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "Epsilon Download Manager",
+  "version": "1.0.0",
+  "description": "Epsilon Download Manager 15.1 browser integration with smart capture, media detection, queues and download basket.",
+  "minimum_chrome_version": "105",
+  "permissions": [
+    "contextMenus",
+    "downloads",
+    "nativeMessaging",
+    "cookies",
+    "webRequest",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Epsilon Download Manager",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu9OI69qCnVatAlOjpcG4lZVJZa1dac6xWK/WCvTFsfXk5YEs45wDbk5GJbjFPGSaRdy6tRVCmdvvdaVQx2UnOHkVBg4cG9PyuYPh251DaNqQi4JrfcIECE+02XmNkZvC6zJQ5onvay5zTqlTjnbeKzEtbBh6rxGynMNhlReHuWAAx3iuZhWoO5IlxeCRAkD1Vpqnne6OIzKVLMxvPnNrzPukDcwikmWlJHJcnIzZ+8p5ukXJtzISdBYgec8A+HAqwvczNWFJj/el6nuVY69qZLwIxgJ8OTurttVV5IH8PpwfyO/y8L34nkFZc57UQMhayXftWxJ/Fn1/D6URTXozIQIDAQAB",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "i18n.js",
+        "content.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle",
+      "match_about_blank": true
+    }
+  ],
+  "version_name": "1.0.0",
+  "commands": {
+    "download-all-links": {
+      "suggested_key": {
+        "default": "Alt+Shift+M"
+      },
+      "description": "Send all page links to Epsilon"
+    }
+  }
+}
