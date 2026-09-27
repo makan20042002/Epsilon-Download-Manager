@@ -55,10 +55,10 @@ public partial class App : Application
             .Where(p => p.Id != currentPid)
             .ToList();
 
-        if (!isFirst && otherProcesses.Count == 0)
-        {
-            isFirst = true;
-        }
+        if (!isFirst && otherProcesses.Count == 0) isFirst = true;
+
+        InitializeServices();
+        try { new DiagnosticsService().Info($"Startup: background={background}, isFirst={isFirst}, otherProcesses={otherProcesses.Count}"); } catch { }
 
         if (!isFirst)
         {
@@ -67,8 +67,6 @@ public partial class App : Application
             Shutdown();
             return;
         }
-
-        InitializeServices();
         LocUi.Register();
         ThemeManager.Initialize();
         ThemeManager.Apply(Settings.Theme);

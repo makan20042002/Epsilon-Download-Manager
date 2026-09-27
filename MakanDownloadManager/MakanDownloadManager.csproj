@@ -11,6 +11,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationIcon>Assets\makan.ico</ApplicationIcon>
     <LangVersion>latest</LangVersion>
+    <StartupObject>MakanDownloadManager.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <!-- WPF + WinForms in one project: WinForms' implicit usings would make Application, MessageBox, Clipboard, Timer, Point, Path... ambiguous. -->
