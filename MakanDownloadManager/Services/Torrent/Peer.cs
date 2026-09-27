@@ -148,6 +148,7 @@ public sealed class PeerState
     public DateTime Connected { get; } = DateTime.UtcNow;
     public RateMeter Down { get; } = new();
     public RateMeter Up { get; } = new();
+    public AdaptivePipeline Pipeline { get; } = new();
     public int Strikes { get; set; }
     public PeerState(PeerConnection connection) => Connection = connection;
     public bool IsSeed => Have is { IsComplete: true };

@@ -133,12 +133,44 @@ public sealed partial class TorrentSession
     public Task Completed => _completed.Task;
     public Task MetadataReady => _metadataReady.Task;
 
+    public PeerCandidateManager CandidateManager { get; } = new();
+    public TorrentAsyncDiskPipeline DiskPipeline { get; } = new(32, 2);
+
+    public TorrentPerformanceMetrics GetMetricsSnapshot()
+    {
+        var peers = SnapshotPeers();
+        var useful = peers.Count(p => p.Pipeline.Health is PeerHealthClassification.Healthy or PeerHealthClassification.Excellent or PeerHealthClassification.Normal);
+        var stalled = peers.Count(p => p.Pipeline.Health == PeerHealthClassification.Stalled);
+        var seeds = peers.Count(p => p.IsSeed);
+        var avgRtt = peers.Count > 0 ? peers.Average(p => p.Pipeline.SmoothedRttMs) : 0.0;
+        var inFlight = peers.Sum(p => p.Outstanding.Count);
+
+        var metrics = new TorrentPerformanceMetrics
+        {
+            DownloadBytesPerSec = DownloadRate,
+            UploadBytesPerSec = UploadRate,
+            ConnectedPeers = peers.Count,
+            UsefulPeers = useful,
+            StalledPeers = stalled,
+            Seeds = seeds,
+            AverageRttMs = avgRtt,
+            TotalCandidates = CandidateManager.Count,
+            RequestsInFlight = inFlight,
+            DiskWriteBytesPerSec = DiskPipeline.WriteRateBytesPerSec,
+            HashingBytesPerSec = DiskPipeline.HashingRateBytesPerSec,
+            DiskQueueDepth = DiskPipeline.QueueDepth
+        };
+
+        metrics.EvaluateDiagnostics();
+        return metrics;
+    }
+
     public TorrentSession(TorrentEngine engine, byte[] infoHash, MagnetLink? magnet, MetaInfo? meta, string saveDirectory)
     {
         _engine = engine; _hash = infoHash; _magnet = magnet; _saveDirectory = saveDirectory;
         if (magnet != null) foreach (var url in magnet.Trackers) _trackers.Add(new TrackerEntry { Url = url, Tier = 0 });
         if (meta != null) SetMeta(meta, alreadyKnown: true);
-        if (magnet != null) foreach (var peer in magnet.Peers) if (TryParseEndpoint(peer, out var ep)) AddCandidate(ep);
+        if (magnet != null) foreach (var peer in magnet.Peers) if (TryParseEndpoint(peer, out var ep)) AddCandidate(ep, PeerSource.Manual);
     }
 
     static bool TryParseEndpoint(string text, out IPEndPoint ep)
@@ -382,12 +414,15 @@ public sealed partial class TorrentSession
 
     // ---------------------------------------------------------------- peers: finding and connecting
 
-    public void AddCandidate(IPEndPoint ep)
+    public void AddCandidate(IPEndPoint ep) => AddCandidate(ep, PeerSource.Manual);
+
+    public void AddCandidate(IPEndPoint ep, PeerSource source)
     {
         if (ep.Port == 0 || IPAddress.IsLoopback(ep.Address) && ep.Port == _engine.ListenPort && !_engine.AllowLocalPeers) return;
         lock (_sync)
         {
             if (_banned.Contains(ep.Address.ToString())) return;
+            CandidateManager.AddOrUpdate(ep, source);
             if (_known.Add(ep.ToString())) _candidates.Enqueue(ep);
         }
     }
@@ -603,7 +638,7 @@ public sealed partial class TorrentSession
         lock (_sync)
         {
             if (_meta == null || _state != TorrentState.Downloading || peer.PeerChoking || !peer.AmInterested || peer.Have == null) return;
-            var depth = (int)Math.Clamp(peer.Down.BytesPerSecond / 8192, 10, 64);
+            var depth = peer.Pipeline.CalculateOptimalDepth(peer.Down.BytesPerSecond);
             while (peer.Outstanding.Count + requests.Count < depth)
             {
                 var next = NextBlock(peer);
@@ -612,7 +647,10 @@ public sealed partial class TorrentSession
             }
         }
         foreach (var (piece, offset, length) in requests)
+        {
+            peer.Pipeline.TrackRequest(piece, offset, length);
             await peer.Connection.SendAsync(PeerConnection.Request, PeerConnection.RequestPayload(piece, offset, length), ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Picks the next block for this peer and records the request. Called with the lock held.</summary>
@@ -668,6 +706,7 @@ public sealed partial class TorrentSession
     /// <summary>Called with the lock held.</summary>
     void UnmarkRequested(PeerState peer, int piece, int offset)
     {
+        peer.Pipeline.RemoveRequest(piece, offset);
         if (_active.TryGetValue(piece, out var ap))
         {
             var block = offset / BlockSize;
@@ -681,6 +720,7 @@ public sealed partial class TorrentSession
         var piece = PeerConnection.ReadInt(payload, 0); var offset = PeerConnection.ReadInt(payload, 4); var length = payload.Length - 8;
         ActivePiece? finished = null;
         List<PeerState>? cancel = null;
+        peer.Pipeline.CompleteRequest(piece, offset, out _);
         lock (_sync)
         {
             peer.Outstanding.Remove((piece, offset));
@@ -695,7 +735,17 @@ public sealed partial class TorrentSession
             Buffer.BlockCopy(payload, 8, ap.Buffer, offset, length);
             ap.Received[block] = true; ap.ReceivedCount++;
             if (!ap.Contributors.Contains(peer)) ap.Contributors.Add(peer);
-            if (ap.Requesters[block] is { Count: > 0 } others) { cancel = others.ToList(); foreach (var o in cancel) o.Outstanding.Remove((piece, offset)); ap.Requesters[block]!.Clear(); }
+            if (ap.Requesters[block] is { Count: > 0 } others)
+            {
+                cancel = others.ToList();
+                foreach (var o in cancel)
+                {
+                    o.Outstanding.Remove((piece, offset));
+                    o.Pipeline.RemoveRequest(piece, offset);
+                    o.Pipeline.DuplicateRequests++;
+                }
+                ap.Requesters[block]!.Clear();
+            }
             Interlocked.Add(ref _downloadedTotal, length); _down.Add(length); peer.Down.Add(length);
             if (ap.ReceivedCount == ap.BlockCount) { _active.Remove(piece); _verifying.Add(piece); finished = ap; }
         after:;
