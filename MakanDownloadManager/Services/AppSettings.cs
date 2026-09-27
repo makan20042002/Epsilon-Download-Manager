@@ -73,9 +73,17 @@ public sealed class AppSettings
     /// <summary>"" | "chrome" | "edge" | "firefox" | "brave"</summary>
     public string YtCookiesBrowser { get => _store.Get("yt_cookies_browser") ?? ""; set => _store.Set("yt_cookies_browser", value); }
 
-    // ---- Appearance
-    /// <summary>"epsilon" | "dark" | "light" | "auto" (follow Windows)</summary>
-    public string Theme { get => Text("theme", "epsilon") is var t && (t == "dark" || t == "auto" || t == "orange" || t == "epsilon" || t == "light") ? t : "epsilon"; set => _store.Set("theme", value is "dark" or "auto" or "orange" or "epsilon" or "light" ? value : "epsilon"); }
+    /// <summary>"makan" | "obsidian" | "nebula" | "orange" | "light" | "auto" (follow Windows)</summary>
+    public string Theme
+    {
+        get
+        {
+            var raw = Text("theme", "makan");
+            if (raw is "dark" or "epsilon") return "makan";
+            return raw is "makan" or "obsidian" or "nebula" or "orange" or "light" or "auto" ? raw : "makan";
+        }
+        set => _store.Set("theme", value is "makan" or "obsidian" or "nebula" or "orange" or "light" or "auto" ? value : "makan");
+    }
 
     // ---- Connection / advanced (existing keys)
     public int MaxActive { get => int.TryParse(_store.Get("max_active"), out var v) ? Math.Clamp(v, 1, 16) : 4; set => _store.Set("max_active", Math.Clamp(value, 1, 16).ToString()); }

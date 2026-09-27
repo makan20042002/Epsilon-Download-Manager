@@ -48,7 +48,10 @@
             <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,16,0,6"/>
             <ComboBox x:Name="ThemeBox" Width="220" HorizontalAlignment="Left">
               <ComboBoxItem Content="Light"/>
-              <ComboBoxItem Content="Dark (blue grey)"/>
+              <ComboBoxItem Content="Orange"/>
+              <ComboBoxItem Content="Makan (blue grey)"/>
+              <ComboBoxItem Content="Obsidian (black)"/>
+              <ComboBoxItem Content="Nebula (dark violet)"/>
               <ComboBoxItem Content="Follow Windows"/>
             </ComboBox>
             <TextBlock Text="The theme changes as soon as you press OK." Foreground="{DynamicResource Muted}" Margin="0,6,0,0"/>

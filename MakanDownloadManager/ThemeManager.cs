@@ -15,7 +15,7 @@ namespace MakanDownloadManager;
 public static class ThemeManager
 {
     public static bool IsDark { get; private set; }
-    /// <summary>The theme actually in effect right now ("light" | "dark" | "orange") - what "auto" and Windows' own
+    /// <summary>The theme actually in effect right now ("light" | "orange" | "makan" | "obsidian" | "nebula") - what "auto" and Windows' own
     /// setting resolved to, not necessarily what's stored in Settings.Theme (which can be "auto").</summary>
     public static string Current { get; private set; } = "light";
     /// <summary>False when Themes/ControlStyles.xaml could not be loaded; the standard Windows controls are used then.</summary>
@@ -85,11 +85,11 @@ public static class ThemeManager
         catch (Exception) { return false; }
     }
 
-    /// <summary>mode: "light" | "dark" | "orange" | "auto" (auto only ever resolves to light or dark, following Windows - orange is always an explicit choice).</summary>
+    /// <summary>mode: "light" | "orange" | "makan" | "obsidian" | "nebula" | "auto"</summary>
     public static void Apply(string? mode)
     {
         var resolved = ThemePalette.Resolve(mode, WindowsUsesDarkApps());
-        var dark = resolved is "dark" or "epsilon";   // both are dark-background themes; only Light and Orange want the light-style OS title bar
+        var dark = resolved is "makan" or "obsidian" or "nebula" or "dark" or "epsilon";   // dark-background themes; Light and Orange want the light-style OS title bar
         var resources = Application.Current.Resources;
         var p = ThemePalette.For(resolved);
         foreach (var (name, hex) in p) resources[name] = Brush(hex);

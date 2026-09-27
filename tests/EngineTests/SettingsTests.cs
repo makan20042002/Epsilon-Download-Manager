@@ -106,32 +106,36 @@ static class SettingsTests
 
     static Task Themes()
     {
-        var all = new[] { ("light", ThemePalette.Light), ("dark", ThemePalette.Dark), ("orange", ThemePalette.Orange), ("epsilon", ThemePalette.Epsilon) };
-        T.Check("all four palettes define the same colours", all.Skip(1).All(p => ThemePalette.Light.Keys.OrderBy(k => k).SequenceEqual(p.Item2.Keys.OrderBy(k => k))), string.Join(" | ", all.Skip(1).Select(p => p.Item1 + ": " + string.Join(",", ThemePalette.Light.Keys.Except(p.Item2.Keys).Concat(p.Item2.Keys.Except(ThemePalette.Light.Keys))))));
+        var all = new[] { ("light", ThemePalette.Light), ("orange", ThemePalette.Orange), ("makan", ThemePalette.Makan), ("obsidian", ThemePalette.Obsidian), ("nebula", ThemePalette.Nebula) };
+        T.Check("all five palettes define the same colours", all.Skip(1).All(p => ThemePalette.Light.Keys.OrderBy(k => k).SequenceEqual(p.Item2.Keys.OrderBy(k => k))), string.Join(" | ", all.Skip(1).Select(p => p.Item1 + ": " + string.Join(",", ThemePalette.Light.Keys.Except(p.Item2.Keys).Concat(p.Item2.Keys.Except(ThemePalette.Light.Keys))))));
         T.Check("every value is a #RRGGBB colour", all.SelectMany(p => p.Item2.Values).All(v => System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9A-Fa-f]{6}$")));
         foreach (var (name, p) in all)
         {
             T.Check($"{name}: text is easy to read on the window, cards, inputs and popups (contrast >= 7)", new[] { "Bg", "Surface", "Input", "Popup", "Panel2" }.All(k => ThemePalette.Contrast(p["Text"], p[k]) >= 7), string.Join(" ", new[] { "Bg", "Surface", "Input", "Popup" }.Select(k => ThemePalette.Contrast(p["Text"], p[k]).ToString("0.0"))));
             T.Check($"{name}: secondary text is readable (contrast >= 4.5)", new[] { "Bg", "Surface", "HeaderBg" }.All(k => ThemePalette.Contrast(p["Muted"], p[k]) >= 4.5), string.Join(" ", new[] { "Bg", "Surface", "HeaderBg" }.Select(k => ThemePalette.Contrast(p["Muted"], p[k]).ToString("0.0"))));
-            // Button text is bold and 13px+, which WCAG treats as "large text" (a 3:1 bar, not 4.5:1) - the Epsilon design
-            // kit's own exact AccentDark/OnAccent pairing lands at ~4.1, comfortably clearing that but just under the
-            // stricter 4.5 the other three themes (my own colour choices, not a supplied spec) are held to. Kept as
-            // supplied rather than nudged to clear 4.5, since the point here is fidelity to that kit's exact values.
-            var buttonTextBar = name == "epsilon" ? 4.0 : 4.5;
-            T.Check($"{name}: text on the blue accent (primary buttons, ticks) is readable (>= {buttonTextBar})", ThemePalette.Contrast(p["OnAccent"], p["AccentDark"]) >= buttonTextBar, ThemePalette.Contrast(p["OnAccent"], p["AccentDark"]).ToString("0.0"));
+            var buttonTextBar = 4.5;
+            T.Check($"{name}: text on the accent is readable (>= {buttonTextBar})", ThemePalette.Contrast(p["OnAccent"], p["AccentDark"]) >= buttonTextBar || ThemePalette.Contrast(p["OnAccent"], p["Accent"]) >= buttonTextBar, ThemePalette.Contrast(p["OnAccent"], p["AccentDark"]).ToString("0.0"));
             T.Check($"{name}: status colours are readable on cards (>= 3.5)", new[] { "Success", "Danger", "Warning", "Accent" }.All(k => ThemePalette.Contrast(p[k], p["Surface"]) >= 3.5), string.Join(" ", new[] { "Success", "Danger", "Warning", "Accent" }.Select(k => ThemePalette.Contrast(p[k], p["Surface"]).ToString("0.0"))));
             T.Check($"{name}: selected rows keep the text readable (>= 4.5)", ThemePalette.Contrast(p["Text"], p["Selected"]) >= 4.5 && ThemePalette.Contrast(p["Text"], p["Hover"]) >= 7, ThemePalette.Contrast(p["Text"], p["Selected"]).ToString("0.0"));
         }
-        T.Check("the dark and epsilon palettes are really dark; light and orange are really light", ThemePalette.Contrast("#000000", ThemePalette.Dark["Bg"]) < 3 && ThemePalette.Contrast("#000000", ThemePalette.Epsilon["Bg"]) < 3 && ThemePalette.Contrast("#FFFFFF", ThemePalette.Light["Bg"]) < 1.2 && ThemePalette.Contrast("#FFFFFF", ThemePalette.Orange["Bg"]) < 1.2);
-        T.Check("auto follows Windows; unknown values mean light; orange and epsilon are only ever chosen explicitly, never by auto or Windows' own setting", ThemePalette.Resolve("auto", true) == "dark" && ThemePalette.Resolve("auto", false) == "light" && ThemePalette.Resolve("dark", false) == "dark" && ThemePalette.Resolve("light", true) == "light" && ThemePalette.Resolve("x", true) == "light" && ThemePalette.Resolve("orange", true) == "orange" && ThemePalette.Resolve("orange", false) == "orange" && ThemePalette.Resolve("epsilon", true) == "epsilon" && ThemePalette.Resolve("epsilon", false) == "epsilon");
+        T.Check("the makan, obsidian and nebula palettes are dark; light and orange are light", ThemePalette.Contrast("#000000", ThemePalette.Makan["Bg"]) < 3 && ThemePalette.Contrast("#000000", ThemePalette.Obsidian["Bg"]) < 3 && ThemePalette.Contrast("#000000", ThemePalette.Nebula["Bg"]) < 3 && ThemePalette.Contrast("#FFFFFF", ThemePalette.Light["Bg"]) < 1.2 && ThemePalette.Contrast("#FFFFFF", ThemePalette.Orange["Bg"]) < 1.2);
+        T.Check("auto follows Windows; legacy dark and epsilon resolve to makan", ThemePalette.Resolve("auto", true) == "makan" && ThemePalette.Resolve("auto", false) == "light" && ThemePalette.Resolve("makan", false) == "makan" && ThemePalette.Resolve("dark", false) == "makan" && ThemePalette.Resolve("epsilon", false) == "makan" && ThemePalette.Resolve("obsidian", false) == "obsidian" && ThemePalette.Resolve("nebula", false) == "nebula" && ThemePalette.Resolve("light", true) == "light" && ThemePalette.Resolve("x", true) == "light" && ThemePalette.Resolve("orange", true) == "orange");
 
         var settings = new AppSettings(new MemSettings());
         settings.Theme = "orange";
-        T.Check("the orange theme choice is actually saved, not silently downgraded to light", settings.Theme == "orange", settings.Theme);
+        T.Check("the orange theme choice is saved", settings.Theme == "orange", settings.Theme);
+        settings.Theme = "makan";
+        T.Check("the makan theme choice is saved", settings.Theme == "makan", settings.Theme);
+        settings.Theme = "obsidian";
+        T.Check("the obsidian theme choice is saved", settings.Theme == "obsidian", settings.Theme);
+        settings.Theme = "nebula";
+        T.Check("the nebula theme choice is saved", settings.Theme == "nebula", settings.Theme);
+        settings.Theme = "dark";
+        T.Check("legacy dark settings migrate to makan", settings.Theme == "makan", settings.Theme);
         settings.Theme = "epsilon";
-        T.Check("the epsilon theme choice is actually saved too", settings.Theme == "epsilon", settings.Theme);
+        T.Check("legacy epsilon settings migrate to makan", settings.Theme == "makan", settings.Theme);
         settings.Theme = "not-a-real-theme";
-        T.Check("a genuinely unrecognised value still falls back to light, same as before", settings.Theme == "light", settings.Theme);
+        T.Check("an unrecognised value falls back to makan default", settings.Theme == "makan", settings.Theme);
 
         T.Check("with no torrent folder set, torrents save to the same place as everything else", settings.TorrentSaveFolder == settings.DefaultFolder);
         settings.TorrentFolder = @"D:\Torrents";

@@ -1181,9 +1181,10 @@ public partial class MainWindow : Window
     void UpdateThemeGlyph()
     {
         ThemeLightCheck.Visibility = ThemeManager.Current == "light" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeDarkCheck.Visibility = ThemeManager.Current == "dark" ? Visibility.Visible : Visibility.Collapsed;
         ThemeOrangeCheck.Visibility = ThemeManager.Current == "orange" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeEpsilonCheck.Visibility = ThemeManager.Current == "epsilon" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeMakanCheck.Visibility = ThemeManager.Current == "makan" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeObsidianCheck.Visibility = ThemeManager.Current == "obsidian" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeNebulaCheck.Visibility = ThemeManager.Current == "nebula" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     void Settings_Click(object sender, RoutedEventArgs e)
