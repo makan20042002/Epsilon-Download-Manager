@@ -30,8 +30,8 @@ public partial class InputDialog : Window
 
     void Continue_Click(object sender, RoutedEventArgs e)
     {
-        if (Uri.TryCreate(Url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https") DialogResult = true;
-        else Dlg.Show("Enter a valid HTTP/HTTPS link.", "Makan", MessageBoxButton.OK, MessageBoxImage.Warning);
+        if ((Uri.TryCreate(Url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" or "magnet") || Services.DownloadManager.IsTorrentUrl(Url)) DialogResult = true;
+        else Dlg.Show("Enter a valid link (HTTP, HTTPS, or Magnet).", "Epsilon Download Manager", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;

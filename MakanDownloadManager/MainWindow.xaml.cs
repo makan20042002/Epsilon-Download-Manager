@@ -728,6 +728,14 @@ public partial class MainWindow : Window
 
     void AddOne(DownloadPrompt p)
     {
+        if (DownloadManager.IsTorrentUrl(p.Url))
+        {
+            var result = App.Manager.AddTorrent(p.Url, App.Settings.TorrentSaveFolder);
+            if (result.Error != null) { Dlg.Show(this, result.Error, "Add torrent", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+            Footer.Text = Loc.T(result.Duplicate ? "Already in the list" : "Download started");
+            if (!result.Duplicate) TorrentWindow.ShowFor(result.Item!, this);
+            return;
+        }
         if (!LooksLikeUrl(p.Url)) return;
         if (YtDlpService.IsYouTubeUrl(p.Url)) { Prompt(() => ShowYouTubeDialog(p.Url)); return; }   // YouTube: choose the quality first
         if (AskFirst) PromptDownload(p); else QuickAdd(p);
@@ -1101,8 +1109,19 @@ public partial class MainWindow : Window
     void Open_Click(object? sender, RoutedEventArgs? e)
     {
         if (Selected() is not { } item) return;
-        if (item.Status == nameof(DownloadStatus.Complete) && File.Exists(item.FilePath))
+        if (DownloadManager.IsTorrentUrl(item.Url) && item.Status != nameof(DownloadStatus.Complete))
+        {
+            TorrentWindow.ShowFor(item, this);
+            return;
+        }
+        if (File.Exists(item.FilePath))
             try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true }); } catch (Exception ex) { Footer.Text = ex.Message; }
+        else if (Directory.Exists(item.FilePath))
+            try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true }); } catch (Exception ex) { Footer.Text = ex.Message; }
+        else if (DownloadManager.IsTorrentUrl(item.Url))
+            TorrentWindow.ShowFor(item, this);
+        else if (item.Status != nameof(DownloadStatus.Complete) && item.Status != nameof(DownloadStatus.Cancelled))
+            DownloadProgressWindow.ShowFor(item);
     }
 
     /// <summary>Opens whatever has downloaded so far in the default player. Only the portion known to be gap-free from
@@ -1255,7 +1274,7 @@ public partial class MainWindow : Window
 
     // ---------------------------------------------------------------- helpers
 
-    static bool LooksLikeUrl(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https");
+    static bool LooksLikeUrl(string value) => (Uri.TryCreate(value, UriKind.Absolute, out var uri) && (uri.Scheme is "http" or "https" or "magnet" or "file")) || DownloadManager.IsTorrentUrl(value);
     static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>Every http(s) link in the text, one per line or whitespace-separated, without duplicates.</summary>
