@@ -40,7 +40,26 @@ public partial class App : Application
         var torrentArg = e.Args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && DownloadManager.IsTorrentUrl(a));
 
         // One running copy only: a second launch just brings the first one to the front (and hands over a magnet link / .torrent file, if that's what was opened).
-        _singleInstance = new Mutex(true, @"Local\MakanDownloadManager.SingleInstance", out var isFirst);
+        bool isFirst;
+        try
+        {
+            _singleInstance = new Mutex(true, @"Local\MakanDownloadManager.SingleInstance", out isFirst);
+        }
+        catch (System.Threading.AbandonedMutexException)
+        {
+            isFirst = true;
+        }
+
+        var currentPid = Environment.ProcessId;
+        var otherProcesses = System.Diagnostics.Process.GetProcessesByName("MakanDownloadManager")
+            .Where(p => p.Id != currentPid)
+            .ToList();
+
+        if (!isFirst && otherProcesses.Count == 0)
+        {
+            isFirst = true;
+        }
+
         if (!isFirst)
         {
             if (torrentArg != null) AskRunningInstanceToOpen(torrentArg);
