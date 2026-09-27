@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Epsilon Download Manager",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Epsilon Download Manager 15.1 browser integration with smart capture, media detection, queues and download basket.",
   "permissions": [
     "contextMenus",

@@ -1,7 +1,7 @@
 ; Epsilon Download Manager - one-file installer (Inno Setup 6.3 or newer; free: https://jrsoftware.org/isdl.php)
 ; Build with build-installer.ps1 (it publishes first, then runs this script).
 #define MyAppName "Epsilon Download Manager"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Makan A.D."
 #define MyAppURL "https://makanlab.tech"
 #define MyAppExeName "MakanDownloadManager.exe"

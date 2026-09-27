@@ -113,11 +113,12 @@ public sealed partial class DownloadManager
         catch (InvalidDataException) { DeletePartialFiles(item); throw; }
 
         var finalLength = new FileInfo(temp).Length;
-        if (item.TotalBytes.HasValue && finalLength != item.TotalBytes.Value)
+        if (finalLength == 0 && (item.TotalBytes ?? 0) > 0)
         {
             DeletePartialFiles(item);
-            throw new InvalidDataException($"Downloaded file size mismatch. Expected {item.TotalBytes.Value} bytes, got {finalLength}.");
+            throw new InvalidDataException("Downloaded file is empty.");
         }
+        item.TotalBytes = finalLength;
 
         AtomicReplace(temp, item.FilePath);
         DownloadStateManifest.Delete(item);
@@ -695,11 +696,25 @@ public sealed partial class DownloadManager
 
     static void AtomicReplace(string source, string target)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(target))!);
-        if (!File.Exists(target)) { File.Move(source, target, true); return; }
-        var backup = target + ".bak";
-        try { File.Replace(source, target, backup, true); TryDelete(backup); }
-        catch { TryDelete(target); File.Move(source, target, true); TryDelete(backup); }
+        var dir = Path.GetDirectoryName(Path.GetFullPath(target));
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        try
+        {
+            if (File.Exists(target)) File.Delete(target);
+            File.Move(source, target, true);
+        }
+        catch
+        {
+            try
+            {
+                File.Copy(source, target, true);
+                TryDelete(source);
+            }
+            catch (Exception ex)
+            {
+                throw new IOException($"Could not move downloaded file to destination '{target}': {ex.Message}", ex);
+            }
+        }
     }
 
     sealed class RangeNotSupportedException : IOException { }

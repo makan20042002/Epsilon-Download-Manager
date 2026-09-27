@@ -87,7 +87,7 @@ public sealed class BridgeResponse
 public sealed class NativeBridge : IDisposable
 {
     public const string PipeName = "com.makan.downloadmanager";
-    public const string Version = "1.0.0";
+    public const string Version = "1.1.0";
 
     static readonly JsonSerializerOptions In = new() { PropertyNameCaseInsensitive = true };
     static readonly JsonSerializerOptions Out = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };

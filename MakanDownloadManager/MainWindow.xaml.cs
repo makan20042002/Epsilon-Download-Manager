@@ -385,7 +385,7 @@ public partial class MainWindow : Window
                 using var process = Process.Start(new ProcessStartInfo(program, args) { UseShellExecute = false, CreateNoWindow = true });
                 if (process == null) return;
                 await process.WaitForExitAsync().WaitAsync(TimeSpan.FromMinutes(10));
-                if (process.ExitCode != 0) await Dispatcher.InvokeAsync(() => NotifyUser("Epsilon Download Manager", Loc.F("The antivirus program reported a problem with {0}", name)));
+                if (process.ExitCode != 0 && process.ExitCode != 2) await Dispatcher.InvokeAsync(() => NotifyUser("Epsilon Download Manager", Loc.F("The antivirus program reported a problem with {0}", name)));
             }
             catch (Exception) { /* no antivirus / timed out: nothing to report */ }
         });

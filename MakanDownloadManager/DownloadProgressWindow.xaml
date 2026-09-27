@@ -101,7 +101,7 @@
       </Setter>
     </Style>
 
-    <!-- .eps-mainbar: 12px pill shape with 100px rounded caps and cyan glow -->
+    <!-- .eps-mainbar: 12px clean rectangular bar -->
     <Style x:Key="MainBarStyle" TargetType="ProgressBar">
       <Setter Property="Foreground" Value="{StaticResource BrandGrad}"/>
       <Setter Property="Background" Value="#141D2B"/>
@@ -109,11 +109,11 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ProgressBar">
-            <Border x:Name="TemplateRoot" Background="{TemplateBinding Background}" CornerRadius="100" ClipToBounds="True">
+            <Border x:Name="TemplateRoot" Background="{TemplateBinding Background}" CornerRadius="0" ClipToBounds="True">
               <Border x:Name="PART_Track">
-                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="100">
+                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="0">
                   <Border.Effect>
-                    <DropShadowEffect Color="#13C8F5" BlurRadius="18" ShadowDepth="0" Opacity="0.5"/>
+                    <DropShadowEffect Color="#13C8F5" BlurRadius="12" ShadowDepth="0" Opacity="0.4"/>
                   </Border.Effect>
                 </Border>
               </Border>
@@ -123,7 +123,7 @@
       </Setter>
     </Style>
 
-    <!-- .eps-conn-bar: 6px pill shape -->
+    <!-- .eps-conn-bar: 6px clean rectangular bar -->
     <Style x:Key="ConnBarStyle" TargetType="ProgressBar">
       <Setter Property="Foreground" Value="{StaticResource ConnGrad}"/>
       <Setter Property="Background" Value="#141D2B"/>
@@ -133,9 +133,9 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ProgressBar">
-            <Border x:Name="TemplateRoot" Background="{TemplateBinding Background}" CornerRadius="100" ClipToBounds="True">
+            <Border x:Name="TemplateRoot" Background="{TemplateBinding Background}" CornerRadius="0" ClipToBounds="True">
               <Border x:Name="PART_Track">
-                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="100"/>
+                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="0"/>
               </Border>
             </Border>
           </ControlTemplate>

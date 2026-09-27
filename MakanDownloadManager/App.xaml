@@ -159,7 +159,25 @@
       <Setter Property="CaretBrush" Value="{DynamicResource Accent}"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
-    <Style TargetType="TreeViewItem"><Setter Property="Padding" Value="4,5"/></Style>
+    <!-- Fundamental rectangular ProgressBar -->
+    <Style TargetType="ProgressBar">
+      <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+      <Setter Property="Background" Value="{DynamicResource Track}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="MinHeight" Value="6"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ProgressBar">
+            <Border x:Name="TemplateRoot" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="0" SnapsToDevicePixels="True">
+              <Border x:Name="PART_Track">
+                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="0"/>
+              </Border>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Application.Resources>
 </Application>
 
