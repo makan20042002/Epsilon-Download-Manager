@@ -17,12 +17,13 @@ static class Program
                 item.Id = db.Add(item);
                 var loaded = db.Get(item.Id)!;
                 Check("round-trip", loaded.Cookie == item.Cookie);
-                var raw = File.ReadAllBytes(path);
-                Check("cookie is not stored as plaintext", !System.Text.Encoding.UTF8.GetString(raw).Contains("secret-token", StringComparison.Ordinal));
                 Check("integrity check", db.IntegrityCheck());
                 db.Save(loaded);
                 Check("backup exists", File.Exists(path + ".backup"));
             }
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            var raw = File.ReadAllBytes(path);
+            Check("cookie is not stored as plaintext", !System.Text.Encoding.UTF8.GetString(raw).Contains("secret-token", StringComparison.Ordinal));
             // Legacy plaintext cookie migration: DB can still be read and is re-encrypted on next save.
             using (var db = new DownloadDb(path)) { db.Initialize(); var x = db.Get(1)!; Check("reopen", x.Cookie == "session=secret-token"); }
             Console.WriteLine("Database tests passed."); return 0;

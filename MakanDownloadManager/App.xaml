@@ -2,40 +2,54 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Application.Resources>
-    <!-- Colours. These are the LIGHT values; ThemeManager (ThemeManager.cs / Services/ThemePalette.cs) replaces them when the dark
-         "blue grey" theme is chosen, so every window must refer to them with DynamicResource. -->
-    <SolidColorBrush x:Key="Bg" Color="#F3F5F9"/>
-    <SolidColorBrush x:Key="Panel" Color="#F3F5F9"/>
-    <SolidColorBrush x:Key="Panel2" Color="#E8EDF6"/>
-    <SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="Border" Color="#E1E6EE"/>
-    <SolidColorBrush x:Key="Text" Color="#1B2430"/>
-    <SolidColorBrush x:Key="Muted" Color="#5F6B7A"/>
-    <SolidColorBrush x:Key="Faint" Color="#8A93A3"/>
-    <SolidColorBrush x:Key="Accent" Color="#2F6FEB"/>
-    <SolidColorBrush x:Key="AccentDark" Color="#1F56C4"/>
-    <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="Hover" Color="#EDF2FC"/>
-    <SolidColorBrush x:Key="Selected" Color="#DCE7FC"/>
-    <SolidColorBrush x:Key="Success" Color="#15803D"/>
-    <SolidColorBrush x:Key="Danger" Color="#C62828"/>
-    <SolidColorBrush x:Key="Warning" Color="#B45309"/>
-    <SolidColorBrush x:Key="SuccessBg" Color="#E7F6EC"/>
-    <SolidColorBrush x:Key="HeaderBg" Color="#F8FAFD"/>
-    <SolidColorBrush x:Key="Track" Color="#E3E8F1"/>
-    <SolidColorBrush x:Key="Input" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="InputBorder" Color="#CBD2DE"/>
-    <SolidColorBrush x:Key="Popup" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="IconGrey" Color="#5B6577"/>
-    <SolidColorBrush x:Key="IconPurple" Color="#7C3AED"/>
-    <SolidColorBrush x:Key="IconTeal" Color="#0E7490"/>
-    <SolidColorBrush x:Key="ScrollThumb" Color="#C3CAD6"/>
-    <SolidColorBrush x:Key="ScrollThumbHover" Color="#A7B0BF"/>
-    <SolidColorBrush x:Key="Disabled" Color="#9AA3B0"/>
-    <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <!-- Colours: Makan Luxury Theme Palette. ThemeManager replaces them when switching themes. -->
+    <SolidColorBrush x:Key="Bg" Color="#07111F"/>
+    <SolidColorBrush x:Key="Panel" Color="#0B1728"/>
+    <SolidColorBrush x:Key="Panel2" Color="#101D30"/>
+    <SolidColorBrush x:Key="Surface" Color="#14243A"/>
+    <SolidColorBrush x:Key="Border" Color="#213650"/>
+    <SolidColorBrush x:Key="Text" Color="#F4F8FF"/>
+    <SolidColorBrush x:Key="Muted" Color="#A9B8CC"/>
+    <SolidColorBrush x:Key="Faint" Color="#667A94"/>
+    <SolidColorBrush x:Key="Accent" Color="#39F5B0"/>
+    <SolidColorBrush x:Key="AccentDark" Color="#38D9FF"/>
+    <SolidColorBrush x:Key="OnAccent" Color="#07111F"/>
+    <SolidColorBrush x:Key="Hover" Color="#162B46"/>
+    <SolidColorBrush x:Key="Selected" Color="#1C3556"/>
+    <SolidColorBrush x:Key="Success" Color="#39F5B0"/>
+    <SolidColorBrush x:Key="Danger" Color="#FF5C7A"/>
+    <SolidColorBrush x:Key="Warning" Color="#F6C453"/>
+    <SolidColorBrush x:Key="SuccessBg" Color="#0D2A22"/>
+    <SolidColorBrush x:Key="HeaderBg" Color="#0B1728"/>
+    <SolidColorBrush x:Key="Track" Color="#101D30"/>
+    <SolidColorBrush x:Key="Input" Color="#0B1728"/>
+    <SolidColorBrush x:Key="InputBorder" Color="#213650"/>
+    <SolidColorBrush x:Key="Popup" Color="#101D30"/>
+    <SolidColorBrush x:Key="IconGrey" Color="#A9B8CC"/>
+    <SolidColorBrush x:Key="IconPurple" Color="#A78BFA"/>
+    <SolidColorBrush x:Key="IconTeal" Color="#38D9FF"/>
+    <SolidColorBrush x:Key="IconAmber" Color="#F6C453"/>
+    <SolidColorBrush x:Key="ScrollThumb" Color="#213650"/>
+    <SolidColorBrush x:Key="ScrollThumbHover" Color="#38D9FF"/>
+    <SolidColorBrush x:Key="Disabled" Color="#4A5668"/>
+    
+    <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI, Inter</FontFamily>
     <FontFamily x:Key="IconFont">Segoe MDL2 Assets</FontFamily>
+    <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Courier New</FontFamily>
 
-    <!-- every window: font, colours, crisp rendering (assign with Style="{StaticResource AppWindow}") -->
+    <!-- Brand & Connection Gradients -->
+    <LinearGradientBrush x:Key="BrandGrad" StartPoint="0,0.5" EndPoint="1,0.5">
+      <GradientStop Color="#39F5B0" Offset="0"/>
+      <GradientStop Color="#38D9FF" Offset="0.5"/>
+      <GradientStop Color="#4D7CFF" Offset="1"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ConnGrad" StartPoint="0,0.5" EndPoint="1,0.5">
+      <GradientStop Color="#4D7CFF" Offset="0"/>
+      <GradientStop Color="#38D9FF" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- every window: font, colours, crisp rendering -->
     <Style x:Key="AppWindow" TargetType="Window">
       <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="FontSize" Value="13"/>
@@ -45,11 +59,11 @@
       <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
 
-    <!-- buttons: rounded, flat; explicit Background/Foreground on a button still win (used for the blue primary buttons) -->
+    <!-- Buttons -->
     <Style TargetType="Button">
       <Setter Property="Background" Value="{DynamicResource Surface}"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Padding" Value="16,7"/>
       <Setter Property="Margin" Value="4"/>
@@ -58,19 +72,29 @@
         <Setter.Value>
           <ControlTemplate TargetType="Button">
             <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="7" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                    CornerRadius="8" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Opacity" Value="0.86"/></Trigger>
-              <Trigger Property="IsPressed" Value="True"><Setter TargetName="bd" Property="Opacity" Value="0.7"/></Trigger>
-              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
-              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="bd" Property="Opacity" Value="0.45"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Hover}"/>
+                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentDark}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Selected}"/>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+              </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
     </Style>
+
     <Style x:Key="CardBorder" TargetType="Border">
       <Setter Property="Background" Value="{DynamicResource Surface}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
@@ -78,34 +102,34 @@
       <Setter Property="CornerRadius" Value="12"/>
       <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
+
     <Style x:Key="StatusPill" TargetType="Border">
-      <Setter Property="Background" Value="{DynamicResource Bg}"/>
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="9"/>
-      <Setter Property="Padding" Value="9,5"/>
+      <Setter Property="CornerRadius" Value="100"/>
+      <Setter Property="Padding" Value="11,5"/>
       <Setter Property="Margin" Value="0,0,7,0"/>
     </Style>
 
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Background" Value="{DynamicResource AccentDark}"/>
+      <Setter Property="Background" Value="{StaticResource BrandGrad}"/>
       <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentDark}"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
-    <!-- inputs -->
+    <!-- Inputs -->
     <Style TargetType="TextBox">
-      <Setter Property="Padding" Value="7,5"/>
+      <Setter Property="Padding" Value="9,6"/>
       <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Background" Value="{DynamicResource Input}"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-      <Setter Property="CaretBrush" Value="{DynamicResource Text}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource Accent}"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
-    <Style TargetType="TreeViewItem"><Setter Property="Padding" Value="2,4"/></Style>
-    <!-- ComboBox, CheckBox, RadioButton, GroupBox, TabControl, Menu, ScrollBar, list headers ... : Themes/ControlStyles.xaml,
-         loaded (and tested) at start-up by ThemeManager so a dark theme is possible; without it the standard Windows look is used. -->
+    <Style TargetType="TreeViewItem"><Setter Property="Padding" Value="4,5"/></Style>
   </Application.Resources>
 </Application>
+

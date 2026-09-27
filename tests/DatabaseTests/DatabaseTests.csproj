@@ -2,11 +2,7 @@
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><UseAppHost>false</UseAppHost><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <ProjectReference Include="../../MakanDownloadManager/MakanDownloadManager.csproj" />
     <Compile Include="Program.cs" />
-    <Compile Include="../../MakanDownloadManager/Models/DownloadItem.cs" />
-    <Compile Include="../../MakanDownloadManager/Services/IDownloadStore.cs" />
-    <Compile Include="../../MakanDownloadManager/Services/CategoryService.cs" />
-    <Compile Include="../../MakanDownloadManager/Services/SecretProtector.cs" />
-    <Compile Include="../../MakanDownloadManager/Services/DownloadDb.cs" />
   </ItemGroup>
 </Project>

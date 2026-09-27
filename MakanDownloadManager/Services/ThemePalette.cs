@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace MakanDownloadManager.Services;
 
-/// <summary>Colours of the app's themes: light, dark "blue grey", and orange/bone-white. The window code turns each entry into a brush of the same name.</summary>
+/// <summary>Colours of the app's themes: light, dark "blue grey", orange/bone-white, and Makan Luxury (epsilon).</summary>
 public static class ThemePalette
 {
     public static readonly IReadOnlyDictionary<string, string> Light = new Dictionary<string, string>
@@ -19,22 +19,18 @@ public static class ThemePalette
 
     public static readonly IReadOnlyDictionary<string, string> Dark = new Dictionary<string, string>
     {
-        // VS Code's actual "Dark+" colours (editor.background, sidebar.background, list.activeSelectionBackground, etc.) -
-        // a scheme tested daily by millions of people, used in place of the earlier navy attempt.
-        ["Bg"] = "#1E1E1E", ["Panel"] = "#1E1E1E", ["Panel2"] = "#252526", ["Surface"] = "#252526", ["Border"] = "#3C3C3C",
-        ["Text"] = "#D4D4D4", ["Muted"] = "#B0B0B0", ["Faint"] = "#8A8A8A",
-        ["Accent"] = "#3794FF", ["AccentDark"] = "#0E639C", ["OnAccent"] = "#FFFFFF",
-        ["Hover"] = "#2A2D2E", ["Selected"] = "#04395E",
-        ["Success"] = "#20E878", ["Danger"] = "#F14C4C", ["Warning"] = "#E2C08D", ["SuccessBg"] = "#1B3B2B",
-        ["HeaderBg"] = "#252526", ["Track"] = "#3C3C3C", ["Input"] = "#3C3C3C", ["InputBorder"] = "#5A5A5A", ["Popup"] = "#252526",
-        ["IconGrey"] = "#C5C5C5", ["IconPurple"] = "#C586C0", ["IconTeal"] = "#4EC9B0", ["IconAmber"] = "#D7BA7D",
-        ["ScrollThumb"] = "#4F4F4F", ["ScrollThumbHover"] = "#5F5F5F", ["Disabled"] = "#767676"
+        ["Bg"] = "#07111F", ["Panel"] = "#0B1728", ["Panel2"] = "#101D30", ["Surface"] = "#14243A", ["Border"] = "#213650",
+        ["Text"] = "#F4F8FF", ["Muted"] = "#A9B8CC", ["Faint"] = "#667A94",
+        ["Accent"] = "#39F5B0", ["AccentDark"] = "#38D9FF", ["OnAccent"] = "#07111F",
+        ["Hover"] = "#162B46", ["Selected"] = "#1C3556",
+        ["Success"] = "#39F5B0", ["Danger"] = "#FF5C7A", ["Warning"] = "#F6C453", ["SuccessBg"] = "#0D2A22",
+        ["HeaderBg"] = "#0B1728", ["Track"] = "#101D30", ["Input"] = "#0B1728", ["InputBorder"] = "#213650", ["Popup"] = "#101D30",
+        ["IconGrey"] = "#A9B8CC", ["IconPurple"] = "#A78BFA", ["IconTeal"] = "#38D9FF", ["IconAmber"] = "#F6C453",
+        ["ScrollThumb"] = "#213650", ["ScrollThumbHover"] = "#38D9FF", ["Disabled"] = "#4A5668"
     };
 
-    /// <summary>"light" | "dark" for the setting "light" | "dark" | "auto".</summary>
     public static readonly IReadOnlyDictionary<string, string> Orange = new Dictionary<string, string>
     {
-        // Bone-white background with a warm orange accent - a separate, additive theme; Light and Dark above are untouched.
         ["Bg"] = "#FAF6EF", ["Panel"] = "#FAF6EF", ["Panel2"] = "#F2EBDD", ["Surface"] = "#FFFFFF", ["Border"] = "#E6DCC8",
         ["Text"] = "#3A2E1F", ["Muted"] = "#7A6A54", ["Faint"] = "#9C8D77",
         ["Accent"] = "#D6690A", ["AccentDark"] = "#B85400", ["OnAccent"] = "#FFFFFF",
@@ -47,18 +43,14 @@ public static class ThemePalette
 
     public static readonly IReadOnlyDictionary<string, string> Epsilon = new Dictionary<string, string>
     {
-        // From the Epsilon UI design kit (THEME.md / theme/EpsilonTheme.xaml) - exact hex values from that spec, not
-        // re-derived, so this stays a faithful match to the kit rather than a "close enough" reinterpretation of it.
-        // Four keys the kit doesn't name directly (the four Icon* roles) are mapped from its own semantic colours:
-        // grey->Muted, purple->its Violet extra, teal->its Cyan accent, amber->its Amber warning colour.
-        ["Bg"] = "#070C16", ["Panel"] = "#060B14", ["Panel2"] = "#0E1A2C", ["Surface"] = "#0B1422", ["Border"] = "#1C2839",
-        ["Text"] = "#EAF1F7", ["Muted"] = "#93A1B5", ["Faint"] = "#5E6B7E",
-        ["Accent"] = "#13C8F5", ["AccentDark"] = "#1F6FEB", ["OnAccent"] = "#03111A",
-        ["Hover"] = "#0F1A2A", ["Selected"] = "#0C2233",
-        ["Success"] = "#22E58A", ["Danger"] = "#FF6B6B", ["Warning"] = "#FFB44A", ["SuccessBg"] = "#0D2A22",
-        ["HeaderBg"] = "#0E1A2C", ["Track"] = "#141D2B", ["Input"] = "#08101C", ["InputBorder"] = "#26344A", ["Popup"] = "#0E1A2C",
-        ["IconGrey"] = "#93A1B5", ["IconPurple"] = "#A78BFA", ["IconTeal"] = "#13C8F5", ["IconAmber"] = "#FFB44A",
-        ["ScrollThumb"] = "#26344A", ["ScrollThumbHover"] = "#34465F", ["Disabled"] = "#4A5668"
+        ["Bg"] = "#07111F", ["Panel"] = "#0B1728", ["Panel2"] = "#101D30", ["Surface"] = "#14243A", ["Border"] = "#213650",
+        ["Text"] = "#F4F8FF", ["Muted"] = "#A9B8CC", ["Faint"] = "#667A94",
+        ["Accent"] = "#39F5B0", ["AccentDark"] = "#38D9FF", ["OnAccent"] = "#07111F",
+        ["Hover"] = "#162B46", ["Selected"] = "#1C3556",
+        ["Success"] = "#39F5B0", ["Danger"] = "#FF5C7A", ["Warning"] = "#F6C453", ["SuccessBg"] = "#0D2A22",
+        ["HeaderBg"] = "#0B1728", ["Track"] = "#101D30", ["Input"] = "#0B1728", ["InputBorder"] = "#213650", ["Popup"] = "#101D30",
+        ["IconGrey"] = "#A9B8CC", ["IconPurple"] = "#A78BFA", ["IconTeal"] = "#38D9FF", ["IconAmber"] = "#F6C453",
+        ["ScrollThumb"] = "#213650", ["ScrollThumbHover"] = "#38D9FF", ["Disabled"] = "#4A5668"
     };
 
     public static string Resolve(string? mode, bool windowsIsDark) => mode switch { "orange" => "orange", "epsilon" => "epsilon", "dark" => "dark", "auto" when windowsIsDark => "dark", _ => "light" };
@@ -84,3 +76,4 @@ public static class ThemePalette
         return (hi + 0.05) / (lo + 0.05);
     }
 }
+
