@@ -7,9 +7,10 @@ const send = (message) => ext.runtime.sendMessage(message);
 
 let tab = null;
 let foundLinks = [];
-const THEMES = ["light", "orange", "makan", "obsidian", "nebula", "lilac", "dracula", "uhnohh"];
+const THEMES = ["obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal", "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass"];
+const OLD_THEMES = { light: "platinum-blue", orange: "champagne-minimal", makan: "sapphire-noir", dark: "sapphire-noir", epsilon: "sapphire-noir", obsidian: "obsidian-gold", uhnohh: "obsidian-gold", nebula: "royal-amethyst", lilac: "rose-titanium", dracula: "rose-titanium" };
 let selectedTheme = "app";
-let appTheme = "light";
+let appTheme = "sapphire-noir";
 
 const TYPE_EXT = { "video/mp4": "mp4", "video/webm": "webm", "video/x-matroska": "mkv", "video/quicktime": "mov", "video/x-flv": "flv",
                    "audio/mpeg": "mp3", "audio/mp4": "m4a", "audio/aac": "aac", "audio/ogg": "ogg", "audio/webm": "weba", "audio/wav": "wav", "audio/flac": "flac" };
@@ -144,9 +145,9 @@ init();
 
 async function initTheme() {
   try {
-    const stored = await ext.storage.local.get({ theme: "app", appTheme: "light" });
-    selectedTheme = stored.theme || "app";
-    appTheme = THEMES.includes(stored.appTheme) ? stored.appTheme : "light";
+    const stored = await ext.storage.local.get({ theme: "app", appTheme: "sapphire-noir" });
+    selectedTheme = THEMES.includes(stored.theme) || stored.theme === "app" ? stored.theme : (OLD_THEMES[stored.theme] || "app");
+    appTheme = THEMES.includes(stored.appTheme) ? stored.appTheme : (OLD_THEMES[stored.appTheme] || "sapphire-noir");
   } catch { /* follow app with the light fallback */ }
   applyAppearance();
   $("themeSeg").querySelectorAll("button").forEach((btn) => btn.addEventListener("click", async () => {

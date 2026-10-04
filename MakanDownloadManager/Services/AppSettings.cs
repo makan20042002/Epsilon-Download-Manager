@@ -78,11 +78,9 @@ public sealed class AppSettings
     {
         get
         {
-            var raw = Text("theme", "makan");
-            if (raw is "dark" or "epsilon") return "makan";
-            return raw is "makan" or "obsidian" or "nebula" or "lilac" or "dracula" or "uhnohh" or "orange" or "light" or "auto" ? raw : "makan";
+            return ThemePalette.Normalize(Text("theme", "sapphire-noir"));
         }
-        set => _store.Set("theme", value is "makan" or "obsidian" or "nebula" or "lilac" or "dracula" or "uhnohh" or "orange" or "light" or "auto" ? value : "makan");
+        set => _store.Set("theme", ThemePalette.Normalize(value));
     }
 
     // ---- Connection / advanced (existing keys)

@@ -106,8 +106,8 @@ static class SettingsTests
 
     static Task Themes()
     {
-        var all = new[] { ("light", ThemePalette.Light), ("orange", ThemePalette.Orange), ("makan", ThemePalette.Makan), ("obsidian", ThemePalette.Obsidian), ("nebula", ThemePalette.Nebula), ("lilac", ThemePalette.Lilac), ("dracula", ThemePalette.Dracula), ("uhnohh", ThemePalette.Uhnohh) };
-        T.Check("all palettes define the same colours", all.Skip(1).All(p => ThemePalette.Light.Keys.OrderBy(k => k).SequenceEqual(p.Item2.Keys.OrderBy(k => k))), string.Join(" | ", all.Skip(1).Select(p => p.Item1 + ": " + string.Join(",", ThemePalette.Light.Keys.Except(p.Item2.Keys).Concat(p.Item2.Keys.Except(ThemePalette.Light.Keys))))));
+        var all = new[] { ("obsidian-gold", ThemePalette.ObsidianGold), ("platinum-blue", ThemePalette.PlatinumBlue), ("royal-amethyst", ThemePalette.RoyalAmethyst), ("emerald-executive", ThemePalette.EmeraldExecutive), ("champagne-minimal", ThemePalette.ChampagneMinimal), ("graphite-copper", ThemePalette.GraphiteCopper), ("sapphire-noir", ThemePalette.SapphireNoir), ("ivory-luxe", ThemePalette.IvoryLuxe), ("rose-titanium", ThemePalette.RoseTitanium), ("arctic-glass", ThemePalette.ArcticGlass) };
+        T.Check("all palettes define the same colours", all.Skip(1).All(p => ThemePalette.ObsidianGold.Keys.OrderBy(k => k).SequenceEqual(p.Item2.Keys.OrderBy(k => k))), string.Join(" | ", all.Skip(1).Select(p => p.Item1 + ": " + string.Join(",", ThemePalette.ObsidianGold.Keys.Except(p.Item2.Keys).Concat(p.Item2.Keys.Except(ThemePalette.ObsidianGold.Keys))))));
         T.Check("every value is a #RRGGBB colour", all.SelectMany(p => p.Item2.Values).All(v => System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9A-Fa-f]{6}$")));
         foreach (var (name, p) in all)
         {
@@ -119,24 +119,20 @@ static class SettingsTests
             T.Check($"{name}: status colours are readable on cards (>= 3.5)", new[] { "Success", "Danger", "Warning", "Accent" }.All(k => ThemePalette.Contrast(p[k], p["Surface"]) >= 3.5), string.Join(" ", new[] { "Success", "Danger", "Warning", "Accent" }.Select(k => ThemePalette.Contrast(p[k], p["Surface"]).ToString("0.0"))));
             T.Check($"{name}: selected rows keep the text readable (>= 4.5)", ThemePalette.Contrast(p["Text"], p["Selected"]) >= 4.5 && ThemePalette.Contrast(p["Text"], p["Hover"]) >= 7, ThemePalette.Contrast(p["Text"], p["Selected"]).ToString("0.0"));
         }
-        T.Check("all named dark palettes are dark; light and orange are light", new[] { ThemePalette.Makan, ThemePalette.Obsidian, ThemePalette.Nebula, ThemePalette.Lilac, ThemePalette.Dracula, ThemePalette.Uhnohh }.All(p => ThemePalette.Contrast("#000000", p["Bg"]) < 3) && ThemePalette.Contrast("#FFFFFF", ThemePalette.Light["Bg"]) < 1.2 && ThemePalette.Contrast("#FFFFFF", ThemePalette.Orange["Bg"]) < 1.2);
-        T.Check("auto follows Windows; every named theme resolves", ThemePalette.Resolve("auto", true) == "makan" && ThemePalette.Resolve("auto", false) == "light" && ThemePalette.Resolve("dark", false) == "makan" && ThemePalette.Resolve("epsilon", false) == "makan" && new[] { "makan", "obsidian", "nebula", "lilac", "dracula", "uhnohh", "light", "orange" }.All(name => ThemePalette.Resolve(name, false) == name) && ThemePalette.Resolve("x", true) == "light");
+        T.Check("dark and light palettes are classified correctly", new[] { ThemePalette.ObsidianGold, ThemePalette.RoyalAmethyst, ThemePalette.EmeraldExecutive, ThemePalette.GraphiteCopper, ThemePalette.SapphireNoir, ThemePalette.RoseTitanium }.All(p => ThemePalette.Contrast("#000000", p["Bg"]) < 3) && new[] { ThemePalette.PlatinumBlue, ThemePalette.ChampagneMinimal, ThemePalette.IvoryLuxe, ThemePalette.ArcticGlass }.All(p => ThemePalette.Contrast("#FFFFFF", p["Bg"]) < 1.2));
+        T.Check("auto follows Windows; every named theme resolves", ThemePalette.Resolve("auto", true) == "sapphire-noir" && ThemePalette.Resolve("auto", false) == "platinum-blue" && ThemePalette.Names.All(name => ThemePalette.Resolve(name, false) == name));
 
         var settings = new AppSettings(new MemSettings());
-        settings.Theme = "orange";
-        T.Check("the orange theme choice is saved", settings.Theme == "orange", settings.Theme);
-        settings.Theme = "makan";
-        T.Check("the makan theme choice is saved", settings.Theme == "makan", settings.Theme);
-        settings.Theme = "obsidian";
-        T.Check("the obsidian theme choice is saved", settings.Theme == "obsidian", settings.Theme);
-        settings.Theme = "nebula";
-        T.Check("the nebula theme choice is saved", settings.Theme == "nebula", settings.Theme);
+        settings.Theme = "emerald-executive";
+        T.Check("a new theme choice is saved", settings.Theme == "emerald-executive", settings.Theme);
         settings.Theme = "dark";
-        T.Check("legacy dark settings migrate to makan", settings.Theme == "makan", settings.Theme);
-        settings.Theme = "epsilon";
-        T.Check("legacy epsilon settings migrate to makan", settings.Theme == "makan", settings.Theme);
+        T.Check("legacy dark settings migrate to Sapphire Noir", settings.Theme == "sapphire-noir", settings.Theme);
+        settings.Theme = "nebula";
+        T.Check("legacy Nebula settings migrate to Royal Amethyst", settings.Theme == "royal-amethyst", settings.Theme);
+        settings.Theme = "orange";
+        T.Check("legacy Orange settings migrate to Champagne Minimal", settings.Theme == "champagne-minimal", settings.Theme);
         settings.Theme = "not-a-real-theme";
-        T.Check("an unrecognised value falls back to makan default", settings.Theme == "makan", settings.Theme);
+        T.Check("an unrecognised value falls back to Sapphire Noir", settings.Theme == "sapphire-noir", settings.Theme);
 
         T.Check("with no torrent folder set, torrents save to the same place as everything else", settings.TorrentSaveFolder == settings.DefaultFolder);
         settings.TorrentFolder = @"D:\Torrents";
@@ -155,9 +151,9 @@ static class SettingsTests
         {
             var text = File.ReadAllText(file);
             foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(text, "\\{DynamicResource (\\w+)\\}"))
-                if (!ThemePalette.Light.ContainsKey(m.Groups[1].Value) && !own.Contains(m.Groups[1].Value)) missing.Add(Path.GetFileName(file) + ": " + m.Groups[1].Value);
+                if (!ThemePalette.SapphireNoir.ContainsKey(m.Groups[1].Value) && !own.Contains(m.Groups[1].Value)) missing.Add(Path.GetFileName(file) + ": " + m.Groups[1].Value);
             foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(text, "\\{StaticResource (\\w+)\\}"))
-                if (ThemePalette.Light.ContainsKey(m.Groups[1].Value)) staticBrushes.Add(Path.GetFileName(file) + ": " + m.Groups[1].Value);
+                if (ThemePalette.SapphireNoir.ContainsKey(m.Groups[1].Value)) staticBrushes.Add(Path.GetFileName(file) + ": " + m.Groups[1].Value);
         }
         T.Check("every colour used in XAML exists in the palette", missing.Count == 0, string.Join(" | ", missing.Distinct().Take(8)));
         T.Check("theme colours are DynamicResource everywhere (so switching the theme repaints open windows)", staticBrushes.Count == 0, string.Join(" | ", staticBrushes.Distinct().Take(8)));

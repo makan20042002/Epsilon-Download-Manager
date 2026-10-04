@@ -1220,7 +1220,7 @@ public partial class MainWindow : Window
         try { Clipboard.SetText(text); _lastClipboard = text; } catch (Exception) { /* clipboard busy */ }
     }
     void Media_Click(object sender, RoutedEventArgs e) => new MediaWindow { Owner = this }.ShowDialog();
-    /// <summary>Toolbar shortcut: light <-> dark blue-grey (the choice is remembered; "Follow Windows" is set in Options).</summary>
+    /// <summary>Applies a built-in theme selected from the More menu.</summary>
     void SetTheme_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string theme }) return;
@@ -1231,14 +1231,16 @@ public partial class MainWindow : Window
 
     void UpdateThemeGlyph()
     {
-        ThemeLightCheck.Visibility = ThemeManager.Current == "light" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeOrangeCheck.Visibility = ThemeManager.Current == "orange" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeMakanCheck.Visibility = ThemeManager.Current == "makan" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeObsidianCheck.Visibility = ThemeManager.Current == "obsidian" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeNebulaCheck.Visibility = ThemeManager.Current == "nebula" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeLilacCheck.Visibility = ThemeManager.Current == "lilac" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeDraculaCheck.Visibility = ThemeManager.Current == "dracula" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeUhnohhCheck.Visibility = ThemeManager.Current == "uhnohh" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeObsidianGoldCheck.Visibility = ThemeManager.Current == "obsidian-gold" ? Visibility.Visible : Visibility.Collapsed;
+        ThemePlatinumBlueCheck.Visibility = ThemeManager.Current == "platinum-blue" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeRoyalAmethystCheck.Visibility = ThemeManager.Current == "royal-amethyst" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeEmeraldExecutiveCheck.Visibility = ThemeManager.Current == "emerald-executive" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeChampagneMinimalCheck.Visibility = ThemeManager.Current == "champagne-minimal" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeGraphiteCopperCheck.Visibility = ThemeManager.Current == "graphite-copper" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeSapphireNoirCheck.Visibility = ThemeManager.Current == "sapphire-noir" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeIvoryLuxeCheck.Visibility = ThemeManager.Current == "ivory-luxe" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeRoseTitaniumCheck.Visibility = ThemeManager.Current == "rose-titanium" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeArcticGlassCheck.Visibility = ThemeManager.Current == "arctic-glass" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     void Settings_Click(object sender, RoutedEventArgs e)

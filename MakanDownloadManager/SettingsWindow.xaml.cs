@@ -29,7 +29,7 @@ public partial class SettingsWindow : Window
         BrChrome.IsChecked = allowed.Contains("chrome"); BrEdge.IsChecked = allowed.Contains("edge"); BrFirefox.IsChecked = allowed.Contains("firefox");
         BrOpera.IsChecked = allowed.Contains("opera"); BrVivaldi.IsChecked = allowed.Contains("vivaldi"); BrOther.IsChecked = allowed.Contains("other");
         LanguageBox.SelectedIndex = s.Language == "fa" ? 1 : 0;
-        ThemeBox.SelectedIndex = s.Theme switch { "orange" => 1, "makan" or "dark" or "epsilon" => 2, "obsidian" => 3, "nebula" => 4, "lilac" => 5, "dracula" => 6, "uhnohh" => 7, "auto" => 8, _ => 0 };
+        ThemeBox.SelectedIndex = s.Theme switch { "obsidian-gold" => 0, "platinum-blue" => 1, "royal-amethyst" => 2, "emerald-executive" => 3, "champagne-minimal" => 4, "graphite-copper" => 5, "sapphire-noir" => 6, "ivory-luxe" => 7, "rose-titanium" => 8, "arctic-glass" => 9, "auto" => 10, _ => 6 };
 
         // File types
         FileTypesBox.Text = s.FileTypes; SitesBox.Text = s.ExcludedSites; AddressesBox.Text = s.ExcludedAddresses;
@@ -232,7 +232,7 @@ public partial class SettingsWindow : Window
         var newLanguage = LanguageBox.SelectedIndex == 1 ? "fa" : "en";
         var languageChanged = newLanguage != s.Language;
         s.Language = newLanguage;
-        s.Theme = ThemeBox.SelectedIndex switch { 1 => "orange", 2 => "makan", 3 => "obsidian", 4 => "nebula", 5 => "lilac", 6 => "dracula", 7 => "uhnohh", 8 => "auto", _ => "light" };
+        s.Theme = ThemeBox.SelectedIndex switch { 0 => "obsidian-gold", 1 => "platinum-blue", 2 => "royal-amethyst", 3 => "emerald-executive", 4 => "champagne-minimal", 5 => "graphite-copper", 6 => "sapphire-noir", 7 => "ivory-luxe", 8 => "rose-titanium", 9 => "arctic-glass", 10 => "auto", _ => "sapphire-noir" };
 
         // File types
         s.FileTypes = FileTypesBox.Text.Trim(); s.ExcludedSites = SitesBox.Text.Trim(); s.ExcludedAddresses = AddressesBox.Text.Trim();

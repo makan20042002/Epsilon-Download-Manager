@@ -47,14 +47,16 @@
 
             <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,16,0,6"/>
             <ComboBox x:Name="ThemeBox" Width="220" HorizontalAlignment="Left">
-              <ComboBoxItem Content="Light"/>
-              <ComboBoxItem Content="Orange"/>
-              <ComboBoxItem Content="Makan (blue grey)"/>
-              <ComboBoxItem Content="Obsidian (black)"/>
-              <ComboBoxItem Content="Nebula (dark violet)"/>
-              <ComboBoxItem Content="Lilac (dark lilac)"/>
-              <ComboBoxItem Content="Dracula (dark red)"/>
-              <ComboBoxItem Content="Uhnohh (dark yellow)"/>
+              <ComboBoxItem Content="Obsidian Gold"/>
+              <ComboBoxItem Content="Platinum Blue"/>
+              <ComboBoxItem Content="Royal Amethyst"/>
+              <ComboBoxItem Content="Emerald Executive"/>
+              <ComboBoxItem Content="Champagne Minimal"/>
+              <ComboBoxItem Content="Graphite Copper"/>
+              <ComboBoxItem Content="Sapphire Noir"/>
+              <ComboBoxItem Content="Ivory Luxe"/>
+              <ComboBoxItem Content="Rose Titanium"/>
+              <ComboBoxItem Content="Arctic Glass"/>
               <ComboBoxItem Content="Follow Windows"/>
             </ComboBox>
             <TextBlock Text="The theme changes as soon as you press OK." Foreground="{DynamicResource Muted}" Margin="0,6,0,0"/>
