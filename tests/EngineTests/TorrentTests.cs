@@ -93,6 +93,7 @@ static class TorrentTests
     {
         Dir = dir;
         await Run("Torrent: bencode, metainfo, magnet links", Formats);
+        await Run("Torrent: unlimited by default; removing a user limit wakes transfers immediately", TokenBucketChanges);
         await Run("Port mapping: NAT-PMP request, renew and delete against a mock gateway", NatPmp);
         await Run("Port mapping: UPnP discovery, device description, and SOAP request/response handling", Upnp);
         var script = Script();
@@ -122,6 +123,22 @@ static class TorrentTests
     }
 
     // ------------------------------------------------------------------------------------------------ formats
+
+    static async Task TokenBucketChanges()
+    {
+        var bucket = new TokenBucket();
+        var unlimited = Stopwatch.StartNew();
+        await bucket.WaitAsync(1_000_000, CancellationToken.None);
+        T.Check("torrent bandwidth is unlimited by default", unlimited.ElapsedMilliseconds < 100);
+
+        bucket.Rate = 1_000; // this reservation would wait many minutes if changing the limit did not wake it
+        var waiting = bucket.WaitAsync(1_000_000, CancellationToken.None);
+        await Task.Delay(100);
+        T.Check("a user-set torrent limit is actually active", !waiting.IsCompleted);
+        bucket.Rate = 0;
+        T.Check("setting the torrent limit back to 0 (unlimited) wakes it immediately", await Task.WhenAny(waiting, Task.Delay(1000)) == waiting);
+        await waiting;
+    }
 
     static Task Formats()
     {

@@ -170,6 +170,10 @@ public partial class DownloadProgressWindow : Window
         EtaText.Text = running && item.EtaText != "—" && !string.IsNullOrEmpty(item.EtaText) ? item.EtaText : "—";
         PercentText.Text = hasTotal ? item.Progress.ToString("0.0", CultureInfo.InvariantCulture) + "%" : "";
         MainBar.Value = item.Progress;
+        DiskLoadPanel.Visibility = item.DiskLoadedBytes > 0 ? Visibility.Visible : Visibility.Collapsed;
+        DiskLoadBar.Value = item.DiskLoadPercent;
+        DiskLoadText.Text = item.DiskLoadText;
+        DiskLoadPercentText.Text = item.DiskLoadedBytes > 0 && hasTotal ? item.DiskLoadPercent.ToString("0.0", CultureInfo.InvariantCulture) + "%" : "";
 
         if (App.Manager.SupportsResume(item) is { } known) _resume = known;
         ResumeText.Text = Loc.T("Resume capability") + ": " + (_resume == null ? "—" : Loc.T(_resume == true ? "Yes" : "No"));
@@ -304,7 +308,7 @@ public partial class DownloadProgressWindow : Window
         var on = UseLimiter.IsChecked == true;
         LimitBox.IsEnabled = on;
         var kb = long.TryParse(LimitBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? Math.Max(0, parsed) : 0;
-        _item.SpeedLimitBytesPerSec = on && kb > 0 ? kb * 1024 : 0;           // the running download reads this on every block
+        App.Manager.SetItemSpeedLimit(_item, on && kb > 0 ? kb * 1024 : 0);
         _item.LimitIsTemporary = _item.SpeedLimitBytesPerSec > 0 && RememberLimit.IsChecked != true;
         Refresh();
     }

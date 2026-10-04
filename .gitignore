@@ -9,6 +9,7 @@ installer-output/
 *.exe
 *.msi
 *.pdb
+*.zip
 
 # Local test/dev artifacts
 tests/**/node_modules/
@@ -17,6 +18,8 @@ tests/**/obj/
 *.user
 .vs/
 .vscode/
+domains/
+Epsilon_Theme_System_Cleanup_TASK.md
 
 # OS noise
 .DS_Store

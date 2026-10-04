@@ -26,6 +26,7 @@ static class QueueTests
         await Run("Queues: items run in queue order, one after another when MaxActive is 1", Order);
         await Run("Queues: finish actions - open file, power off (cancellable), exit", FinishActions);
         await Run("Queues: Stop halts the queue without finish actions; a hand-paused file is left alone", StopAndPause);
+        await Run("Queues: StopAll terminates every queue before pausing, so no next file starts", StopAllQueues);
         await Run("Scheduler: start time, weekdays, once-a-day, late launch, one-time date", StartTimes);
         await Run("Scheduler: stop time (also across midnight) and start on startup", StopTimesAndStartup);
         await Run("Scheduler: retries for each failed file", Retries);
@@ -34,6 +35,7 @@ static class QueueTests
         await Run("Queues: 'download N files at the same time' per queue; loose downloads keep their own limit", Parallel);
         await Run("Queues: adding to a running queue starts it; removing a running queue pauses its files", LiveEditing);
         await Run("Queues: resuming one specific queued file does not start the rest of the queue up to MaxParallel (regression)", ResumeOneQueuedFileDoesNotStartTheWholeQueue);
+        await Run("Queues: a failed file can be resumed while its queue has moved on", ResumeFailedDuringRun);
     }
 
     static async Task Run(string title, Func<Task> body)
@@ -189,6 +191,26 @@ static class QueueTests
         T.Check("and switches itself off afterwards", !q.Main.Schedule.StartAtEnabled);
     }
 
+    static async Task StopAllQueues()
+    {
+        var dir = Sub(); using var m = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false); using var q = Make(m, out _, out _);
+        var second = q.AddQueue("Scheduled");
+        q.SetMaxParallel(q.Main.Id, 1); q.SetMaxParallel(second.Id, 1);
+        var items = new[]
+        {
+            Item(dir, "main-running.bin", "/slow.bin"), Item(dir, "main-next.bin", "/slow.bin"),
+            Item(dir, "scheduled-running.bin", "/slow.bin"), Item(dir, "scheduled-next.bin", "/slow.bin")
+        };
+        q.AddLater(items[0]); q.AddLater(items[1]); q.AddLater(items[2]); q.AddItem(second.Id, items[2]); q.AddLater(items[3]); q.AddItem(second.Id, items[3]);
+        q.Start(q.Main.Id); q.Start(second.Id);
+        T.Check("both queues started", await Until(q, () => items.Count(x => x.Status == "Downloading") == 2, 20));
+        q.StopAll();
+        T.Check("both queue runs are removed", !q.IsRunning(q.Main.Id) && !q.IsRunning(second.Id));
+        T.Check("active files stop", await Program.WaitStatusPublic(items[0], DownloadStatus.Paused) && await Program.WaitStatusPublic(items[2], DownloadStatus.Paused));
+        for (var i = 0; i < 10; i++) { q.Pump(); await Task.Delay(40); }
+        T.Check("the next files remain stopped after later pump ticks", items[1].Status == "Paused" && items[3].Status == "Paused", $"{items[1].Status}, {items[3].Status}");
+    }
+
     static async Task StopTimesAndStartup()
     {
         var dir = Sub(); var now = new DateTime(2026, 9, 20, 23, 0, 0);
@@ -333,7 +355,7 @@ static class QueueTests
         T.Check("all four start out Paused, in the queue, with nothing running yet", items.All(i => i.Status == "Paused") && !q.IsRunning(q.Main.Id));
 
         // The exact action the "Resume" toolbar button now takes for a selected item: just resume that one item.
-        m.Enqueue(items[0]);
+        q.ResumeItem(items[0]);
 
         var sw = Stopwatch.StartNew(); var peak = 0;
         while (sw.Elapsed.TotalSeconds < 2) { peak = Math.Max(peak, items.Count(i => i.Status == "Downloading")); await Task.Delay(50); }
@@ -342,6 +364,21 @@ static class QueueTests
         T.Check("the queue itself was never put into a 'running' state by this - Start Queue is a separate, deliberate action", !q.IsRunning(q.Main.Id));
 
         T.Check("the one file that was resumed does finish normally on its own", await Until(q, () => items[0].Status == "Complete"), items[0].Status);
+    }
+
+    static async Task ResumeFailedDuringRun()
+    {
+        var dir = Sub(); using var m = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false); using var q = Make(m, out _, out _);
+        q.SetMaxParallel(q.Main.Id, 1);
+        var failed = Item(dir, "failed-then-fixed.bin", "/missing.bin");
+        var next = Item(dir, "next-slow.bin", "/slow.bin");
+        q.AddLater(failed); q.AddLater(next); q.Start(q.Main.Id);
+        T.Check("the queue records the failure and moves to its next file", await Until(q, () => failed.Status == "Failed" && next.Status == "Downloading"), $"{failed.Status}/{next.Status}");
+
+        failed.Url = Base + "/small.bin?fixed";
+        q.ResumeItem(failed);
+        T.Check("Resume puts the failed file back into the active queue instead of leaving it stuck as Queued", await Until(q, () => failed.Status == "Complete"), failed.Status);
+        m.Cancel(next);
     }
 
 }

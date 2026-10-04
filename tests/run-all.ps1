@@ -7,6 +7,8 @@ try {
   for ($i = 0; $i -lt 40; $i++) { try { Invoke-WebRequest http://127.0.0.1:18080/__reset -UseBasicParsing -TimeoutSec 1 | Out-Null; break } catch { Start-Sleep -Milliseconds 500 } }
   Write-Host '### source validation'
   & ..\tools\validate-source.ps1
+  # validate-source.ps1 intentionally moves to the repository root; return here before using test-relative paths.
+  Set-Location $PSScriptRoot
   Write-Host '### building full solution'
   dotnet build ..\MakanDownloadManager.sln -c Release -v q
   Write-Host '### building test components'

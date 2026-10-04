@@ -1,2 +1,14 @@
 <Window Style="{StaticResource AppWindow}" x:Class="MakanDownloadManager.HistoryWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Download History" Width="1050" Height="620" Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}">
-<Grid Margin="22"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><DockPanel Margin="0,0,0,14"><StackPanel><TextBlock Text="Download History" FontSize="26" FontWeight="SemiBold"/><TextBlock Text="Completed, failed and cancelled transfers" Foreground="{DynamicResource Muted}"/></StackPanel><Button DockPanel.Dock="Right" Content="Close" Click="Close_Click"/></DockPanel><DataGrid x:Name="Grid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" Background="{DynamicResource Panel}" Foreground="{DynamicResource Text}" BorderThickness="0"><DataGrid.Columns><DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110"/><DataGridTextColumn Header="File" Binding="{Binding FilePath}" Width="300"/><DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*"/><DataGridTextColumn Header="Started" Binding="{Binding StartedAt}" Width="170"/><DataGridTextColumn Header="Finished" Binding="{Binding FinishedAt}" Width="170"/><DataGridTextColumn Header="Error" Binding="{Binding Error}" Width="220"/></DataGrid.Columns></DataGrid></Grid></Window>
+<Grid Margin="22">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <DockPanel Margin="0,0,0,14">
+    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+      <Button Content="Clear history" Click="Clear_Click" Margin="0,0,8,0"/>
+      <Button Content="Close" Click="Close_Click"/>
+    </StackPanel>
+    <StackPanel><TextBlock Text="Download History" FontSize="26" FontWeight="SemiBold"/><TextBlock Text="Completed, failed and cancelled transfers" Foreground="{DynamicResource Muted}"/></StackPanel>
+  </DockPanel>
+  <DataGrid x:Name="Grid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" Background="{DynamicResource Panel}" Foreground="{DynamicResource Text}" BorderThickness="0">
+    <DataGrid.Columns><DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110"/><DataGridTextColumn Header="File" Binding="{Binding FilePath}" Width="300"/><DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*"/><DataGridTextColumn Header="Started" Binding="{Binding StartedAt}" Width="170"/><DataGridTextColumn Header="Finished" Binding="{Binding FinishedAt}" Width="170"/><DataGridTextColumn Header="Error" Binding="{Binding Error}" Width="220"/></DataGrid.Columns>
+  </DataGrid>
+</Grid></Window>

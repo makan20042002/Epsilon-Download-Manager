@@ -53,16 +53,16 @@
     <Style x:Key="TrafficLightClose" TargetType="Button">
       <Setter Property="Width" Value="11"/>
       <Setter Property="Height" Value="11"/>
-      <Setter Property="Margin" Value="16,0,7,0"/>
+      <Setter Property="Margin" Value="4,0"/>
       <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Ellipse x:Name="Dot" Fill="#FF5F57"/>
+            <Border x:Name="Dot" CornerRadius="1" Background="#FF5F57"/>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Dot" Property="Fill" Value="#E0443E"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Dot" Property="Background" Value="#E0443E"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
@@ -71,16 +71,16 @@
     <Style x:Key="TrafficLightMin" TargetType="Button">
       <Setter Property="Width" Value="11"/>
       <Setter Property="Height" Value="11"/>
-      <Setter Property="Margin" Value="0,0,7,0"/>
+      <Setter Property="Margin" Value="4,0"/>
       <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Ellipse x:Name="Dot" Fill="#FEBC2E"/>
+            <Border x:Name="Dot" CornerRadius="1" Background="#FEBC2E"/>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Dot" Property="Fill" Value="#DEA123"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Dot" Property="Background" Value="#DEA123"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
@@ -89,13 +89,13 @@
     <Style x:Key="TrafficLightMax" TargetType="Button">
       <Setter Property="Width" Value="11"/>
       <Setter Property="Height" Value="11"/>
-      <Setter Property="Margin" Value="0,0,16,0"/>
+      <Setter Property="Margin" Value="4,0"/>
       <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
       <Setter Property="Focusable" Value="False"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Ellipse x:Name="Dot" Fill="#28C840"/>
+            <Border x:Name="Dot" CornerRadius="1" Background="#28C840"/>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
@@ -202,7 +202,7 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd" CornerRadius="100" Padding="11,4" BorderBrush="#26344A" BorderThickness="1" Background="Transparent">
+            <Border x:Name="Bd" CornerRadius="3" Padding="11,4" BorderBrush="#26344A" BorderThickness="1" Background="Transparent">
               <ContentPresenter/>
             </Border>
             <ControlTemplate.Triggers>
@@ -216,7 +216,7 @@
       </Setter>
     </Style>
     <Style x:Key="Chip" TargetType="Border">
-      <Setter Property="CornerRadius" Value="100"/>
+      <Setter Property="CornerRadius" Value="3"/>
       <Setter Property="Padding" Value="11,4"/>
       <Setter Property="BorderBrush" Value="#26344A"/>
       <Setter Property="BorderThickness" Value="1"/>
@@ -257,13 +257,13 @@
       <!-- ============ .eps-window-bar title bar ============ -->
       <Border DockPanel.Dock="Top" Background="#0E1A2C" BorderBrush="#16223A" BorderThickness="0,0,0,1" Height="44">
         <DockPanel>
-          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-            <Button Style="{StaticResource TrafficLightClose}" Click="CloseWindow_Click" ToolTip="Close"/>
-            <Button Style="{StaticResource TrafficLightMin}" Click="Minimize_Click" ToolTip="Minimize"/>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Right" Margin="0,0,12,0">
             <Button Style="{StaticResource TrafficLightMax}" ToolTip="Download Progress"/>
+            <Button Style="{StaticResource TrafficLightMin}" Click="Minimize_Click" ToolTip="Minimize"/>
+            <Button Style="{StaticResource TrafficLightClose}" Click="CloseWindow_Click" ToolTip="Close"/>
           </StackPanel>
 
-          <Border x:Name="ConnPill" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,16,0" CornerRadius="100" Padding="10,3"
+          <Border x:Name="ConnPill" DockPanel.Dock="Left" VerticalAlignment="Center" Margin="16,0,12,0" CornerRadius="3" Padding="10,3"
                   BorderBrush="#4D22E58A" BorderThickness="1" Background="#1422E58A">
             <TextBlock x:Name="ConnCountText" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#22E58A"/>
           </Border>
@@ -312,6 +312,19 @@
           <TextBlock x:Name="PercentText" Grid.Column="1" Margin="14,0,0,0" FontFamily="{StaticResource Mono}" FontSize="13" FontWeight="Bold" Foreground="#13C8F5" VerticalAlignment="Center" MinWidth="54" TextAlignment="Right"/>
         </Grid>
 
+        <!-- Saved partial data recovered at resume. This stays separate from the network progress above, so a user
+             can immediately see that Epsilon found and loaded the existing data instead of appearing stuck. -->
+        <StackPanel x:Name="DiskLoadPanel" Margin="0,9,0,0" Visibility="Collapsed">
+          <DockPanel Margin="0,0,0,4">
+            <TextBlock Text="DISK LOAD" Style="{StaticResource StatLabel}" Margin="0" Foreground="#FEBC2E"/>
+            <TextBlock x:Name="DiskLoadText" DockPanel.Dock="Right" Style="{StaticResource StatLabel}" Margin="0" TextAlignment="Right"/>
+          </DockPanel>
+          <Grid>
+            <ProgressBar x:Name="DiskLoadBar" Style="{StaticResource MainBarStyle}" Foreground="#FEBC2E" Height="7" Minimum="0" Maximum="100"/>
+            <TextBlock x:Name="DiskLoadPercentText" HorizontalAlignment="Right" Margin="0,-20,0,0" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#FEBC2E"/>
+          </Grid>
+        </StackPanel>
+
         <!-- .eps-conns: 16 connection rows -->
         <StackPanel x:Name="DetailsPanel" Margin="0,20,0,0">
           <DockPanel Margin="0,0,0,10">
@@ -319,7 +332,7 @@
             <TextBlock HorizontalAlignment="Right" Style="{StaticResource StatLabel}" Margin="0" Text="Start positions and download progress by connections"/>
           </DockPanel>
 
-          <Border Height="6" CornerRadius="100" Background="#141D2B" ClipToBounds="True" Margin="0,0,0,14">
+          <Border Height="6" CornerRadius="1" Background="#141D2B" ClipToBounds="True" Margin="0,0,0,14">
             <UniformGrid x:Name="PositionGrid" Rows="1"/>
           </Border>
 

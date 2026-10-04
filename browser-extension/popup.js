@@ -7,6 +7,9 @@ const send = (message) => ext.runtime.sendMessage(message);
 
 let tab = null;
 let foundLinks = [];
+const THEMES = ["light", "orange", "makan", "obsidian", "nebula", "lilac", "dracula", "uhnohh"];
+let selectedTheme = "app";
+let appTheme = "light";
 
 const TYPE_EXT = { "video/mp4": "mp4", "video/webm": "webm", "video/x-matroska": "mkv", "video/quicktime": "mov", "video/x-flv": "flv",
                    "audio/mpeg": "mp3", "audio/mp4": "m4a", "audio/aac": "aac", "audio/ogg": "ogg", "audio/webm": "weba", "audio/wav": "wav", "audio/flac": "flac" };
@@ -38,6 +41,7 @@ async function init() {
   $("exclude").value = status.settings.exclude.join("\n");
 
   const ping = status.ping || {};
+  await noteAppTheme(ping.theme);
   const err = ping.error || "";
   const myId = ext.runtime.id;
   if (ping.ok) setState("ok", tf("Connected — Epsilon {0} is running", ping.version || ""));
@@ -113,6 +117,16 @@ $("grab").onclick = async () => {
   if (r?.ok) setTimeout(() => window.close(), 1200);
 };
 
+$("grabSelected").onclick = async () => {
+  if (!tab) return;
+  $("grabSelected").disabled = true;
+  $("grabResult").textContent = t("Reading the highlighted links…");
+  const r = await send({ type: "grabSelectedLinks", tabId: tab.id });
+  $("grabSelected").disabled = false;
+  $("grabResult").textContent = r?.ok ? tf(r.count === 1 ? "Sent {0} selected link to Epsilon — choose in its window ✓" : "Sent {0} selected links to Epsilon — choose in its window ✓", r.count) : (r?.error || t("Failed"));
+  if (r?.ok) setTimeout(() => window.close(), 1200);
+};
+
 // ---- settings ---------------------------------------------------------------------------------------------------
 
 async function save() {
@@ -126,18 +140,32 @@ $("open").onclick = async () => { await send({ type: "open" }); window.close(); 
 
 init();
 
-// ---- appearance of the on-page "Download this video" button/menu (Auto follows the browser's colour scheme) --------------
+// ---- appearance of the popup and the on-page video controls -----------------------------------------------------
 
 async function initTheme() {
-  let theme = "auto";
-  try { theme = (await ext.storage.local.get({ theme: "auto" })).theme || "auto"; } catch { /* default: auto */ }
-  paintThemeSeg(theme);
+  try {
+    const stored = await ext.storage.local.get({ theme: "app", appTheme: "light" });
+    selectedTheme = stored.theme || "app";
+    appTheme = THEMES.includes(stored.appTheme) ? stored.appTheme : "light";
+  } catch { /* follow app with the light fallback */ }
+  applyAppearance();
   $("themeSeg").querySelectorAll("button").forEach((btn) => btn.addEventListener("click", async () => {
-    paintThemeSeg(btn.dataset.theme);
-    try { await ext.storage.local.set({ theme: btn.dataset.theme }); } catch { /* the next open will show the old choice */ }
+    selectedTheme = btn.dataset.theme;
+    applyAppearance();
+    try { await ext.storage.local.set({ theme: selectedTheme }); } catch { /* the next open will show the old choice */ }
   }));
+  try { ext.storage.onChanged?.addListener((changes, area) => { if (area === "local" && changes.appTheme && THEMES.includes(changes.appTheme.newValue)) { appTheme = changes.appTheme.newValue; applyAppearance(); } }); } catch { /* cosmetic */ }
 }
 
-function paintThemeSeg(theme) {
-  $("themeSeg").querySelectorAll("button").forEach((btn) => btn.classList.toggle("on", btn.dataset.theme === theme));
+async function noteAppTheme(theme) {
+  if (!THEMES.includes(theme)) return;
+  appTheme = theme;
+  applyAppearance();
+  try { await ext.storage.local.set({ appTheme }); } catch { /* cosmetic */ }
+}
+
+function applyAppearance() {
+  const resolved = THEMES.includes(selectedTheme) ? selectedTheme : appTheme;
+  document.documentElement.dataset.theme = resolved;
+  $("themeSeg").querySelectorAll("button").forEach((btn) => btn.classList.toggle("on", btn.dataset.theme === selectedTheme));
 }

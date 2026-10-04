@@ -106,8 +106,8 @@ static class SettingsTests
 
     static Task Themes()
     {
-        var all = new[] { ("light", ThemePalette.Light), ("orange", ThemePalette.Orange), ("makan", ThemePalette.Makan), ("obsidian", ThemePalette.Obsidian), ("nebula", ThemePalette.Nebula) };
-        T.Check("all five palettes define the same colours", all.Skip(1).All(p => ThemePalette.Light.Keys.OrderBy(k => k).SequenceEqual(p.Item2.Keys.OrderBy(k => k))), string.Join(" | ", all.Skip(1).Select(p => p.Item1 + ": " + string.Join(",", ThemePalette.Light.Keys.Except(p.Item2.Keys).Concat(p.Item2.Keys.Except(ThemePalette.Light.Keys))))));
+        var all = new[] { ("light", ThemePalette.Light), ("orange", ThemePalette.Orange), ("makan", ThemePalette.Makan), ("obsidian", ThemePalette.Obsidian), ("nebula", ThemePalette.Nebula), ("lilac", ThemePalette.Lilac), ("dracula", ThemePalette.Dracula), ("uhnohh", ThemePalette.Uhnohh) };
+        T.Check("all palettes define the same colours", all.Skip(1).All(p => ThemePalette.Light.Keys.OrderBy(k => k).SequenceEqual(p.Item2.Keys.OrderBy(k => k))), string.Join(" | ", all.Skip(1).Select(p => p.Item1 + ": " + string.Join(",", ThemePalette.Light.Keys.Except(p.Item2.Keys).Concat(p.Item2.Keys.Except(ThemePalette.Light.Keys))))));
         T.Check("every value is a #RRGGBB colour", all.SelectMany(p => p.Item2.Values).All(v => System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9A-Fa-f]{6}$")));
         foreach (var (name, p) in all)
         {
@@ -118,8 +118,8 @@ static class SettingsTests
             T.Check($"{name}: status colours are readable on cards (>= 3.5)", new[] { "Success", "Danger", "Warning", "Accent" }.All(k => ThemePalette.Contrast(p[k], p["Surface"]) >= 3.5), string.Join(" ", new[] { "Success", "Danger", "Warning", "Accent" }.Select(k => ThemePalette.Contrast(p[k], p["Surface"]).ToString("0.0"))));
             T.Check($"{name}: selected rows keep the text readable (>= 4.5)", ThemePalette.Contrast(p["Text"], p["Selected"]) >= 4.5 && ThemePalette.Contrast(p["Text"], p["Hover"]) >= 7, ThemePalette.Contrast(p["Text"], p["Selected"]).ToString("0.0"));
         }
-        T.Check("the makan, obsidian and nebula palettes are dark; light and orange are light", ThemePalette.Contrast("#000000", ThemePalette.Makan["Bg"]) < 3 && ThemePalette.Contrast("#000000", ThemePalette.Obsidian["Bg"]) < 3 && ThemePalette.Contrast("#000000", ThemePalette.Nebula["Bg"]) < 3 && ThemePalette.Contrast("#FFFFFF", ThemePalette.Light["Bg"]) < 1.2 && ThemePalette.Contrast("#FFFFFF", ThemePalette.Orange["Bg"]) < 1.2);
-        T.Check("auto follows Windows; legacy dark and epsilon resolve to makan", ThemePalette.Resolve("auto", true) == "makan" && ThemePalette.Resolve("auto", false) == "light" && ThemePalette.Resolve("makan", false) == "makan" && ThemePalette.Resolve("dark", false) == "makan" && ThemePalette.Resolve("epsilon", false) == "makan" && ThemePalette.Resolve("obsidian", false) == "obsidian" && ThemePalette.Resolve("nebula", false) == "nebula" && ThemePalette.Resolve("light", true) == "light" && ThemePalette.Resolve("x", true) == "light" && ThemePalette.Resolve("orange", true) == "orange");
+        T.Check("all named dark palettes are dark; light and orange are light", new[] { ThemePalette.Makan, ThemePalette.Obsidian, ThemePalette.Nebula, ThemePalette.Lilac, ThemePalette.Dracula, ThemePalette.Uhnohh }.All(p => ThemePalette.Contrast("#000000", p["Bg"]) < 3) && ThemePalette.Contrast("#FFFFFF", ThemePalette.Light["Bg"]) < 1.2 && ThemePalette.Contrast("#FFFFFF", ThemePalette.Orange["Bg"]) < 1.2);
+        T.Check("auto follows Windows; every named theme resolves", ThemePalette.Resolve("auto", true) == "makan" && ThemePalette.Resolve("auto", false) == "light" && ThemePalette.Resolve("dark", false) == "makan" && ThemePalette.Resolve("epsilon", false) == "makan" && new[] { "makan", "obsidian", "nebula", "lilac", "dracula", "uhnohh", "light", "orange" }.All(name => ThemePalette.Resolve(name, false) == name) && ThemePalette.Resolve("x", true) == "light");
 
         var settings = new AppSettings(new MemSettings());
         settings.Theme = "orange";

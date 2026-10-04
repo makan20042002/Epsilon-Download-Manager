@@ -13,18 +13,20 @@
   // the language follows Epsilon's Options (the background remembers it)
   try { ext.storage.local.get({ lang: "en" }).then((r) => { if (r && r.lang) I18N.setLang(r.lang); }, () => {}); } catch { /* English */ }
 
-  // the on-page button follows the theme chosen in the popup ("auto" = whatever the browser's colour scheme is)
-  let savedTheme = "auto";
+  // The popup and in-page controls follow Epsilon's active desktop theme unless the user overrides it here.
+  const THEMES = ["light", "orange", "makan", "obsidian", "nebula", "lilac", "dracula", "uhnohh"];
+  let savedTheme = "app";
+  let appTheme = "light";
   const prefersDark = () => { try { return matchMedia("(prefers-color-scheme: dark)").matches; } catch { return false; } };
-  const currentTheme = () => (savedTheme === "dark" || savedTheme === "light") ? savedTheme : (prefersDark() ? "dark" : "light");
+  const currentTheme = () => THEMES.includes(savedTheme) ? savedTheme : (THEMES.includes(appTheme) ? appTheme : (prefersDark() ? "makan" : "light"));
   function applyTheme() {
     const theme = currentTheme();
     if (host) host.setAttribute("data-theme", theme);
     if (pill) pill.setAttribute("data-theme", theme);
   }
-  try { ext.storage.local.get({ theme: "auto" }).then((r) => { savedTheme = (r && r.theme) || "auto"; applyTheme(); }, () => {}); } catch { /* auto */ }
-  try { ext.storage.onChanged?.addListener((changes, area) => { if (area === "local" && changes.theme) { savedTheme = changes.theme.newValue || "auto"; applyTheme(); } }); } catch { /* Firefox MV3 quirk: theme just stays as first read */ }
-  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (savedTheme === "auto") applyTheme(); }); } catch { /* older browsers: theme follows the popup only */ }
+  try { ext.storage.local.get({ theme: "app", appTheme: prefersDark() ? "makan" : "light" }).then((r) => { savedTheme = (r && r.theme) || "app"; appTheme = (r && r.appTheme) || appTheme; applyTheme(); }, () => {}); } catch { /* follow app */ }
+  try { ext.storage.onChanged?.addListener((changes, area) => { if (area !== "local") return; if (changes.theme) savedTheme = changes.theme.newValue || "app"; if (changes.appTheme) appTheme = changes.appTheme.newValue || appTheme; if (changes.theme || changes.appTheme) applyTheme(); }); } catch { /* Firefox MV3 quirk: theme stays as first read */ }
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (savedTheme === "app" && !THEMES.includes(appTheme)) applyTheme(); }); } catch { /* older browsers: use the remembered app theme */ }
   // Alt + click on a link means "let the browser download it" (like IDM's prevent key)
   const DOWNLOADABLE_EXT = /\.(m3u8|mpd|mp4|m4v|webm|mkv|mov|flv|avi|wmv|3gp|mp3|m4a|aac|ogg|opus|wav|flac|weba)$/i;
   document.addEventListener("click", (e) => {
@@ -100,24 +102,38 @@
     :host { all: initial; }
     * { box-sizing: border-box; font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif; }
 
-    /* Light (default) and dark "premium" themes are the same markup, switched by a data-theme attribute on the host -
-       so a system theme change or the user's choice in the popup repaints instantly, no rebuild needed. */
+    /* The same markup supports all desktop palettes and repaints instantly through data-theme. */
     :host {
       --bar-bg: linear-gradient(180deg, #ffffff, #f2f5fb); --bar-border: #d7deea; --bar-shadow: 0 2px 10px rgba(15,23,42,.14);
       --accent: #2F6FEB; --accent2: #16A34A;
       --tool-bg: #eef2f8; --tool-border: #ccd5e4; --tool-fg: #465670; --tool-hover: #dce8fb;
       --menu-bg: #ffffff; --menu-fg: #1c2534; --menu-border: #d7deea; --menu-shadow: 0 12px 32px rgba(15,23,42,.18);
       --item-hover: #eef4ff; --item-active: #dfe9ff; --item-disabled: #9aa5b6; --sep: #e4e9f2;
-      --note-fg: #455570; --note-bad: #c0392b; --radius: 10px; --pad-x: 10px; --pad-y: 5px; --font: 13px; --tool-size: 20px;
+      --note-fg: #5F6B7A; --note-bad: #C62828; --radius: 3px; --pad-x: 10px; --pad-y: 5px; --font: 13px; --tool-size: 20px;
     }
-    :host([data-theme="dark"]) {
-      --bar-bg: linear-gradient(180deg, #222a3b, #171d2b); --bar-border: #333e57; --bar-shadow: 0 6px 18px rgba(0,0,0,.5);
-      --accent: #5AA9FF; --accent2: #20E878;
-      --tool-bg: #262f42; --tool-border: #38445e; --tool-fg: #aebadb; --tool-hover: #333e58;
-      --menu-bg: #171d2b; --menu-fg: #e8edf8; --menu-border: #2c3650; --menu-shadow: 0 18px 44px rgba(0,0,0,.6);
-      --item-hover: #232c42; --item-active: #2b3654; --item-disabled: #5c6785; --sep: #262f45;
-      --note-fg: #a7b3d1; --note-bad: #ff9585; --radius: 8px; --pad-x: 8px; --pad-y: 3px; --font: 12.5px; --tool-size: 18px;
+    :host([data-theme="orange"]) {
+      --bar-bg: linear-gradient(180deg, #FFFFFF, #F5EFE3); --bar-border: #E6DCC8; --bar-shadow: 0 3px 12px rgba(58,46,31,.16);
+      --accent: #D6690A; --accent2: #2E7D32; --tool-bg: #F2EBDD; --tool-border: #D8CBB0; --tool-fg: #7A6A54; --tool-hover: #F5EADA;
+      --menu-bg: #FFFFFF; --menu-fg: #3A2E1F; --menu-border: #E6DCC8; --item-hover: #F5EADA; --item-active: #F7DDBB; --item-disabled: #B3A48C; --sep: #E6DCC8; --note-fg: #7A6A54;
     }
+    :host([data-theme="makan"]), :host([data-theme="dark"]) {
+      --bar-bg: linear-gradient(180deg, #14243A, #0B1728); --bar-border: #213650; --bar-shadow: 0 6px 18px rgba(0,0,0,.5);
+      --accent: #39F5B0; --accent2: #38D9FF; --tool-bg: #101D30; --tool-border: #213650; --tool-fg: #A9B8CC; --tool-hover: #162B46;
+      --menu-bg: #101D30; --menu-fg: #F4F8FF; --menu-border: #213650; --menu-shadow: 0 18px 44px rgba(0,0,0,.6); --item-hover: #162B46; --item-active: #1C3556; --item-disabled: #667A94; --sep: #213650; --note-fg: #A9B8CC; --note-bad: #FF5C7A;
+    }
+    :host([data-theme="obsidian"]) {
+      --bar-bg: linear-gradient(180deg, #17181B, #0A0A0C); --bar-border: #2A2B2F; --bar-shadow: 0 6px 18px rgba(0,0,0,.65);
+      --accent: #4D7CFF; --accent2: #34D399; --tool-bg: #121214; --tool-border: #2A2B2F; --tool-fg: #9A9CA3; --tool-hover: #17181B;
+      --menu-bg: #121214; --menu-fg: #F2F2F4; --menu-border: #2A2B2F; --item-hover: #17181B; --item-active: #1D2333; --item-disabled: #616369; --sep: #2A2B2F; --note-fg: #9A9CA3; --note-bad: #F5455C;
+    }
+    :host([data-theme="nebula"]) {
+      --bar-bg: linear-gradient(180deg, #201A3F, #120F26); --bar-border: #362C5C; --bar-shadow: 0 6px 20px rgba(10,8,24,.65);
+      --accent: #A78BFA; --accent2: #E879F9; --tool-bg: #191532; --tool-border: #362C5C; --tool-fg: #B3A8D9; --tool-hover: #221B45;
+      --menu-bg: #191532; --menu-fg: #F5F2FF; --menu-border: #362C5C; --item-hover: #221B45; --item-active: #2C2359; --item-disabled: #7C6FA3; --sep: #362C5C; --note-fg: #B3A8D9; --note-bad: #FF5C7A;
+    }
+    :host([data-theme="lilac"]) { --panel:#181022; --panel2:#21162E; --text:#FFF7FF; --muted:#D0B7DD; --accent:#D8A7F2; --on-accent:#1A0D20; --ok:#68E0A5; --bad:#FF6B8A; --border:#49325F; --shadow:rgba(216,167,242,.25); }
+    :host([data-theme="dracula"]) { --panel:#21222C; --panel2:#282A36; --text:#F8F8F2; --muted:#C5C1D1; --accent:#FF5555; --on-accent:#1B1117; --ok:#50FA7B; --bad:#FF5555; --border:#44475A; --shadow:rgba(255,85,85,.25); }
+    :host([data-theme="uhnohh"]) { --panel:#19180C; --panel2:#232113; --text:#FFFBE3; --muted:#CEC89D; --accent:#FFD84D; --on-accent:#181300; --ok:#9BE564; --bad:#FF6B57; --border:#4B4727; --shadow:rgba(255,216,77,.25); }
 
     .bar { display: inline-flex; align-items: center; gap: 2px; background: var(--bar-bg); border: 1px solid var(--bar-border); border-radius: var(--radius);
            box-shadow: var(--bar-shadow); padding: 2px; opacity: .92; user-select: none; transition: opacity .15s ease; }
@@ -126,13 +142,13 @@
             font-size: var(--font); color: var(--accent); white-space: nowrap; letter-spacing: .1px; }
     .main .arrow { color: var(--accent2); font-size: var(--font); }
     .tool { width: var(--tool-size); height: var(--tool-size); line-height: calc(var(--tool-size) - 2px); text-align: center; border: 1px solid var(--tool-border);
-            border-radius: 6px; background: var(--tool-bg); color: var(--tool-fg); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .12s ease; }
+            border-radius: 2px; background: var(--tool-bg); color: var(--tool-fg); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .12s ease; }
     .tool:hover { background: var(--tool-hover); }
     .menu { position: absolute; top: 100%; left: 0; margin-top: 6px; min-width: 250px; max-width: min(92vw, 760px); max-height: 64vh; overflow: auto;
             background: var(--menu-bg); color: var(--menu-fg); border: 1px solid var(--menu-border); border-radius: var(--radius); box-shadow: var(--menu-shadow);
             font-size: 13px; padding: 6px; }
     .menu.right { left: auto; right: 0; }
-    .item { padding: 7px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 1px 0; transition: background .1s ease; }
+    .item { padding: 7px 12px; border-radius: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 1px 0; transition: background .1s ease; }
     .item:hover { background: var(--item-hover); }
     .item:active { background: var(--item-active); }
     .item.disabled { color: var(--item-disabled); cursor: default; }

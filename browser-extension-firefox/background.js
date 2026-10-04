@@ -17,7 +17,7 @@ const pending = new Set();
 
 function callHost(payload) {
   return new Promise((resolve) => {
-    const done = (r) => { noteLanguage(r); resolve(r || { ok: false, error: t("No response from Epsilon Download Manager.") }); };
+    const done = (r) => { noteLanguage(r); noteAppearance(r); resolve(r || { ok: false, error: t("No response from Epsilon Download Manager.") }); };
     const fail = (e) => resolve({ ok: false, error: e?.message || String(e) });
     try {
       if (IS_FIREFOX) ext.runtime.sendNativeMessage(HOST, payload).then(done, fail);
@@ -27,6 +27,13 @@ function callHost(payload) {
       });
     } catch (e) { fail(e); }
   });
+}
+
+/** Remember the desktop app's resolved palette so the popup and in-page controls can follow it. */
+function noteAppearance(reply) {
+  const theme = reply && reply.theme;
+  if (!["light", "orange", "makan", "obsidian", "nebula"].includes(theme)) return;
+  try { ext.storage.local.set({ appTheme: theme }); } catch { /* cosmetic */ }
 }
 
 /** Epsilon's replies carry its interface language; the extension follows it (menus are rebuilt when it changes). */
@@ -117,10 +124,10 @@ ext.downloads.onCreated.addListener(async (item) => {
 
 function createMenus() {
   ext.contextMenus.removeAll().then(() => {
-    ext.contextMenus.create({ id: "makan-link", title: t("Download with MDM"), contexts: ["link"] });
-    ext.contextMenus.create({ id: "makan-media", title: t("Download this media with MDM"), contexts: ["video", "audio", "image"] });
-    ext.contextMenus.create({ id: "makan-links", title: t("Download all links with MDM…"), contexts: ["page"] });
-    ext.contextMenus.create({ id: "makan-open", title: t("Open MDM"), contexts: ["page", IS_FIREFOX ? "browser_action" : "action"] });
+    ext.contextMenus.create({ id: "makan-link", title: t("Download with Epsilon Download Manager"), contexts: ["link"] });
+    ext.contextMenus.create({ id: "makan-media", title: t("Download this media with Epsilon Download Manager"), contexts: ["video", "audio", "image"] });
+    ext.contextMenus.create({ id: "makan-links", title: t("Download all links with Epsilon Download Manager…"), contexts: ["page"] });
+    ext.contextMenus.create({ id: "makan-open", title: t("Open Epsilon Download Manager"), contexts: ["page", IS_FIREFOX ? "browser_action" : "action"] });
   });
 }
 ext.runtime.onInstalled.addListener(() => createMenus());
@@ -362,7 +369,7 @@ async function buildYtMenu(pageUrl, fallbackTitle, strict) {
   const videoTitle = (r.title || fallbackTitle).replace(/\s+/g, " ").trim().slice(0, 150) || "video";
   const items = (r.options || []).map((o) => ({
     text: ytText(videoTitle, o, r.durationSeconds),
-    action: { type: "ytdl", pageUrl, key: o.key, referrer: pageUrl, title: o.kind === "video" ? `${videoTitle} [${o.height}p]` : o.kind === "audio" ? `${videoTitle} [audio]` : videoTitle },
+    action: { type: "ytdl", pageUrl, key: o.key, size: o.size || 0, referrer: pageUrl, title: o.kind === "video" ? `${videoTitle} [${o.height}p]` : o.kind === "audio" ? `${videoTitle} [audio]` : videoTitle },
   }));
   if (items.length) ytCache.set(pageUrl, { at: Date.now(), items });
   return items;
@@ -412,7 +419,7 @@ async function buildMenu(tabId, directUrl) {
 async function performItem(item, { suffix = false, noPrompt = false } = {}) {
   const a = item.action;
   if (a.type === "file") return sendUrl(a.entry.url, { filePath: a.fileName, referrer: a.entry.referrer, mime: a.entry.type, explicit: true });
-  if (a.type === "ytdl") return callHost({ kind: "ytdl", url: a.pageUrl, format: a.key, title: a.title, referrer: a.referrer, userAgent: navigator.userAgent, noPrompt });
+  if (a.type === "ytdl") return callHost({ kind: "ytdl", url: a.pageUrl, format: a.key, size: a.size || 0, title: a.title, referrer: a.referrer, userAgent: navigator.userAgent, noPrompt });
   if (a.type === "setup") { const r = await callHost({ kind: "show" }); return r?.ok ? { ok: true, message: t("Epsilon is open: Options > YouTube & other sites") } : r; }
   if (a.type === "dash") return callHost({ kind: "media", url: a.entry.url, cookie: await cookieHeader(a.entry.url), referrer: a.entry.referrer, userAgent: navigator.userAgent });
   return callHost({
@@ -465,6 +472,10 @@ ext.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       case "grabLinks": {
         sendResponse(await grabLinks(message.tabId ?? sender.tab?.id));
+        break;
+      }
+      case "grabSelectedLinks": {
+        sendResponse(await grabLinks(message.tabId ?? sender.tab?.id, { selectionOnly: true }));
         break;
       }
       case "pageUrls": {            // video / audio addresses the page itself contains (<video src>, og:video, players' JSON…)

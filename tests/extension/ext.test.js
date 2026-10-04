@@ -328,6 +328,9 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     assert.strictEqual(r.ok, true);
     assert.deepStrictEqual(asked, { id: 7, msg: { type: "collectLinks", selectionOnly: true }, opts: { frameId: 3 } });
     assert.strictEqual(env.sent.at(-1).msg.kind, "links");
+    const popup = await ask(env, { type: "grabSelectedLinks", tabId: 7 });
+    assert.strictEqual(popup.ok, true, "the popup can send the highlighted batch too");
+    assert.deepStrictEqual(asked, { id: 7, msg: { type: "collectLinks", selectionOnly: true }, opts: { frameId: 0 } });
     env.chrome.tabs.sendMessage = async () => ({ links: [] });
     assert.match((await ask(env, { type: "grabSelection" }, { tab: { id: 7 }, frameId: 0 })).error, /No links in the selection/);
   });
@@ -363,7 +366,7 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     await tick(30);
     assert.strictEqual(globalThis.MakanI18n.lang, "fa");
     const titles = env.menus.map((m) => m.title);
-    assert.ok(titles.includes("دانلود با MDM") && titles.includes("دانلود همهٔ لینک‌ها با MDM…"), JSON.stringify(titles));
+    assert.ok(titles.includes("دانلود با اپسیلون دانلود منیجر") && titles.includes("دانلود همهٔ لینک‌ها با اپسیلون دانلود منیجر…"), JSON.stringify(titles));
     env.chrome.tabs.sendMessage = async () => ({ links: [] });
     const err = await ask(env, { type: "grabSelection" }, { tab: { id: 7 }, frameId: 0 });
     assert.strictEqual(err.error, "هیچ لینکی در بخش انتخاب‌شده نیست.");
@@ -398,6 +401,7 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     assert.strictEqual(r.ok, true);
     const m = env.sent.at(-1).msg;
     assert.deepStrictEqual([m.kind, m.url, m.format, m.title], ["ytdl", YT, "v1080", "The #1 Workout [1080p]"]);
+    assert.strictEqual(m.size, 350000000, "the desktop receives the same combined size estimate shown by the extension");
     await ask(env, { type: "menuPick", tabId: 7, index: 2, all: false });
     assert.strictEqual(env.sent.at(-1).msg.title, "The #1 Workout [audio]");
     await ask(env, { type: "menuPick", tabId: 7, index: 3, all: false });

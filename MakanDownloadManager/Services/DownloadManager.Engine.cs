@@ -17,6 +17,7 @@ public sealed record ProbeResult(
 public sealed partial class DownloadManager
 {
     const int BufferSize = 256 * 1024;
+    static readonly TimeSpan ReadIdleTimeout = TimeSpan.FromSeconds(30);
 
     // ---------------------------------------------------------------- probing
 
@@ -75,6 +76,7 @@ public sealed partial class DownloadManager
     async Task DownloadAsync(DownloadItem item, CancellationToken ct)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(item.FilePath))!);
+        item.DiskLoadedBytes = 0;
         if (IsTorrentUrl(item.Url)) { await TorrentDownloadAsync(item, ct); return; }
         if (YtDlpService.TryGetSelection(item.Url, out var ytPage, out var ytKey)) { await YtDlpDownloadAsync(item, ytPage, ytKey, ct); return; }
         if (IsHlsItem(item)) { await HlsAsync(item, ct); return; }
@@ -184,6 +186,7 @@ public sealed partial class DownloadManager
         var part = PartBase(item) + ".part";
         var have = File.Exists(part) ? new FileInfo(part).Length : 0;
         if (item.TotalBytes is { } total && have > total) { File.Delete(part); have = 0; }
+        item.DiskLoadedBytes = have;
         if (item.TotalBytes is > 0 && have == item.TotalBytes) return part;
 
         for (var pass = 0; ; pass++)
@@ -227,7 +230,7 @@ public sealed partial class DownloadManager
                 {
                     while (true)
                     {
-                        var read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), ct);
+                        var read = await ReadWithIdleTimeoutAsync(input, buffer.AsMemory(0, BufferSize), ct);
                         if (read == 0) break;
                         await AcquireBandwidthAsync(item, read, ct);
                         await output.WriteAsync(buffer.AsMemory(0, read), ct);
@@ -324,6 +327,7 @@ public sealed partial class DownloadManager
             loaded = new ChunkMap { Total = total, ChunkSize = size, Done = new long[(int)((total + size - 1) / size)] };
         }
         var map = loaded;
+        item.DiskLoadedBytes = map.Done.Sum();
         var live = Live(item); live.Map = map; live.Workers = workers;
         for (var w = 0; w < workers; w++) live.Info[w] = "Send GET...";
 
@@ -451,7 +455,7 @@ public sealed partial class DownloadManager
             while (remaining > 0)
             {
                 var want = (int)Math.Min(buffer.Length, remaining);
-                var read = await input.ReadAsync(buffer.AsMemory(0, want), work);
+                var read = await ReadWithIdleTimeoutAsync(input, buffer.AsMemory(0, want), work);
                 if (read == 0) throw new IOException("Connection closed before the segment was complete.");
                 await AcquireBandwidthAsync(item, read, work);
                 var written = Volatile.Read(ref map.Done[chunk]);
@@ -597,6 +601,15 @@ public sealed partial class DownloadManager
     {
         var yt = YtDlp ?? throw new InvalidOperationException("yt-dlp is not set up. Open Options > YouTube & other sites and click \"Download / update tools\".");
         var outputBase = Path.ChangeExtension(item.FilePath, null);
+        try
+        {
+            var folder = Path.GetDirectoryName(outputBase)!;
+            var stem = Path.GetFileName(outputBase);
+            item.DiskLoadedBytes = Directory.Exists(folder)
+                ? Directory.GetFiles(folder, stem + "*.part").Sum(path => new FileInfo(path).Length)
+                : 0;
+        }
+        catch (Exception) { item.DiskLoadedBytes = 0; }
         var live = Live(item); live.Workers = 1; live.Info[0] = "Receiving data..."; live.ResumeSupported = true;
         item.ActiveConnections = 1;
         var streams = new Dictionary<string, (long Done, long Total)>();
@@ -613,7 +626,9 @@ public sealed partial class DownloadManager
             if (clock.ElapsedMilliseconds - lastReport < 250 && !string.Equals(p.Status, "finished", StringComparison.OrdinalIgnoreCase)) return;
             lastReport = clock.ElapsedMilliseconds;
             var knownTotal = streams.Values.Sum(v => v.Total);
-            if (knownTotal > 0) item.TotalBytes = knownTotal;
+            // The extension already has yt-dlp's combined video+audio estimate. While yt-dlp is reporting only the
+            // current stream, do not replace that combined estimate with (for example) the much smaller audio size.
+            if (knownTotal > 0) item.TotalBytes = Math.Max(item.TotalBytes ?? 0, knownTotal);
             Interlocked.Exchange(ref live.Bytes[0], streams.Values.Sum(v => v.Done));
             Report(item, streams.Values.Sum(v => v.Done), (long)speed);
         }
@@ -631,12 +646,27 @@ public sealed partial class DownloadManager
 
     async Task AcquireBandwidthAsync(DownloadItem item, int bytes, CancellationToken ct)
     {
-        await _globalLimiter.WaitAsync(bytes, ct);
-        if (item.SpeedLimitBytesPerSec > 0)
+        if (LimitScope == SpeedLimitScope.Combined) await _globalLimiter.WaitAsync(bytes, ct);
+        var localLimit = EffectiveLocalLimit(item);
+        if (localLimit > 0)
         {
             var limiter = _localLimiters.GetOrAdd(item.Id, _ => new RateLimiter());
-            limiter.Limit = item.SpeedLimitBytesPerSec;
+            limiter.Limit = localLimit;
             await limiter.WaitAsync(bytes, ct);
+        }
+        else if (_localLimiters.TryGetValue(item.Id, out var existing)) existing.Limit = 0;
+    }
+
+    /// <summary>A dead TCP connection can otherwise leave a download saying 0 B/s forever. Treat a connection that
+    /// delivers no bytes for a while as transient; the normal retry path reconnects and resumes from the saved offset.</summary>
+    static async Task<int> ReadWithIdleTimeoutAsync(Stream input, Memory<byte> buffer, CancellationToken ct)
+    {
+        using var idle = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        idle.CancelAfter(ReadIdleTimeout);
+        try { return await input.ReadAsync(buffer, idle.Token); }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            throw new IOException("The connection stopped sending data. Reconnecting…", ex);
         }
     }
 

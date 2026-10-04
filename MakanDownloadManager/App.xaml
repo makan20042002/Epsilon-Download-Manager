@@ -109,7 +109,7 @@
       <Setter Property="Background" Value="{DynamicResource Panel}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="100"/>
+      <Setter Property="CornerRadius" Value="3"/>
       <Setter Property="Padding" Value="11,5"/>
       <Setter Property="Margin" Value="0,0,7,0"/>
     </Style>
@@ -149,6 +149,16 @@
       </Setter>
     </Style>
 
+    <!-- A deterministic, theme-aware editing menu. WPF's generated Cut/Copy/Paste menu otherwise keeps Windows'
+         colours inside popup windows and can become unreadable under a different app theme. -->
+    <ContextMenu x:Key="TextEditingContextMenu" x:Shared="False">
+      <MenuItem Header="Cut" Command="ApplicationCommands.Cut" InputGestureText="Ctrl+X"/>
+      <MenuItem Header="Copy" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C"/>
+      <MenuItem Header="Paste" Command="ApplicationCommands.Paste" InputGestureText="Ctrl+V"/>
+      <Separator/>
+      <MenuItem Header="Select all" Command="ApplicationCommands.SelectAll" InputGestureText="Ctrl+A"/>
+    </ContextMenu>
+
     <!-- Inputs -->
     <Style TargetType="TextBox">
       <Setter Property="Padding" Value="9,6"/>
@@ -158,6 +168,15 @@
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="CaretBrush" Value="{DynamicResource Accent}"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="ContextMenu" Value="{StaticResource TextEditingContextMenu}"/>
+    </Style>
+    <Style TargetType="PasswordBox">
+      <Setter Property="Padding" Value="9,6"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Background" Value="{DynamicResource Input}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource Accent}"/>
     </Style>
     <!-- Fundamental rectangular ProgressBar -->
     <Style TargetType="ProgressBar">

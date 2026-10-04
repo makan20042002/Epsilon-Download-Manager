@@ -27,6 +27,14 @@ public static class Program
         if (args.Length > 0) Base = args[0];
         Dir = Path.Combine(Path.GetTempPath(), "makan-tests-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(Dir);
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "resume")
+        {
+            var resumeStats = await Stats(); Sha = resumeStats.sha;
+            await Run("Pause then resume continues from disk and reports the recovered bytes", PauseResume);
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            try { Directory.Delete(Dir, true); } catch { }
+            return T.Fail == 0 ? 0 : 1;
+        }
         if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "torrent")      // only the BitTorrent suite (needs no web server)
         {
             await TorrentTests.RunAll(Dir);
@@ -173,6 +181,8 @@ public static class Program
         T.Check("progress preserved while paused", doneAtPause > 0, $"{doneAtPause}");
         await Http.GetAsync(Base + "/__reset");
         m.Enqueue(item);
+        sw.Restart(); while (item.DiskLoadedBytes == 0 && item.Status != "Complete" && sw.Elapsed.TotalSeconds < 10) await Task.Delay(20);
+        T.Check("resume reports the bytes loaded from disk", item.DiskLoadedBytes >= doneAtPause * 0.8, $"disk={item.DiskLoadedBytes}, paused={doneAtPause}");
         T.Check("resumes to Complete", await WaitStatus(item, DownloadStatus.Complete, 90), item.LastError);
         T.Check("sha256 matches after pause/resume", T.Sha(item.FilePath) == Sha["/big.bin"]);
         var s = await Stats();

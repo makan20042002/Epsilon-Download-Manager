@@ -1,5 +1,5 @@
 <#
-.SYNOPSIS  Connects Chrome, Edge, Brave and Firefox to Makan Download Manager (per-user, no admin rights needed).
+.SYNOPSIS  Connects Chrome, Edge, Brave and Firefox to Epsilon Download Manager (per-user, no admin rights needed).
 .DESCRIPTION
   Registers the native-messaging host (MakanNativeHost.exe) for each browser, then CHECKS the result
   (registry entries, manifest files, and a real round-trip with MakanNativeHost.exe) and prints what it found.
@@ -84,7 +84,7 @@ function Show-Status {
     else { Write-Host '  [FAILED]  MakanNativeHost.exe started but did not answer (blocked by antivirus/SmartScreen? try right-click > Properties > Unblock).' -ForegroundColor Red; $ok = $false }
   }
   Write-Host ''
-  if ($ok) { Write-Host 'Everything is registered. Fully close and reopen the browser, then click the Makan toolbar icon.' -ForegroundColor Green }
+  if ($ok) { Write-Host 'Everything is registered. Fully close and reopen the browser, then click the Epsilon toolbar icon.' -ForegroundColor Green }
   else { Write-Host 'Something above is not OK. Copy this whole window and send it to get it fixed.' -ForegroundColor Yellow }
   return $ok
 }
@@ -116,7 +116,7 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 [IO.File]::WriteAllText($chromeManifest, @"
 {
   "name": "$HostName",
-  "description": "Makan Download Manager native messaging bridge",
+  "description": "Epsilon Download Manager native messaging bridge",
   "path": "$exeJson",
   "type": "stdio",
   "allowed_origins": [ "chrome-extension://$ExtensionId/" ]
@@ -126,7 +126,7 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 [IO.File]::WriteAllText($firefoxManifest, @"
 {
   "name": "$HostName",
-  "description": "Makan Download Manager native messaging bridge",
+  "description": "Epsilon Download Manager native messaging bridge",
   "path": "$exeJson",
   "type": "stdio",
   "allowed_extensions": [ "$FirefoxId" ]

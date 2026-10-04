@@ -1,4 +1,4 @@
-# Makan Download Manager – Chrome / Edge / Brave extension
+# Epsilon Download Manager – Chrome / Edge / Brave extension
 
 ## Install
 1. Build/publish Makan and run `install-browser-integration.ps1` from the publish folder (once).

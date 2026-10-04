@@ -29,7 +29,7 @@ public partial class SettingsWindow : Window
         BrChrome.IsChecked = allowed.Contains("chrome"); BrEdge.IsChecked = allowed.Contains("edge"); BrFirefox.IsChecked = allowed.Contains("firefox");
         BrOpera.IsChecked = allowed.Contains("opera"); BrVivaldi.IsChecked = allowed.Contains("vivaldi"); BrOther.IsChecked = allowed.Contains("other");
         LanguageBox.SelectedIndex = s.Language == "fa" ? 1 : 0;
-        ThemeBox.SelectedIndex = s.Theme switch { "orange" => 1, "makan" or "dark" or "epsilon" => 2, "obsidian" => 3, "nebula" => 4, "auto" => 5, _ => 0 };
+        ThemeBox.SelectedIndex = s.Theme switch { "orange" => 1, "makan" or "dark" or "epsilon" => 2, "obsidian" => 3, "nebula" => 4, "lilac" => 5, "dracula" => 6, "uhnohh" => 7, "auto" => 8, _ => 0 };
 
         // File types
         FileTypesBox.Text = s.FileTypes; SitesBox.Text = s.ExcludedSites; AddressesBox.Text = s.ExcludedAddresses;
@@ -50,8 +50,8 @@ public partial class SettingsWindow : Window
         AvOn.IsChecked = s.AntivirusEnabled; AvProgramBox.Text = s.AntivirusProgram; AvArgsBox.Text = s.AntivirusArguments;
 
         // Connection
-        Slots.Value = s.MaxActive; Speed.Text = s.SpeedKbps.ToString(CultureInfo.InvariantCulture); Connections.Value = s.Connections;
-        AutoResume.IsChecked = s.AutoResume; Ffmpeg.Text = s.FfmpegPath;
+        Slots.Value = s.MaxActive; Speed.Text = s.SpeedKbps.ToString(CultureInfo.InvariantCulture); SpeedScope.SelectedIndex = s.SpeedLimitScope == "per_file" ? 1 : 0; Connections.Value = s.Connections;
+        AutoResume.IsChecked = s.AutoResume; KeepAwake.IsChecked = s.KeepAwakeWhileDownloading; Ffmpeg.Text = s.FfmpegPath;
         SmartConnections.IsChecked = s.AdaptiveConnections && s.SmartDownloads;
         BoostSpeed.IsChecked = s.BoostDownloadSpeed;
 
@@ -232,7 +232,7 @@ public partial class SettingsWindow : Window
         var newLanguage = LanguageBox.SelectedIndex == 1 ? "fa" : "en";
         var languageChanged = newLanguage != s.Language;
         s.Language = newLanguage;
-        s.Theme = ThemeBox.SelectedIndex switch { 1 => "orange", 2 => "makan", 3 => "obsidian", 4 => "nebula", 5 => "auto", _ => "light" };
+        s.Theme = ThemeBox.SelectedIndex switch { 1 => "orange", 2 => "makan", 3 => "obsidian", 4 => "nebula", 5 => "lilac", 6 => "dracula", 7 => "uhnohh", 8 => "auto", _ => "light" };
 
         // File types
         s.FileTypes = FileTypesBox.Text.Trim(); s.ExcludedSites = SitesBox.Text.Trim(); s.ExcludedAddresses = AddressesBox.Text.Trim();
@@ -256,7 +256,7 @@ public partial class SettingsWindow : Window
         s.YtCookiesBrowser = CookiesBox.SelectedIndex switch { 1 => "chrome", 2 => "edge", 3 => "firefox", 4 => "brave", _ => "" };
 
         // Connection
-        s.MaxActive = (int)Slots.Value; s.SpeedKbps = kb; s.Connections = (int)Connections.Value; s.AutoResume = AutoResume.IsChecked == true; s.FfmpegPath = Ffmpeg.Text.Trim();
+        s.MaxActive = (int)Slots.Value; s.SpeedKbps = kb; s.SpeedLimitScope = SpeedScope.SelectedIndex == 1 ? "per_file" : "combined"; s.Connections = (int)Connections.Value; s.AutoResume = AutoResume.IsChecked == true; s.KeepAwakeWhileDownloading = KeepAwake.IsChecked == true; s.FfmpegPath = Ffmpeg.Text.Trim();
         s.AdaptiveConnections = SmartConnections.IsChecked == true; s.SmartDownloads = SmartConnections.IsChecked == true;
         s.BoostDownloadSpeed = BoostSpeed.IsChecked == true;
 

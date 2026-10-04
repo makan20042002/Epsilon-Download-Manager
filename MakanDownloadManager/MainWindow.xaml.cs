@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -33,6 +34,12 @@ public partial class MainWindow : Window
     TreeViewItem _allNode = null!;
     string _lastClipboard = "";
     readonly DispatcherTimer _clipboardTimer = new() { Interval = TimeSpan.FromMilliseconds(900) };
+    readonly DispatcherTimer _marqueeScrollTimer = new() { Interval = TimeSpan.FromMilliseconds(55) };
+    readonly HashSet<object> _marqueeBase = new();
+    bool _marqueeArmed;
+    bool _marqueeDragging;
+    Point _marqueeStart;
+    Point _marqueeCurrent;
 
     static bool AskFirst => App.Db.Get("ask_before_download") != "0";
 
@@ -68,6 +75,7 @@ public partial class MainWindow : Window
         _lastClipboard = ReadClipboardText();                 // whatever is on the clipboard now is not "new"
         _clipboardTimer.Tick += (_, _) => PollClipboard();
         _clipboardTimer.IsEnabled = App.Settings.ClipboardWatch;
+        _marqueeScrollTimer.Tick += MarqueeScrollTimer_Tick;
     }
 
     // ---------------------------------------------------------------- category tree (like IDM's left pane)
@@ -179,6 +187,21 @@ public partial class MainWindow : Window
         CategoryPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         Splitter.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         CategoryColumn.Width = show ? new GridLength(210) : new GridLength(0);
+    }
+
+    void Sort_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string tag }) return;
+        var parts = tag.Split(':', 2);
+        if (parts.Length != 2 || !Enum.TryParse<ListSortDirection>(parts[1], out var direction)) return;
+        using (_view.DeferRefresh())
+        {
+            _view.SortDescriptions.Clear();
+            _view.SortDescriptions.Add(new SortDescription(parts[0], direction));
+            if (parts[0] != nameof(DownloadItem.Id))
+                _view.SortDescriptions.Add(new SortDescription(nameof(DownloadItem.Id), ListSortDirection.Descending));
+        }
+        Footer.Text = Loc.T("Downloads sorted") + ": " + Loc.T((string)((MenuItem)sender).Header);
     }
 
     // ---------------------------------------------------------------- tray / lifetime
@@ -624,15 +647,15 @@ public partial class MainWindow : Window
         if (dialog.Choice == DownloadChoice.Cancel || dialog.Selected is not { } option) return;
         try { Directory.CreateDirectory(dialog.Folder); }
         catch (Exception ex) { Dlg.Show(this, $"Can't use the folder \"{dialog.Folder}\":\n{ex.Message}", "Epsilon Download Manager"); return; }
-        PlaceYouTubeSelection(url, dialog.ChosenTitle, option.Key, dialog.Folder, dialog.Choice, quiet: false);
+        PlaceYouTubeSelection(url, dialog.ChosenTitle, option.Key, dialog.Folder, dialog.Choice, quiet: false, option.ApproxBytes);
     }
 
     /// <summary>Builds one yt-dlp download from a chosen quality and places it in the queue. Returns false (and does
     /// nothing) if that address is already in the list - used both for a single video and for each video of a playlist.</summary>
-    bool PlaceYouTubeSelection(string url, string? title, string key, string folder, DownloadChoice choice, bool quiet)
+    bool PlaceYouTubeSelection(string url, string? title, string key, string folder, DownloadChoice choice, bool quiet, long? estimatedSize = null)
     {
         var plan = YtDlpService.PlanFor(key);
-        var request = new StreamRequest(YtDlpService.WithSelection(url, key), null, title, plan.OutputExtension, null, url, null);
+        var request = new StreamRequest(YtDlpService.WithSelection(url, key), null, title, plan.OutputExtension, null, url, null, estimatedSize);
         if (FindDuplicate(request.Url) is { } duplicate)
         {
             if (!quiet) { Footer.Text = Loc.T("That link is already in the list"); Dispatcher.BeginInvoke(() => Downloads.SelectedItem = duplicate, DispatcherPriority.Background); }
@@ -887,14 +910,18 @@ public partial class MainWindow : Window
     /// per-queue toggle); resuming one paused file by hand must resume only that file.</summary>
     void Start_Click(object? sender, RoutedEventArgs? e)
     {
-        foreach (var item in SelectedItems().Where(CanResume)) App.Manager.Enqueue(item);
+        foreach (var item in SelectedItems().Where(CanResume)) App.Queues.ResumeItem(item);
     }
     void Pause_Click(object? sender, RoutedEventArgs? e) { foreach (var item in SelectedItems().Where(IsRunning)) App.Manager.Pause(item); }
-    void StopAll_Click(object? sender, RoutedEventArgs? e) { foreach (var item in _items.Where(IsRunning).ToList()) App.Manager.Pause(item); }
+    void StopAll_Click(object? sender, RoutedEventArgs? e)
+    {
+        App.Queues.StopAll();
+        foreach (var item in _items.Where(IsRunning).ToList()) App.Manager.Pause(item);
+    }
     void StartAll_Click(object? sender, RoutedEventArgs? e)
     {
         foreach (var q in App.Queues.Queues.Where(q => q.ItemIds.Count > 0 && !App.Queues.IsRunning(q.Id))) App.Queues.Start(q.Id);
-        foreach (var item in _items.Where(x => x.Status == nameof(DownloadStatus.Paused) && App.Queues.QueueOf(x.Id) == null).ToList()) App.Manager.Enqueue(item);
+        foreach (var item in _items.Where(x => CanResume(x) && App.Queues.QueueOf(x.Id) == null).ToList()) App.Manager.Enqueue(item);
     }
     // ---- queues ----------------------------------------------------------------------------------------------------------
 
@@ -922,6 +949,8 @@ public partial class MainWindow : Window
             SpeedLimiterBox.IsEnabled = kbps > 0;
             SpeedLimiterSlider.Value = Math.Min(SpeedLimiterSlider.Maximum, kbps);
             SpeedLimiterBox.Text = kbps > 0 ? kbps.ToString() : "";
+            SpeedCombined.IsChecked = App.Manager.LimitScope == SpeedLimitScope.Combined;
+            SpeedPerFile.IsChecked = App.Manager.LimitScope == SpeedLimitScope.PerDownload;
 
             SpeedLimiterPresets.Children.Clear();
             foreach (var profile in App.BandwidthProfiles.Load())
@@ -965,6 +994,15 @@ public partial class MainWindow : Window
         ApplySpeedLimitKbps(kbps);
     }
 
+    void SpeedScope_Click(object sender, RoutedEventArgs e)
+    {
+        if (_speedLimiterSyncing) return;
+        var scope = SpeedPerFile.IsChecked == true ? SpeedLimitScope.PerDownload : SpeedLimitScope.Combined;
+        App.Settings.SpeedLimitScope = scope == SpeedLimitScope.PerDownload ? "per_file" : "combined";
+        App.Manager.LimitScope = scope;
+        UpdateSpeedLimiterCaption(App.Manager.GlobalLimitBytesPerSec / 1024);
+    }
+
     /// <summary>Applies the limit at once to every current and future ordinary download. Torrents have their own separate
     /// bandwidth limits in Options > BitTorrent, the way a dedicated torrent client keeps them apart from anything else.</summary>
     void ApplySpeedLimitKbps(long kbps)
@@ -982,10 +1020,13 @@ public partial class MainWindow : Window
 
     void UpdateSpeedLimiterCaption(long kbps)
     {
-        SpeedLimiterCaption.Text = kbps <= 0 ? Loc.T("Unlimited") : kbps >= 1024 ? $"{kbps / 1024.0:0.#} MB/s" : $"{kbps} KB/s";
+        var amount = kbps >= 1024 ? $"{kbps / 1024.0:0.#} MB/s" : $"{kbps} KB/s";
+        SpeedLimiterCaption.Text = kbps <= 0 ? Loc.T("Unlimited") : App.Manager.LimitScope == SpeedLimitScope.PerDownload ? amount + "/file" : amount;
         BtnSpeedLimiter.ToolTip = kbps <= 0
-            ? Loc.T("Limit the total download speed (like IDM's Speed Limiter)")
-            : Loc.F("Download speed limited to {0} — click to change", SpeedLimiterCaption.Text);
+            ? Loc.T("Limit download speed")
+            : App.Manager.LimitScope == SpeedLimitScope.PerDownload
+                ? $"Each download is limited to {amount} — click to change"
+                : $"All downloads combined are limited to {amount} — click to change";
     }
 
     void Center_Click(object? sender, RoutedEventArgs? e)
@@ -1002,10 +1043,10 @@ public partial class MainWindow : Window
         {
             var smart = App.Settings.AdaptiveConnections && App.Settings.SmartDownloads;
             SmartText.Text = Loc.T(smart ? "SMART ENGINE ON" : "SMART ENGINE OFF");
-            SmartDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, smart ? "Success" : "Faint");
+            SmartDot.SetResourceReference(Border.BackgroundProperty, smart ? "Success" : "Faint");
             var browser = WindowsIntegration.Browsers().Any(b => b.Registered);
             BrowserText.Text = Loc.T(browser ? "BROWSER CONNECTED" : "BROWSER NOT CONNECTED");
-            BrowserDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, browser ? "Success" : "Warning");
+            BrowserDot.SetResourceReference(Border.BackgroundProperty, browser ? "Success" : "Warning");
         }
         catch (Exception) { /* cosmetic */ }
     }
@@ -1018,7 +1059,7 @@ public partial class MainWindow : Window
     }
 
     void StartMainQueue_Click(object? sender, RoutedEventArgs? e) => App.Queues.Start(App.Queues.Main.Id);
-    void StopQueues_Click(object? sender, RoutedEventArgs? e) { foreach (var q in App.Queues.Queues) App.Queues.Stop(q.Id); }
+    void StopQueues_Click(object? sender, RoutedEventArgs? e) => App.Queues.StopAll();
     void StartQueue_Click(object sender, RoutedEventArgs e) => ShowQueueMenu((FrameworkElement)sender, start: true);
     void StopQueue_Click(object sender, RoutedEventArgs e) => ShowQueueMenu((FrameworkElement)sender, start: false);
 
@@ -1162,6 +1203,16 @@ public partial class MainWindow : Window
         if (dir != null && Directory.Exists(dir)) Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
     }
 
+    void Downloads_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle) return;
+        var row = Ancestor<ListViewItem>(e.OriginalSource as DependencyObject);
+        if (row?.DataContext is not DownloadItem item) return;
+        Downloads.SelectedItem = item;
+        OpenFolder_Click(this, null);
+        e.Handled = true;
+    }
+
     void CopyUrl_Click(object? sender, RoutedEventArgs? e)
     {
         if (Selected() is not { } item) return;
@@ -1185,6 +1236,9 @@ public partial class MainWindow : Window
         ThemeMakanCheck.Visibility = ThemeManager.Current == "makan" ? Visibility.Visible : Visibility.Collapsed;
         ThemeObsidianCheck.Visibility = ThemeManager.Current == "obsidian" ? Visibility.Visible : Visibility.Collapsed;
         ThemeNebulaCheck.Visibility = ThemeManager.Current == "nebula" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeLilacCheck.Visibility = ThemeManager.Current == "lilac" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeDraculaCheck.Visibility = ThemeManager.Current == "dracula" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeUhnohhCheck.Visibility = ThemeManager.Current == "uhnohh" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     void Settings_Click(object sender, RoutedEventArgs e)
@@ -1210,6 +1264,130 @@ public partial class MainWindow : Window
         catch (Exception ex) { Footer.Text = ex.Message; }
     }
 
+    // Windows Explorer-style rubber-band selection. Start on empty list space and drag across rows; Ctrl/Shift keeps
+    // the existing selection. When the pointer reaches an edge the list scrolls and keeps the rows already crossed.
+    void Downloads_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left) return;
+        var source = e.OriginalSource as DependencyObject;
+        if (Ancestor<ListViewItem>(source) != null || Ancestor<GridViewColumnHeader>(source) != null || Ancestor<ScrollBar>(source) != null) return;
+
+        _marqueeArmed = true;
+        _marqueeDragging = false;
+        _marqueeStart = _marqueeCurrent = e.GetPosition(Downloads);
+        _marqueeBase.Clear();
+        if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0)
+            foreach (var item in Downloads.SelectedItems.Cast<object>()) _marqueeBase.Add(item);
+        else
+            Downloads.UnselectAll();
+        Mouse.Capture(Downloads, CaptureMode.Element);
+        e.Handled = true;
+    }
+
+    void Downloads_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_marqueeArmed) return;
+        if (e.LeftButton != MouseButtonState.Pressed) { EndMarquee(); return; }
+        _marqueeCurrent = e.GetPosition(Downloads);
+        if (!_marqueeDragging)
+        {
+            if (Math.Abs(_marqueeCurrent.X - _marqueeStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                Math.Abs(_marqueeCurrent.Y - _marqueeStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+            _marqueeDragging = true;
+            SelectionRectangle.Visibility = Visibility.Visible;
+            _marqueeScrollTimer.Start();
+        }
+        UpdateMarquee();
+        e.Handled = true;
+    }
+
+    void Downloads_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_marqueeArmed || e.ChangedButton != MouseButton.Left) return;
+        if (_marqueeDragging) UpdateMarquee();
+        EndMarquee();
+        e.Handled = true;
+    }
+
+    void Downloads_LostMouseCapture(object sender, MouseEventArgs e)
+    {
+        if (_marqueeArmed) EndMarquee();
+    }
+
+    void UpdateMarquee()
+    {
+        var left = Math.Max(0, Math.Min(_marqueeStart.X, _marqueeCurrent.X));
+        var top = Math.Max(0, Math.Min(_marqueeStart.Y, _marqueeCurrent.Y));
+        var right = Math.Min(Downloads.ActualWidth, Math.Max(_marqueeStart.X, _marqueeCurrent.X));
+        var bottom = Math.Min(Downloads.ActualHeight, Math.Max(_marqueeStart.Y, _marqueeCurrent.Y));
+        var rectangle = new Rect(new Point(left, top), new Point(Math.Max(left, right), Math.Max(top, bottom)));
+        Canvas.SetLeft(SelectionRectangle, rectangle.Left);
+        Canvas.SetTop(SelectionRectangle, rectangle.Top);
+        SelectionRectangle.Width = rectangle.Width;
+        SelectionRectangle.Height = rectangle.Height;
+
+        var wanted = new HashSet<object>(_marqueeBase);
+        foreach (var item in Downloads.Items.Cast<object>())
+        {
+            if (Downloads.ItemContainerGenerator.ContainerFromItem(item) is not ListViewItem row || !row.IsVisible) continue;
+            var origin = row.TranslatePoint(new Point(), Downloads);
+            if (rectangle.IntersectsWith(new Rect(origin, new Size(row.ActualWidth, row.ActualHeight)))) wanted.Add(item);
+        }
+        foreach (var item in Downloads.Items.Cast<object>())
+        {
+            var selected = Downloads.SelectedItems.Contains(item);
+            if (wanted.Contains(item) && !selected) Downloads.SelectedItems.Add(item);
+            else if (!wanted.Contains(item) && selected) Downloads.SelectedItems.Remove(item);
+        }
+    }
+
+    void MarqueeScrollTimer_Tick(object? sender, EventArgs e)
+    {
+        if (!_marqueeDragging) return;
+        _marqueeCurrent = Mouse.GetPosition(Downloads);
+        var scroll = VisualChild<ScrollViewer>(Downloads);
+        if (scroll == null) return;
+        var direction = _marqueeCurrent.Y < 34 ? -1 : _marqueeCurrent.Y > Downloads.ActualHeight - 20 ? 1 : 0;
+        if (direction == 0) return;
+
+        // Rows already crossed remain selected as the viewport moves, matching Explorer's long-list selection.
+        foreach (var item in Downloads.SelectedItems.Cast<object>()) _marqueeBase.Add(item);
+        if (direction < 0) scroll.LineUp(); else scroll.LineDown();
+        Downloads.UpdateLayout();
+        UpdateMarquee();
+    }
+
+    void EndMarquee()
+    {
+        _marqueeArmed = false;
+        _marqueeDragging = false;
+        _marqueeScrollTimer.Stop();
+        SelectionRectangle.Visibility = Visibility.Collapsed;
+        if (Mouse.Captured == Downloads) Mouse.Capture(null);
+    }
+
+    static T? Ancestor<T>(DependencyObject? current) where T : DependencyObject
+    {
+        while (current != null)
+        {
+            if (current is T found) return found;
+            try { current = VisualTreeHelper.GetParent(current); }
+            catch (InvalidOperationException) { current = LogicalTreeHelper.GetParent(current); }
+        }
+        return null;
+    }
+
+    static T? VisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T found) return found;
+            if (VisualChild<T>(child) is { } nested) return nested;
+        }
+        return null;
+    }
+
     void Downloads_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateToolbar();
 
     void UpdateToolbar()
@@ -1219,8 +1397,8 @@ public partial class MainWindow : Window
         BtnStop.IsEnabled = selected.Any(IsRunning);
         BtnDelete.IsEnabled = selected.Count > 0;
         BtnStopAll.IsEnabled = _items.Any(IsRunning);
-        BtnStartAll.IsEnabled = App.Queues.Queues.Any(q => !App.Queues.IsRunning(q.Id) && q.ItemIds.Count > 0);
-        BtnStopQueue.IsEnabled = App.Queues.Queues.Any(q => App.Queues.IsRunning(q.Id));
+        BtnStopAllTop.IsEnabled = _items.Any(IsRunning);
+        BtnStartAllTop.IsEnabled = _items.Any(CanResume) || App.Queues.Queues.Any(q => !App.Queues.IsRunning(q.Id) && q.ItemIds.Count > 0);
         BtnDeleteCompleted.IsEnabled = _items.Any(x => x.Status == nameof(DownloadStatus.Complete));
     }
 

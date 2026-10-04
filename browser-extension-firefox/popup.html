@@ -4,37 +4,44 @@
 <meta charset="utf-8">
 <title>Epsilon Download Manager</title>
 <style>
-  :root { color-scheme: dark; --bg:#0a0f1c; --panel:#111a2b; --panel2:#172238; --text:#f4f7fb; --muted:#8d9ab2; --accent:#4f8cff; --ok:#2e9e5b; --bad:#d64545; }
+  :root { color-scheme:light; --bg:#F3F5F9; --panel:#F8FAFD; --panel2:#E8EDF6; --text:#1B2430; --muted:#5F6B7A; --accent:#2F6FEB; --on-accent:#FFFFFF; --ok:#15803D; --bad:#C62828; --border:#CBD2DE; --divider:#E1E6EE; --tag-bg:#DCE7FC; --tag-fg:#1F56C4; --input:#FFFFFF; }
+  :root[data-theme="orange"] { --bg:#FAF6EF; --panel:#F5EFE3; --panel2:#F2EBDD; --text:#3A2E1F; --muted:#7A6A54; --accent:#D6690A; --on-accent:#FFFFFF; --ok:#2E7D32; --bad:#C62828; --border:#D8CBB0; --divider:#E6DCC8; --tag-bg:#F7DDBB; --tag-fg:#B85400; --input:#FFFFFF; }
+  :root[data-theme="makan"] { color-scheme:dark; --bg:#07111F; --panel:#0B1728; --panel2:#101D30; --text:#F4F8FF; --muted:#A9B8CC; --accent:#39F5B0; --on-accent:#07111F; --ok:#39F5B0; --bad:#FF5C7A; --border:#213650; --divider:#213650; --tag-bg:#1C3556; --tag-fg:#38D9FF; --input:#0B1728; }
+  :root[data-theme="obsidian"] { color-scheme:dark; --bg:#000000; --panel:#0A0A0C; --panel2:#121214; --text:#F2F2F4; --muted:#9A9CA3; --accent:#4D7CFF; --on-accent:#FFFFFF; --ok:#34D399; --bad:#F5455C; --border:#2A2B2F; --divider:#2A2B2F; --tag-bg:#1D2333; --tag-fg:#4D7CFF; --input:#0A0A0C; }
+  :root[data-theme="nebula"] { color-scheme:dark; --bg:#0A0818; --panel:#120F26; --panel2:#191532; --text:#F5F2FF; --muted:#B3A8D9; --accent:#A78BFA; --on-accent:#17102E; --ok:#39F5B0; --bad:#FF5C7A; --border:#362C5C; --divider:#362C5C; --tag-bg:#2C2359; --tag-fg:#E879F9; --input:#120F26; }
+  :root[data-theme="lilac"] { color-scheme:dark; --bg:#100B18; --panel:#181022; --panel2:#21162E; --text:#FFF7FF; --muted:#D0B7DD; --accent:#D8A7F2; --on-accent:#1A0D20; --ok:#68E0A5; --bad:#FF6B8A; --border:#49325F; --divider:#49325F; --tag-bg:#3B2750; --tag-fg:#D8A7F2; --input:#140D1D; }
+  :root[data-theme="dracula"] { color-scheme:dark; --bg:#191A21; --panel:#21222C; --panel2:#282A36; --text:#F8F8F2; --muted:#C5C1D1; --accent:#FF5555; --on-accent:#1B1117; --ok:#50FA7B; --bad:#FF5555; --border:#44475A; --divider:#44475A; --tag-bg:#493142; --tag-fg:#FF79C6; --input:#191A21; }
+  :root[data-theme="uhnohh"] { color-scheme:dark; --bg:#111108; --panel:#19180C; --panel2:#232113; --text:#FFFBE3; --muted:#CEC89D; --accent:#FFD84D; --on-accent:#181300; --ok:#9BE564; --bad:#FF6B57; --border:#4B4727; --divider:#4B4727; --tag-bg:#443D16; --tag-fg:#FFD84D; --input:#131208; }
   * { box-sizing: border-box; }
   body { margin:0; width:380px; max-height:580px; overflow:auto; background:var(--bg); color:var(--text); font:13px/1.4 system-ui,"Segoe UI",sans-serif; }
   header { display:flex; align-items:center; gap:10px; padding:14px 16px; background:var(--panel); }
   header img { width:28px; height:28px; }
   header h1 { font-size:15px; margin:0; font-weight:600; }
   #state { font-size:12px; color:var(--muted); }
-  #dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--muted); margin-right:6px; }
+  #dot { display:inline-block; width:8px; height:8px; border-radius:1px; background:var(--muted); margin-right:6px; }
   #dot.ok { background:var(--ok); } #dot.idle { background:#d9a441; } #dot.bad { background:var(--bad); }
-  section { padding:12px 16px; border-top:1px solid #1c2740; }
+  section { padding:12px 16px; border-top:1px solid var(--divider); }
   h2 { margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
   label.row { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; }
-  button { background:var(--panel2); color:var(--text); border:1px solid #26365a; border-radius:8px; padding:7px 12px; font:inherit; cursor:pointer; }
+  button { background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:3px; padding:7px 12px; font:inherit; cursor:pointer; }
   button:hover { border-color:var(--accent); }
-  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
   button:disabled { opacity:.5; cursor:default; }
-  .item { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid #16213a; }
+  .item { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--divider); }
   .item:last-child { border-bottom:0; }
   .item .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .item .meta { color:var(--muted); font-size:11px; }
-  .tag { font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; background:#22304a; color:#9db8ff; }
+  .tag { font-size:10px; font-weight:700; padding:2px 6px; border-radius:2px; background:var(--tag-bg); color:var(--tag-fg); }
   .empty, .note { color:var(--muted); font-size:12px; }
   .err { color:#ff9c9c; font-size:12px; margin-top:6px; word-break:break-word; }
-  textarea { width:100%; height:54px; background:var(--panel); color:var(--text); border:1px solid #26365a; border-radius:8px; padding:6px; font:12px ui-monospace,Consolas,monospace; resize:vertical; }
+  textarea { width:100%; height:54px; background:var(--input); color:var(--text); border:1px solid var(--border); border-radius:3px; padding:6px; font:12px ui-monospace,Consolas,monospace; resize:vertical; }
   .links { max-height:150px; overflow:auto; margin:8px 0; }
   .links label { display:flex; gap:6px; align-items:center; padding:2px 0; font-size:12px; }
   .links span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .actions { display:flex; gap:8px; flex-wrap:wrap; }
-  .seg { display:flex; gap:2px; background:var(--panel2); border:1px solid #26365a; border-radius:8px; padding:2px; }
-  .seg button { flex:1; background:transparent; border:0; border-radius:6px; padding:6px 8px; font-size:12px; }
-  .seg button.on { background:var(--accent); color:#fff; }
+  .seg { display:grid; grid-template-columns:repeat(3,1fr); gap:2px; background:var(--panel2); border:1px solid var(--border); border-radius:3px; padding:2px; }
+  .seg button { background:transparent; border:0; border-radius:2px; padding:6px 5px; font-size:11px; }
+  .seg button.on { background:var(--accent); color:var(--on-accent); }
 </style>
 </head>
 <body>
@@ -56,20 +63,26 @@
 
 <section>
   <h2 data-t="Links on this page">Links on this page</h2>
-  <div class="actions"><button id="grab" data-t="Download all links…">Download all links…</button></div>
+  <div class="actions"><button id="grabSelected" data-t="Download selected links…">Download selected links…</button><button id="grab" data-t="Download all links…">Download all links…</button></div>
   <div class="note" style="margin-top:6px" data-t="Opens a window in Epsilon with every link of the page (file name, type, size) so you can tick what to download.">Opens a window in Epsilon with every link of the page (file name, type, size) so you can tick what to download.</div>
-  <div class="note" style="margin-top:4px" data-t="Tip: select some links on the page with the mouse and click the “Download with Epsilon” bar that appears at the bottom-left.">Tip: select some links on the page with the mouse and click the “Download with Epsilon” bar that appears at the bottom-left.</div>
+  <div class="note" style="margin-top:4px" data-t="Highlight links on the page, then choose Download selected links to send only that batch to Epsilon.">Highlight links on the page, then choose Download selected links to send only that batch to Epsilon.</div>
   <div id="grabResult" class="note" style="margin-top:6px"></div>
 </section>
 
 <section>
   <h2 data-t="Appearance">Appearance</h2>
   <div class="seg" id="themeSeg">
-    <button data-theme="auto" data-t="Auto">Auto</button>
-    <button data-theme="dark" data-t="Dark">Dark</button>
+    <button data-theme="app" data-t="Follow app">Follow app</button>
     <button data-theme="light" data-t="Light">Light</button>
+    <button data-theme="orange" data-t="Orange">Orange</button>
+    <button data-theme="makan" data-t="Epsilon">Epsilon</button>
+    <button data-theme="obsidian" data-t="Obsidian">Obsidian</button>
+    <button data-theme="nebula" data-t="Nebula">Nebula</button>
+    <button data-theme="lilac">Lilac</button>
+    <button data-theme="dracula">Dracula</button>
+    <button data-theme="uhnohh">Uhnohh</button>
   </div>
-  <div class="note" style="margin-top:6px" data-t="Sets the look of the “Download this video” button and menu shown on web pages. “Auto” follows the browser's own colour scheme.">Sets the look of the “Download this video” button and menu shown on web pages. “Auto” follows the browser's own colour scheme.</div>
+  <div class="note" style="margin-top:6px" data-t="The extension popup and video controls follow the desktop theme. You can override them here.">The extension popup and video controls follow the desktop theme. You can override them here.</div>
 </section>
 
 <section>

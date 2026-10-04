@@ -1,4 +1,14 @@
-# Makan Download Manager — Security notes (15.1)
+# Epsilon Download Manager — Security policy
+
+## Supported version
+
+Security fixes are provided for the latest public release, currently **1.3.x**.
+
+## Reporting a vulnerability
+
+Please use GitHub's private **Report a vulnerability** form in the repository's Security tab. Do not open a public issue for a vulnerability that could put users at risk.
+
+## Security design
 
 - Browser cookies are protected at rest using Windows DPAPI.
 - Redirect handling avoids forwarding cookies across origins.

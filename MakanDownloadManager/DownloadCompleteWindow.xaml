@@ -2,7 +2,7 @@
         Title="Download complete" Width="460" SizeToContent="Height" ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False" WindowStartupLocation="Manual">
   <Grid Margin="20">
     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-    <Border Width="46" Height="46" CornerRadius="23" Background="{DynamicResource SuccessBg}" VerticalAlignment="Top" Margin="0,0,16,0">
+    <Border Width="46" Height="46" CornerRadius="4" Background="{DynamicResource SuccessBg}" VerticalAlignment="Top" Margin="0,0,16,0">
       <TextBlock Text="&#xE73E;" FontFamily="{StaticResource IconFont}" FontSize="22" Foreground="{DynamicResource Success}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Border>
     <StackPanel Grid.Column="1">

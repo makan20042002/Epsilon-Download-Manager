@@ -30,7 +30,7 @@ $version = (Get-Content (Join-Path $root 'VERSION.txt') -Raw).Trim()
 & $iscc (Join-Path $root 'installer\MakanDownloadManager.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup reported an error (see above).' }
 
-$setup = Join-Path $root "installer-output\MakanDownloadManager-$version-Setup.exe"
+$setup = Join-Path $root "installer-output\EpsilonDownloadManager-$version-Setup.exe"
 Write-Host ''
 Write-Host "Installer ready: $setup" -ForegroundColor Green
 Write-Host 'This one file installs Makan, connects the browsers and adds Start menu entries. Sign it before public distribution (tools\sign-release.ps1).'

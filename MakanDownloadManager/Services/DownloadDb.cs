@@ -225,6 +225,16 @@ VALUES($u,$f,$cat,$p,$s,$sch,$t,$d,$co,$ref,$ua,$sha,$etag,$lm,$n,$lim,$code,$st
         }
     }
 
+    public void ClearHistory()
+    {
+        lock (_gate)
+        {
+            using var c = _connection.CreateCommand();
+            c.CommandText = "DELETE FROM history";
+            c.ExecuteNonQuery();
+        }
+    }
+
     static DateTime ParseDate(string value) => DateTime.TryParse(value,out var d)?d:DateTime.UtcNow;
 
     public string DatabasePath => _path;

@@ -261,6 +261,42 @@ public sealed class QueueService : IDisposable
         Changed?.Invoke();
     }
 
+    /// <summary>Stops every active queue as one operation, then pauses its transfers. Removing all runs first prevents
+    /// a concurrent pump tick from filling a newly freed slot with the next scheduled file.</summary>
+    public void StopAll()
+    {
+        List<DownloadItem> active;
+        lock (_gate)
+        {
+            if (_runs.Count == 0) return;
+            var runningIds = _runs.Keys.ToHashSet();
+            _runs.Clear();
+            active = _queues.Where(q => runningIds.Contains(q.Id)).SelectMany(ItemsOfUnsafe).Where(IsActive).DistinctBy(x => x.Id).ToList();
+        }
+        foreach (var item in active) _manager.Pause(item);
+        Changed?.Invoke();
+    }
+
+    /// <summary>Resumes one file without starting its whole queue. If that queue is already running, put the file back
+    /// into the run's pending list; otherwise it is a normal manual start. This is especially important after a failure:
+    /// the engine deliberately lets a running queue control its own files, so bypassing this method would leave the
+    /// failed file saying Queued forever.</summary>
+    public void ResumeItem(DownloadItem item)
+    {
+        var controlled = false;
+        lock (_gate)
+        {
+            var queue = _queues.FirstOrDefault(q => q.ItemIds.Contains(item.Id));
+            if (queue != null && _runs.TryGetValue(queue.Id, out var run))
+            {
+                controlled = true;
+                if (!IsActive(item) && !run.Pending.Contains(item.Id)) run.Pending.Enqueue(item.Id);
+            }
+        }
+        if (controlled) { Changed?.Invoke(); Pump(); }
+        else _manager.Enqueue(item);
+    }
+
     /// <summary>Called once after start-up: queues set to "start download on startup" begin.</summary>
     public void OnStartup()
     {
@@ -279,6 +315,7 @@ public sealed class QueueService : IDisposable
 
         foreach (var (id, run) in runs)
         {
+            if (!IsRunning(id)) continue;   // Stop/StopAll may have removed this run after the snapshot was made.
             var q = Find(id); if (q == null) continue;
             var items = ItemsOf(id);
             var byId = items.ToDictionary(i => i.Id);
@@ -299,6 +336,7 @@ public sealed class QueueService : IDisposable
             var slots = Math.Clamp(q.MaxParallel, 1, 16) - active;
             while (slots > 0 && run.Pending.Count > 0)
             {
+                if (!IsRunning(id)) break;
                 var itemId = run.Pending.Dequeue();
                 if (!byId.TryGetValue(itemId, out var item) || !CanStart(item)) continue;   // removed, or the user already handled it
                 if (q.Schedule.RetriesEnabled) run.RetriesLeft[itemId] = Math.Max(0, q.Schedule.Retries);

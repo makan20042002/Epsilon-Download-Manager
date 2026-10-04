@@ -23,6 +23,7 @@ public partial class App : Application
     public static V15BandwidthProfiles BandwidthProfiles { get; private set; } = null!;
     public static V15StatisticsService V15Statistics { get; } = new(() => Manager?.Items ?? (IReadOnlyList<DownloadItem>)Array.Empty<DownloadItem>());
     public static V15HealthService Health { get; } = new(V15Context.Health);
+    public static DownloadSleepGuard SleepGuard { get; private set; } = null!;
 
     /// <summary>Raised after the Options window saved (the main window rebuilds its category tree, etc.).</summary>
     public static event Action? SettingsChanged;
@@ -73,6 +74,7 @@ public partial class App : Application
         Bridge = new NativeBridge(Manager, () => Settings.DefaultFolder, () => CategoryService.FolderFor("Video", Settings.DefaultFolder), FolderForFile);
         Bridge.CaptureRulesProvider = () => Settings.BuildCaptureRules();
         Bridge.LanguageProvider = () => Settings.Language;
+        Bridge.ThemeProvider = () => ThemeManager.Current;
         Bridge.TorrentFolderProvider = () => Settings.TorrentSaveFolder;
         Bridge.YtDlpProvider = () => Manager.YtDlp;
         StartYtDlpUpdateCheck();
@@ -133,6 +135,7 @@ public partial class App : Application
         Manager.RuleEngine = Rules;
         Manager.TorrentEngineFactory = CreateTorrentEngine;
         Manager.TorrentSeedOnStart = Settings.TorrentSeedOnStart;
+        SleepGuard = new DownloadSleepGuard(() => Settings.KeepAwakeWhileDownloading, () => Manager.Items);
 
         ApplySettings();
         Queues = new QueueService(Manager, new DbQueueStore(Db), new WindowsPower());
@@ -160,6 +163,7 @@ public partial class App : Application
     {
         Manager.MaxActive = Settings.MaxActive;
         Manager.DefaultConnections = Settings.Connections;
+        Manager.LimitScope = Settings.SpeedLimitScope == "per_file" ? SpeedLimitScope.PerDownload : SpeedLimitScope.Combined;
         Manager.GlobalLimitBytesPerSec = Settings.SpeedKbps * 1024;
         Manager.TempDirectory = string.IsNullOrWhiteSpace(Settings.TempDirectory) ? null : Settings.TempDirectory;
         Manager.SetFileDateFromServer = Settings.SetFileDateFromServer;
@@ -184,6 +188,7 @@ public partial class App : Application
         Manager.ProxyUseForHttps = Settings.ProxyUseForHttps;
         Manager.ProxyUsername = Settings.ProxyUsername;
         Manager.ProxyPassword = Settings.ProxyPassword;
+        SleepGuard?.Refresh();
         RefreshYtDlp();
     }
 
@@ -302,6 +307,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SleepGuard?.Dispose();
         Bridge?.Dispose();
         Remote?.Dispose();
         Queues?.Dispose();

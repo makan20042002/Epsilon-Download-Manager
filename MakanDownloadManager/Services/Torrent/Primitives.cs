@@ -84,25 +84,57 @@ public sealed class TokenBucket
     double _tokens;
     long _last = Stopwatch.GetTimestamp();
     readonly object _gate = new();
+    CancellationTokenSource _changed = new();
 
-    public long Rate { get => Interlocked.Read(ref _rate); set => Interlocked.Exchange(ref _rate, Math.Max(0, value)); }
+    public long Rate
+    {
+        get => Interlocked.Read(ref _rate);
+        set
+        {
+            CancellationTokenSource? wake = null;
+            lock (_gate)
+            {
+                var next = Math.Max(0, value);
+                if (next == _rate) return;
+                Interlocked.Exchange(ref _rate, next);
+                _tokens = 0;
+                _last = Stopwatch.GetTimestamp();
+                wake = _changed;
+                _changed = new CancellationTokenSource();
+            }
+            // A wait calculated from the previous user-selected rate is invalid now. Wake it immediately; in
+            // particular, changing a torrent back to 0 (unlimited) must never leave it sleeping at 0 B/s.
+            wake.Cancel();
+        }
+    }
 
     /// <summary>Waits as long as the limit requires before <paramref name="bytes"/> may be moved.</summary>
     public async Task WaitAsync(int bytes, CancellationToken ct)
     {
-        var rate = Rate;
-        if (rate <= 0) return;
-        double delay;
-        lock (_gate)
+        while (true)
         {
-            var now = Stopwatch.GetTimestamp();
-            // at most a quarter of a second may be saved up, so a limit holds even for short transfers
-            _tokens = Math.Min(Math.Max(rate / 4.0, 65536), _tokens + (now - _last) / (double)Stopwatch.Frequency * rate);
-            _last = now;
-            _tokens -= bytes;
-            delay = _tokens < 0 ? -_tokens / rate : 0;
+            double delay;
+            CancellationToken changed;
+            lock (_gate)
+            {
+                var rate = _rate;
+                if (rate <= 0) return;
+                var now = Stopwatch.GetTimestamp();
+                // at most a quarter of a second may be saved up, so a user-selected limit holds even for short transfers
+                _tokens = Math.Min(Math.Max(rate / 4.0, 65536), _tokens + (now - _last) / (double)Stopwatch.Frequency * rate);
+                _last = now;
+                _tokens -= bytes;
+                delay = _tokens < 0 ? -_tokens / rate : 0;
+                changed = _changed.Token;
+            }
+            if (delay <= 0.002) return;
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, changed);
+            try { await Task.Delay(TimeSpan.FromSeconds(delay), linked.Token).ConfigureAwait(false); return; }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested && changed.IsCancellationRequested)
+            {
+                // The user changed or removed the limit. Recalculate with the new value now.
+            }
         }
-        if (delay > 0.002) await Task.Delay(TimeSpan.FromSeconds(delay), ct).ConfigureAwait(false);
     }
 
     public static async Task WaitAllAsync(int bytes, CancellationToken ct, params TokenBucket?[] buckets)

@@ -24,7 +24,7 @@ public sealed record LinksPrompt(IReadOnlyList<LinkEntry> Links, IReadOnlyDictio
 public sealed record BatchPrompt(IReadOnlyList<string> Urls, string? Cookie, string? Referrer, string? UserAgent);
 
 /// <summary>A video the browser wants saved: an HLS playlist (plus optional separate audio playlist) in TS or MP4.</summary>
-public sealed record StreamRequest(string Url, string? AudioUrl, string? Title, string Format, string? Cookie, string? Referrer, string? UserAgent);
+public sealed record StreamRequest(string Url, string? AudioUrl, string? Title, string Format, string? Cookie, string? Referrer, string? UserAgent, long? Size = null);
 
 /// <summary>One downloadable quality of a stream, as shown in the browser's "Download this video" menu.</summary>
 public sealed record StreamDto(string Kind, string Quality, int? Height, long? Bitrate, string? Codec, string Url, string? AudioUrl, double? Duration = null);
@@ -46,6 +46,7 @@ public sealed class BridgeRequest
     public string? Title { get; set; }
     public string? Format { get; set; }
     public string? AudioUrl { get; set; }
+    public long? Size { get; set; }
     /// <summary>The user asked for this download themselves (menu, popup, context menu): the browser-capture rules (file types, sites, browsers) do not apply.</summary>
     public bool Explicit { get; set; }
     /// <summary>Skip the "where to save" question (used when several qualities are queued at once).</summary>
@@ -78,6 +79,8 @@ public sealed class BridgeResponse
     public bool NeedsSetup { get; set; }
     /// <summary>Makan's interface language ("en" / "fa"), so the browser extension can speak it too.</summary>
     public string? Language { get; set; }
+    /// <summary>The resolved desktop colour theme, so browser surfaces can follow the app.</summary>
+    public string? Theme { get; set; }
 }
 
 /// <summary>
@@ -87,7 +90,7 @@ public sealed class BridgeResponse
 public sealed class NativeBridge : IDisposable
 {
     public const string PipeName = "com.makan.downloadmanager";
-    public const string Version = "1.1.0";
+    public const string Version = "1.3.0";
 
     static readonly JsonSerializerOptions In = new() { PropertyNameCaseInsensitive = true };
     static readonly JsonSerializerOptions Out = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
@@ -119,6 +122,8 @@ public sealed class NativeBridge : IDisposable
     public Func<YtDlpService?>? YtDlpProvider { get; set; }
     /// <summary>"en" or "fa", added to every reply.</summary>
     public Func<string>? LanguageProvider { get; set; }
+    /// <summary>The currently resolved desktop theme, added to every reply.</summary>
+    public Func<string>? ThemeProvider { get; set; }
     /// <summary>Where a browser-captured magnet link or .torrent address is saved; falls back to the regular download
     /// folder when not set (or when it returns empty), the same way AppSettings.TorrentSaveFolder does.</summary>
     public Func<string>? TorrentFolderProvider { get; set; }
@@ -181,6 +186,7 @@ public sealed class NativeBridge : IDisposable
                     var request = JsonSerializer.Deserialize<BridgeRequest>(line, In);
                     response = request is null ? Fail("Invalid request.") : await ProcessAsync(request, _cts.Token);
                     response.Language ??= LanguageProvider?.Invoke();
+                    response.Theme ??= ThemeProvider?.Invoke();
                 }
                 catch (JsonException) { response = Fail("Invalid request."); }
                 await writer.WriteLineAsync(JsonSerializer.Serialize(response, Out));
@@ -360,7 +366,7 @@ public sealed class NativeBridge : IDisposable
         if (!IsHttpUrl(r.Url)) return Fail("Only HTTP/HTTPS URLs are accepted.");
         YtPlan plan;
         try { plan = YtDlpService.PlanFor(r.Format ?? ""); } catch (ArgumentException ex) { return Fail(ex.Message); }
-        var request = new StreamRequest(YtDlpService.WithSelection(r.Url!, plan.Key), null, Blank(r.Title) ?? "video", plan.OutputExtension, Blank(r.Cookie), Blank(r.Referrer), Blank(r.UserAgent));
+        var request = new StreamRequest(YtDlpService.WithSelection(r.Url!, plan.Key), null, Blank(r.Title) ?? "video", plan.OutputExtension, Blank(r.Cookie), Blank(r.Referrer), Blank(r.UserAgent), r.Size > 0 ? r.Size : null);
         return AddStreamRequest(request, r);
     }
 
@@ -386,6 +392,7 @@ public sealed class NativeBridge : IDisposable
         UserAgent = Blank(request.UserAgent),
         Priority = 5,
         Connections = connections,
+        TotalBytes = request.Size,
         AutoName = false
     };
 

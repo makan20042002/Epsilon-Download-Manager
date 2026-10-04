@@ -111,7 +111,8 @@ public sealed partial class DownloadManager
         var totalSegments = tracks.Sum(t => t.Playlist.Segments.Count);
         var workers = Math.Clamp(item.Connections > 0 ? item.Connections : DefaultConnections, 1, MaxConnectionsPerDownload);
         item.ActiveConnections = workers;
-        var tracker = new ProgressTracker(tracks.Sum(t => t.State.PartLength));
+        item.DiskLoadedBytes = tracks.Sum(t => t.State.PartLength);
+        var tracker = new ProgressTracker(item.DiskLoadedBytes);
 
         await WithReporter(item, tracker, async () =>
         {

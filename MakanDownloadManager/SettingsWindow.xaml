@@ -52,6 +52,9 @@
               <ComboBoxItem Content="Makan (blue grey)"/>
               <ComboBoxItem Content="Obsidian (black)"/>
               <ComboBoxItem Content="Nebula (dark violet)"/>
+              <ComboBoxItem Content="Lilac (dark lilac)"/>
+              <ComboBoxItem Content="Dracula (dark red)"/>
+              <ComboBoxItem Content="Uhnohh (dark yellow)"/>
               <ComboBoxItem Content="Follow Windows"/>
             </ComboBox>
             <TextBlock Text="The theme changes as soon as you press OK." Foreground="{DynamicResource Muted}" Margin="0,6,0,0"/>
@@ -197,11 +200,20 @@
             <TextBlock Text="Global speed limit (KB/s, 0 = unlimited)" Margin="0,16,0,6"/>
             <TextBox x:Name="Speed" Text="0" Width="160" HorizontalAlignment="Left"/>
 
+            <TextBlock Text="Apply this limit" Margin="0,10,0,6"/>
+            <ComboBox x:Name="SpeedScope" Width="300" HorizontalAlignment="Left">
+              <ComboBoxItem Content="Across all downloads combined"/>
+              <ComboBoxItem Content="Separately to each download"/>
+            </ComboBox>
+
             <TextBlock Text="Default connections per download" Margin="0,16,0,0"/>
             <Slider x:Name="Connections" Minimum="1" Maximum="16" Value="8" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,6,0,0"/>
             <TextBlock Text="{Binding ElementName=Connections, Path=Value, StringFormat={}{0:0}}" FontWeight="SemiBold"/>
 
             <CheckBox x:Name="AutoResume" Content="Resume unfinished downloads by themselves when Makan starts" Margin="0,18,0,0"/>
+            <CheckBox x:Name="KeepAwake" Content="Keep the computer awake while files are downloading" Margin="0,10,0,0"/>
+            <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="26,4,0,0"
+                       Text="Prevents automatic sleep while a transfer is active. The display may still turn off normally."/>
             <CheckBox x:Name="SmartConnections" Content="Smart connections: use fewer connections for servers that throttle me" Margin="0,10,0,0"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="26,4,0,0"
                        Text="Makan always starts with the number above. Only a server that answers 'too many requests' gets fewer connections next time (see the Intelligent Center)."/>
@@ -234,6 +246,8 @@
             <CheckBox x:Name="TorrentPex" Content="Enable peer exchange (learn about more peers from the ones already connected)" Margin="0,8,0,0"/>
 
             <TextBlock Text="Bandwidth" FontWeight="SemiBold" Margin="0,20,0,0"/>
+            <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,8"
+                       Text="No automatic torrent speed cap is applied. Only limits you enter here or in Torrent details can limit torrent speed."/>
             <TextBlock Text="Global torrent download limit (KB/s, 0 = unlimited)" Margin="0,8,0,6"/>
             <TextBox x:Name="TorrentDownloadBox" Text="0" Width="160" HorizontalAlignment="Left"/>
             <TextBlock Text="Global torrent upload limit (KB/s, 0 = unlimited)" Margin="0,14,0,6"/>

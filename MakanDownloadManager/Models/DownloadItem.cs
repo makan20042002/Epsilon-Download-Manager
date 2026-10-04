@@ -25,6 +25,11 @@ public sealed class DownloadItem : INotifyPropertyChanged
     long? _total;
     public long? TotalBytes { get => _total; set { _total = value; Changed(); Changed(nameof(SizeDisplay)); Changed(nameof(StatusText)); } }
     public long DoneBytes { get; set; }
+    long _diskLoadedBytes;
+    /// <summary>In-memory only: bytes recovered from existing partial files when this run resumed.</summary>
+    public long DiskLoadedBytes { get => _diskLoadedBytes; set { _diskLoadedBytes = Math.Max(0, value); Changed(); Changed(nameof(DiskLoadPercent)); Changed(nameof(DiskLoadText)); } }
+    public double DiskLoadPercent => TotalBytes is > 0 ? Math.Clamp(DiskLoadedBytes * 100.0 / TotalBytes.Value, 0, 100) : 0;
+    public string DiskLoadText => DiskLoadedBytes > 0 ? Loc.F("Loaded {0} from disk", FormatBytes(DiskLoadedBytes)) : Loc.T("No saved data loaded from disk");
     /// <summary>Configured (maximum) connections for this download.</summary>
     public int Connections { get; set; } = 4;
     public long SpeedLimitBytesPerSec { get; set; }

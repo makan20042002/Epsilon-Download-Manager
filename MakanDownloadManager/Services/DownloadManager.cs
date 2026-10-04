@@ -6,6 +6,12 @@ using MakanDownloadManager.Models;
 
 namespace MakanDownloadManager.Services;
 
+public enum SpeedLimitScope
+{
+    Combined,
+    PerDownload
+}
+
 /// <summary>
 /// Owns every <see cref="DownloadItem"/> in memory (the UI binds to these same instances), schedules the queue,
 /// and runs transfers. The transfer engine itself lives in DownloadManager.Engine.cs.
@@ -40,6 +46,7 @@ public sealed partial class DownloadManager : IDisposable
     int _maxActive = 4;
     int _defaultConnections = 8;
     long _globalLimit;
+    int _speedLimitScope;
     volatile bool _disposed;
 
     public int MaxActive { get => Volatile.Read(ref _maxActive); set => Volatile.Write(ref _maxActive, Math.Clamp(value, 1, 16)); }
@@ -74,7 +81,55 @@ public sealed partial class DownloadManager : IDisposable
     /// </summary>
     public Func<DownloadItem, bool>? QueueControlled { get; set; }
 
-    public long GlobalLimitBytesPerSec { get => Interlocked.Read(ref _globalLimit); set { var v = Math.Max(0, value); Interlocked.Exchange(ref _globalLimit, v); _globalLimiter.Limit = v; } }
+    /// <summary>The limit selected in the toolbar. Depending on <see cref="LimitScope"/>, this is either shared by all
+    /// ordinary downloads or applied independently to every ordinary download.</summary>
+    public long GlobalLimitBytesPerSec
+    {
+        get => Interlocked.Read(ref _globalLimit);
+        set
+        {
+            var v = Math.Max(0, value);
+            Interlocked.Exchange(ref _globalLimit, v);
+            _globalLimiter.Limit = LimitScope == SpeedLimitScope.Combined ? v : 0;
+            RefreshLocalLimiterRates();
+        }
+    }
+
+    public SpeedLimitScope LimitScope
+    {
+        get => (SpeedLimitScope)Volatile.Read(ref _speedLimitScope);
+        set
+        {
+            var normalized = value == SpeedLimitScope.PerDownload ? SpeedLimitScope.PerDownload : SpeedLimitScope.Combined;
+            Volatile.Write(ref _speedLimitScope, (int)normalized);
+            _globalLimiter.Limit = normalized == SpeedLimitScope.Combined ? GlobalLimitBytesPerSec : 0;
+            RefreshLocalLimiterRates();
+        }
+    }
+
+    void RefreshLocalLimiterRates()
+    {
+        foreach (var (id, limiter) in _localLimiters)
+        {
+            if (_items.TryGetValue(id, out var item)) limiter.Limit = EffectiveLocalLimit(item);
+        }
+    }
+
+    long EffectiveLocalLimit(DownloadItem item)
+    {
+        var itemLimit = Math.Max(0, item.SpeedLimitBytesPerSec);
+        var toolbarLimit = LimitScope == SpeedLimitScope.PerDownload ? GlobalLimitBytesPerSec : 0;
+        if (itemLimit == 0) return toolbarLimit;
+        if (toolbarLimit == 0) return itemLimit;
+        return Math.Min(itemLimit, toolbarLimit);
+    }
+
+    /// <summary>Changes one file's own cap and wakes it immediately if it is currently waiting at the previous rate.</summary>
+    public void SetItemSpeedLimit(DownloadItem item, long bytesPerSecond)
+    {
+        item.SpeedLimitBytesPerSec = Math.Max(0, bytesPerSecond);
+        if (_localLimiters.TryGetValue(item.Id, out var limiter)) limiter.Limit = EffectiveLocalLimit(item);
+    }
 
     /// <summary>Raised (from any thread) when a download is created.</summary>
     public event Action<DownloadItem>? ItemAdded;
@@ -496,27 +551,59 @@ public sealed partial class DownloadManager : IDisposable
         long _nextTicks;
         long _limit;
         bool _disposed;
+        CancellationTokenSource _changed = new();
 
         public long Limit
         {
             get { lock (_gate) return _limit; }
-            set { lock (_gate) { _limit = Math.Max(0, value); if (_limit == 0) _nextTicks = 0; } }
+            set
+            {
+                CancellationTokenSource? wake = null;
+                lock (_gate)
+                {
+                    var next = Math.Max(0, value);
+                    if (_disposed || next == _limit) return;
+                    _limit = next;
+                    // A reservation made at the old rate is no longer valid. Wake current waiters so they can reserve
+                    // again using the new rate instead of sitting at 0 B/s until the old delay expires.
+                    _nextTicks = 0;
+                    wake = _changed;
+                    _changed = new CancellationTokenSource();
+                }
+                wake.Cancel();
+            }
         }
 
         public async Task WaitAsync(int bytes, CancellationToken ct)
         {
-            TimeSpan wait;
-            lock (_gate)
+            while (true)
             {
-                if (_disposed || _limit <= 0) return;
-                var now = Stopwatch.GetTimestamp();
-                var start = Math.Max(now, _nextTicks);
-                _nextTicks = start + (long)(bytes / (double)_limit * Stopwatch.Frequency);
-                wait = TimeSpan.FromSeconds(Math.Max(0, (start - now) / (double)Stopwatch.Frequency));
+                TimeSpan wait;
+                CancellationToken changed;
+                lock (_gate)
+                {
+                    if (_disposed || _limit <= 0) return;
+                    var now = Stopwatch.GetTimestamp();
+                    var start = Math.Max(now, _nextTicks);
+                    _nextTicks = start + (long)(bytes / (double)_limit * Stopwatch.Frequency);
+                    wait = TimeSpan.FromSeconds(Math.Max(0, (start - now) / (double)Stopwatch.Frequency));
+                    changed = _changed.Token;
+                }
+                if (wait <= TimeSpan.Zero) return;
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, changed);
+                try { await Task.Delay(wait, linked.Token); return; }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested && changed.IsCancellationRequested)
+                {
+                    // The user changed the rate or scope. Recalculate immediately.
+                }
             }
-            if (wait > TimeSpan.Zero) await Task.Delay(wait, ct);
         }
 
-        public void Dispose() { lock (_gate) { _disposed = true; _nextTicks = 0; } }
+        public void Dispose()
+        {
+            CancellationTokenSource wake;
+            lock (_gate) { if (_disposed) return; _disposed = true; _nextTicks = 0; wake = _changed; }
+            wake.Cancel();
+        }
     }
 }

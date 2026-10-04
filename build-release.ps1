@@ -48,6 +48,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Publishing MakanUpdater failed.' }
 # Browser extensions + installers travel with the app.
 Copy-Item (Join-Path $root 'browser-extension')         (Join-Path $publish 'browser-extension')         -Recurse
 Copy-Item (Join-Path $root 'browser-extension-firefox') (Join-Path $publish 'browser-extension-firefox') -Recurse
+# Do not ship an old prebuilt XPI alongside the current sources; the fresh package below is the installable add-on.
+Get-ChildItem (Join-Path $publish 'browser-extension-firefox') -Filter '*.xpi' | Remove-Item -Force
 Copy-Item (Join-Path $root 'install-browser-integration.ps1') $publish
 Copy-Item (Join-Path $root 'install-background.ps1')          $publish
 Copy-Item (Join-Path $root 'installer\EXTENSION-SETUP.txt') $publish
@@ -56,14 +58,14 @@ Get-ChildItem $publish -Filter *.pdb | Remove-Item -Force
 # Ready-to-share extension packages (a Firefox .xpi is just a zip).
 $dist = Join-Path $publish 'extension-packages'
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
-Compress-Archive -Path (Join-Path $root 'browser-extension\*')         -DestinationPath (Join-Path $dist 'makan-chrome-edge.zip') -Force
-Compress-Archive -Path (Join-Path $root 'browser-extension-firefox\*') -DestinationPath (Join-Path $dist 'makan-firefox.zip')     -Force
+Compress-Archive -Path (Join-Path $publish 'browser-extension\*')         -DestinationPath (Join-Path $dist 'epsilon-chrome-edge.zip') -Force
+Compress-Archive -Path (Join-Path $publish 'browser-extension-firefox\*') -DestinationPath (Join-Path $dist 'epsilon-firefox.zip')     -Force
 
 # Sanity check: everything the installer and the browsers need is really there.
 foreach ($file in 'MakanDownloadManager.exe', 'MakanNativeHost.exe', 'MakanUpdater.exe', 'install-browser-integration.ps1', 'EXTENSION-SETUP.txt', 'browser-extension\manifest.json', 'browser-extension-firefox\manifest.json') {
   if (-not (Test-Path (Join-Path $publish $file))) { throw "Build finished but $file is missing from $publish" }
 }
 $version = (Get-Content (Join-Path $root 'VERSION.txt') -Raw).Trim()
-Write-Host "Makan Download Manager $version published to $publish" -ForegroundColor Green
+Write-Host "Epsilon Download Manager $version published to $publish" -ForegroundColor Green
 Write-Host 'Next: run  .\build-installer.ps1 -SkipBuild  to pack everything into one Setup.exe, and  .\tools\windows-production-test.ps1  on a clean Windows machine.'
 Write-Host 'For public distribution, Authenticode-sign the EXE and installer before publishing.'

@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace MakanDownloadManager.Services;
 
-/// <summary>Colours of the app's themes: Light, Orange, Makan, Obsidian, and Nebula.</summary>
+/// <summary>Colours of every built-in application theme.</summary>
 public static class ThemePalette
 {
     public static readonly IReadOnlyDictionary<string, string> Light = new Dictionary<string, string>
@@ -65,11 +65,51 @@ public static class ThemePalette
         ["ScrollThumb"] = "#362C5C", ["ScrollThumbHover"] = "#A78BFA", ["Disabled"] = "#574C7A"
     };
 
+    public static readonly IReadOnlyDictionary<string, string> Lilac = new Dictionary<string, string>
+    {
+        ["Bg"] = "#100B18", ["Panel"] = "#181022", ["Panel2"] = "#21162E", ["Surface"] = "#291C39", ["Border"] = "#49325F",
+        ["Text"] = "#FFF7FF", ["Muted"] = "#D0B7DD", ["Faint"] = "#8E729E",
+        ["Accent"] = "#D8A7F2", ["AccentDark"] = "#B779D6", ["OnAccent"] = "#1A0D20",
+        ["Hover"] = "#2A1B3B", ["Selected"] = "#3B2750",
+        ["Success"] = "#68E0A5", ["Danger"] = "#FF6B8A", ["Warning"] = "#FFD166", ["SuccessBg"] = "#17291F",
+        ["HeaderBg"] = "#181022", ["Track"] = "#21162E", ["Input"] = "#140D1D", ["InputBorder"] = "#49325F", ["Popup"] = "#21162E",
+        ["IconGrey"] = "#D0B7DD", ["IconPurple"] = "#D8A7F2", ["IconTeal"] = "#67D8E5", ["IconAmber"] = "#FFD166",
+        ["ScrollThumb"] = "#49325F", ["ScrollThumbHover"] = "#D8A7F2", ["Disabled"] = "#66536F"
+    };
+
+    // Dracula-inspired: charcoal-purple surfaces with its familiar pink/red accent.
+    public static readonly IReadOnlyDictionary<string, string> Dracula = new Dictionary<string, string>
+    {
+        ["Bg"] = "#191A21", ["Panel"] = "#21222C", ["Panel2"] = "#282A36", ["Surface"] = "#303241", ["Border"] = "#44475A",
+        ["Text"] = "#F8F8F2", ["Muted"] = "#C5C1D1", ["Faint"] = "#7F7B8D",
+        ["Accent"] = "#FF5555", ["AccentDark"] = "#FF79C6", ["OnAccent"] = "#1B1117",
+        ["Hover"] = "#343746", ["Selected"] = "#493142",
+        ["Success"] = "#50FA7B", ["Danger"] = "#FF5555", ["Warning"] = "#F1FA8C", ["SuccessBg"] = "#203525",
+        ["HeaderBg"] = "#21222C", ["Track"] = "#282A36", ["Input"] = "#191A21", ["InputBorder"] = "#44475A", ["Popup"] = "#282A36",
+        ["IconGrey"] = "#BFBCC9", ["IconPurple"] = "#BD93F9", ["IconTeal"] = "#8BE9FD", ["IconAmber"] = "#F1FA8C",
+        ["ScrollThumb"] = "#44475A", ["ScrollThumbHover"] = "#FF79C6", ["Disabled"] = "#666978"
+    };
+
+    public static readonly IReadOnlyDictionary<string, string> Uhnohh = new Dictionary<string, string>
+    {
+        ["Bg"] = "#111108", ["Panel"] = "#19180C", ["Panel2"] = "#232113", ["Surface"] = "#2B2918", ["Border"] = "#4B4727",
+        ["Text"] = "#FFFBE3", ["Muted"] = "#CEC89D", ["Faint"] = "#89845F",
+        ["Accent"] = "#FFD84D", ["AccentDark"] = "#F5B942", ["OnAccent"] = "#181300",
+        ["Hover"] = "#302D16", ["Selected"] = "#443D16",
+        ["Success"] = "#9BE564", ["Danger"] = "#FF6B57", ["Warning"] = "#FFD84D", ["SuccessBg"] = "#25301A",
+        ["HeaderBg"] = "#19180C", ["Track"] = "#232113", ["Input"] = "#131208", ["InputBorder"] = "#4B4727", ["Popup"] = "#232113",
+        ["IconGrey"] = "#CEC89D", ["IconPurple"] = "#C8A8FF", ["IconTeal"] = "#67D8D0", ["IconAmber"] = "#FFD84D",
+        ["ScrollThumb"] = "#4B4727", ["ScrollThumbHover"] = "#FFD84D", ["Disabled"] = "#696640"
+    };
+
     public static string Resolve(string? mode, bool windowsIsDark) => mode switch
     {
         "makan" or "dark" or "epsilon" => "makan",
         "obsidian" => "obsidian",
         "nebula" => "nebula",
+        "lilac" => "lilac",
+        "dracula" => "dracula",
+        "uhnohh" => "uhnohh",
         "orange" => "orange",
         "auto" when windowsIsDark => "makan",
         _ => "light"
@@ -80,6 +120,9 @@ public static class ThemePalette
         "makan" or "dark" or "epsilon" => Makan,
         "obsidian" => Obsidian,
         "nebula" => Nebula,
+        "lilac" => Lilac,
+        "dracula" => Dracula,
+        "uhnohh" => Uhnohh,
         "orange" => Orange,
         _ => Light
     };

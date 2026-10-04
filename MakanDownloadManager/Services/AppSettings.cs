@@ -73,23 +73,26 @@ public sealed class AppSettings
     /// <summary>"" | "chrome" | "edge" | "firefox" | "brave"</summary>
     public string YtCookiesBrowser { get => _store.Get("yt_cookies_browser") ?? ""; set => _store.Set("yt_cookies_browser", value); }
 
-    /// <summary>"makan" | "obsidian" | "nebula" | "orange" | "light" | "auto" (follow Windows)</summary>
+    /// <summary>Saved built-in theme name, or "auto" to follow Windows.</summary>
     public string Theme
     {
         get
         {
             var raw = Text("theme", "makan");
             if (raw is "dark" or "epsilon") return "makan";
-            return raw is "makan" or "obsidian" or "nebula" or "orange" or "light" or "auto" ? raw : "makan";
+            return raw is "makan" or "obsidian" or "nebula" or "lilac" or "dracula" or "uhnohh" or "orange" or "light" or "auto" ? raw : "makan";
         }
-        set => _store.Set("theme", value is "makan" or "obsidian" or "nebula" or "orange" or "light" or "auto" ? value : "makan");
+        set => _store.Set("theme", value is "makan" or "obsidian" or "nebula" or "lilac" or "dracula" or "uhnohh" or "orange" or "light" or "auto" ? value : "makan");
     }
 
     // ---- Connection / advanced (existing keys)
     public int MaxActive { get => int.TryParse(_store.Get("max_active"), out var v) ? Math.Clamp(v, 1, 16) : 4; set => _store.Set("max_active", Math.Clamp(value, 1, 16).ToString()); }
     public long SpeedKbps { get => long.TryParse(_store.Get("speed_kbps"), out var v) ? Math.Max(0, v) : 0; set => _store.Set("speed_kbps", Math.Max(0, value).ToString()); }
+    /// <summary>"combined" shares the toolbar limit between all files; "per_file" gives every file the full limit.</summary>
+    public string SpeedLimitScope { get => _store.Get("speed_limit_scope") == "per_file" ? "per_file" : "combined"; set => _store.Set("speed_limit_scope", value == "per_file" ? "per_file" : "combined"); }
     public int Connections { get => int.TryParse(_store.Get("connections"), out var v) ? Math.Clamp(v, 1, 16) : 8; set => _store.Set("connections", Math.Clamp(value, 1, 16).ToString()); }
     public bool AutoResume { get => Flag("auto_resume", false); set => Put("auto_resume", value); }
+    public bool KeepAwakeWhileDownloading { get => Flag("keep_awake_downloading", true); set => Put("keep_awake_downloading", value); }
     public string FfmpegPath { get => _store.Get("ffmpeg_path") ?? ""; set => _store.Set("ffmpeg_path", value); }
     // ---- smart connections (Options > Connection)
     public bool AdaptiveConnections { get => Flag("adaptive_connections", true); set => Put("adaptive_connections", value); }

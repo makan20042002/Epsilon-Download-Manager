@@ -5,7 +5,7 @@
   const FA = {
     // overlay on videos
     "Download this video": "دانلود این ویدیو",
-    "Open MDM": "باز کردن MDM",
+    "Open Epsilon Download Manager": "باز کردن اپسیلون دانلود منیجر",
     "Hide this button on this page": "پنهان کردن این دکمه در این صفحه",
     "Looking for video streams…": "در حال جستجوی جریان‌های ویدیو…",
     "Can't reach the Epsilon extension (reload the page).": "دسترسی به افزونهٔ اپسیلون ممکن نیست (صفحه را دوباره بارگذاری کنید).",
@@ -26,9 +26,9 @@
     "Sent {0} links — choose in Epsilon ✓": "{0} لینک ارسال شد — در اپسیلون انتخاب کنید ✓",
     "Hide": "پنهان کردن",
     // context menus
-    "Download with MDM": "دانلود با MDM",
-    "Download this media with MDM": "دانلود این رسانه با MDM",
-    "Download all links with MDM…": "دانلود همهٔ لینک‌ها با MDM…",
+    "Download with Epsilon Download Manager": "دانلود با اپسیلون دانلود منیجر",
+    "Download this media with Epsilon Download Manager": "دانلود این رسانه با اپسیلون دانلود منیجر",
+    "Download all links with Epsilon Download Manager…": "دانلود همهٔ لینک‌ها با اپسیلون دانلود منیجر…",
     // errors / messages from the background
     "No page.": "صفحه‌ای نیست.",
     "No tab.": "زبانه‌ای نیست.",
@@ -60,11 +60,14 @@
     "Play a video or audio on the page and it will show up here.": "ویدیو یا صدایی را در صفحه پخش کنید تا اینجا نمایش داده شود.",
     "Links on this page": "لینک‌های این صفحه",
     "Download all links…": "دانلود همهٔ لینک‌ها…",
+    "Download selected links…": "دانلود لینک‌های انتخاب‌شده…",
     "Opens a window in Epsilon with every link of the page (file name, type, size) so you can tick what to download.": "پنجره‌ای در اپسیلون باز می‌کند با همهٔ لینک‌های صفحه (نام فایل، نوع، حجم) تا موارد دلخواه را تیک بزنید.",
     "Tip: select some links on the page with the mouse and click the “Download with Epsilon” bar that appears at the bottom-left.": "نکته: چند لینک را در صفحه با ماوس انتخاب کنید و روی نوار «دانلود با اپسیلون» که پایین صفحه ظاهر می‌شود کلیک کنید.",
     "Don't take over these sites": "این سایت‌ها را در اختیار نگیر",
     "one per line, e.g. example.com": "در هر خط یکی، مثلاً example.com",
     "Save": "ذخیره", "Open Epsilon": "باز کردن اپسیلون", "Saved.": "ذخیره شد.",
+    "Appearance": "ظاهر", "Follow app": "پیروی از برنامه", "Light": "روشن", "Orange": "نارنجی", "Epsilon": "اپسیلون", "Obsidian": "ابسیدین", "Nebula": "سحابی",
+    "The extension popup and video controls follow the desktop theme. You can override them here.": "پنجرهٔ افزونه و کنترل‌های روی ویدیو از پوستهٔ برنامه پیروی می‌کنند. می‌توانید اینجا آن را تغییر دهید.",
     "Connected — Epsilon {0} is running": "متصل — اپسیلون {0} در حال اجراست",
     "Epsilon will start automatically on the next download": "اپسیلون در دانلود بعدی خودکار اجرا می‌شود",
     "Native host not registered — run install-browser-integration.ps1, then restart the browser": "برنامهٔ میزبان ثبت نشده است — install-browser-integration.ps1 را اجرا کنید و مرورگر را دوباره راه‌اندازی کنید",
@@ -83,6 +86,10 @@
     "Download": "دانلود", "Sent ✓": "ارسال شد ✓",
     "Download all (one file per quality)": "دانلود همه (یک فایل برای هر کیفیت)",
     "Reading the page…": "در حال خواندن صفحه…",
+    "Reading the highlighted links…": "در حال خواندن لینک‌های انتخاب‌شده…",
+    "Highlight links on the page, then choose Download selected links to send only that batch to Epsilon.": "لینک‌ها را در صفحه انتخاب کنید، سپس دانلود لینک‌های انتخاب‌شده را بزنید تا فقط همان دسته به اپسیلون ارسال شود.",
+    "Sent {0} selected link to Epsilon — choose in its window ✓": "{0} لینک انتخاب‌شده به اپسیلون ارسال شد — در پنجرهٔ آن انتخاب کنید ✓",
+    "Sent {0} selected links to Epsilon — choose in its window ✓": "{0} لینک انتخاب‌شده به اپسیلون ارسال شد — در پنجرهٔ آن انتخاب کنید ✓",
     "Sent {0} link to Epsilon — choose in its window ✓": "{0} لینک به اپسیلون ارسال شد — در پنجرهٔ آن انتخاب کنید ✓",
     "Sent {0} links to Epsilon — choose in its window ✓": "{0} لینک به اپسیلون ارسال شد — در پنجرهٔ آن انتخاب کنید ✓"
   };

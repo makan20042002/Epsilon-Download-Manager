@@ -1,7 +1,7 @@
 ; Epsilon Download Manager - one-file installer (Inno Setup 6.3 or newer; free: https://jrsoftware.org/isdl.php)
 ; Build with build-installer.ps1 (it publishes first, then runs this script).
 #define MyAppName "Epsilon Download Manager"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "Makan A.D."
 #define MyAppURL "https://makanlab.tech"
 #define MyAppExeName "MakanDownloadManager.exe"
@@ -32,9 +32,16 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 SetupIconFile=..\MakanDownloadManager\Assets\makan.ico
 WizardStyle=modern
 UsedUserAreasWarning=no
+UsePreviousAppDir=yes
+UsePreviousGroup=yes
+UsePreviousTasks=yes
+UsePreviousPrivileges=yes
+CloseApplications=force
+RestartApplications=no
+VersionInfoVersion=1.3.0.0
 
 [Tasks]
-Name: "startup";     Description: "Start Makan quietly in the tray when I sign in to Windows (the browser extension always finds it)"
+Name: "startup";     Description: "Start Epsilon quietly in the tray when I sign in to Windows (the browser extension always finds it)"
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 
 [Files]
@@ -67,7 +74,7 @@ Root: HKCU; Subkey: "Software\Classes\MakanDownloadManager.torrent\DefaultIcon";
 Root: HKCU; Subkey: "Software\Classes\MakanDownloadManager.torrent\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Run]
-Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -InstallDir ""{app}"""; StatusMsg: "Connecting the browsers to Makan..."; Flags: runhidden runasoriginaluser waituntilterminated
+Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -InstallDir ""{app}"""; StatusMsg: "Connecting the browsers to Epsilon..."; Flags: runhidden runasoriginaluser waituntilterminated
 Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden runasoriginaluser skipifdoesntexist; StatusMsg: "Refreshing file associations..."
 Filename: "{app}\EXTENSION-SETUP.txt"; Description: "Show how to add the extension to my browser"; Flags: postinstall shellexec skipifsilent
 Filename: "{app}\{#MyAppExeName}"; Description: "Start {#MyAppName}"; Flags: postinstall nowait skipifsilent
@@ -102,7 +109,7 @@ begin
   begin
     Data := ExpandConstant('{localappdata}\MakanDownloadManager');
     if DirExists(Data) then
-      if MsgBox('Also delete Makan''s settings, its download list and the YouTube tools?' + #13#10 + Data + #13#10#13#10 +
+      if MsgBox('Also delete Epsilon''s settings, its download list and the YouTube tools?' + #13#10 + Data + #13#10#13#10 +
                 'Files you downloaded are never deleted.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
         DelTree(Data, True, True, True);
   end;

@@ -55,11 +55,17 @@ static class ProgressWindowTests
         m.Enqueue(fast);
         var s2 = Stopwatch.StartNew(); while (fast.DoneBytes < 3_000_000 && s2.Elapsed.TotalSeconds < 30) await Task.Delay(20);
         var at = fast.DoneBytes;
-        fast.SpeedLimitBytesPerSec = 400 * 1024; fast.LimitIsTemporary = true;          // like ticking "Use Speed Limiter" in the window
+        m.SetItemSpeedLimit(fast, 400 * 1024); fast.LimitIsTemporary = true;          // like ticking "Use Speed Limiter" in the window
         await Task.Delay(300);
         var from = fast.DoneBytes; await Task.Delay(2000);
         var rate = (fast.DoneBytes - from) / 2.0;
         T.Check("the new limit is obeyed at once (about 400 KB/s, not the megabytes per second before)", rate < 1_000_000 && rate > 100_000, $"{rate / 1024:0} KB/s (was at {at / 1024} KB)");
+        m.SetItemSpeedLimit(fast, 1024);              // creates a very long pending wait at the old, tiny rate
+        await Task.Delay(350);
+        var beforeWake = fast.DoneBytes;
+        m.SetItemSpeedLimit(fast, 2 * 1024 * 1024);   // must wake that wait instead of leaving the download at 0 B/s
+        await Task.Delay(1500);
+        T.Check("changing a limit wakes the download immediately instead of leaving it at 0 B/s", fast.DoneBytes - beforeWake > 400_000, $"advanced {(fast.DoneBytes - beforeWake) / 1024} KB");
         m.Pause(fast); T.Check("stopped", await Program.WaitStatusPublic(fast, DownloadStatus.Paused, 15));
         T.Check("a limit set for this run only is dropped on stop (Remember was not ticked)", fast.SpeedLimitBytesPerSec == 0 && !fast.LimitIsTemporary);
         var kept = new DownloadItem { Url = Base + "/slow.bin", FilePath = Path.Combine(dir, "kept.bin"), Connections = 2, SpeedLimitBytesPerSec = 500 * 1024, LimitIsTemporary = false };
