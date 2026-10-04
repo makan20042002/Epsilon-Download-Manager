@@ -11,8 +11,13 @@ $nativeHost = Join-Path $root 'MakanNativeHost\MakanNativeHost.csproj'
 $updater = Join-Path $root 'updater\MakanUpdater.csproj'
 $publish    = Join-Path $root 'publish'
 
-if (Get-Process -Name 'MakanDownloadManager' -ErrorAction SilentlyContinue) {
-  throw 'Makan is still running. Exit it first (tray icon > Exit), then run this script again.'
+$workspacePrefix = [IO.Path]::GetFullPath($root).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+$workspaceInstance = Get-Process -Name 'MakanDownloadManager' -ErrorAction SilentlyContinue | Where-Object {
+  try { $_.Path -and [IO.Path]::GetFullPath($_.Path).StartsWith($workspacePrefix, [StringComparison]::OrdinalIgnoreCase) }
+  catch { $false }
+}
+if ($workspaceInstance) {
+  throw 'A development copy of Epsilon is running from this workspace. Exit it first, then run this script again.'
 }
 if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
 

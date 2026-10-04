@@ -90,7 +90,7 @@ public sealed class BridgeResponse
 public sealed class NativeBridge : IDisposable
 {
     public const string PipeName = "com.makan.downloadmanager";
-    public const string Version = "1.3.0";
+    public const string Version = "1.3.1";
 
     static readonly JsonSerializerOptions In = new() { PropertyNameCaseInsensitive = true };
     static readonly JsonSerializerOptions Out = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
@@ -255,7 +255,7 @@ public sealed class NativeBridge : IDisposable
         {
             // Prove Makan can actually fetch this URL *before* the browser is told to drop its own download.
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(8));
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
             try
             {
                 var probe = await _manager.ProbeAsync(item, timeout.Token);
@@ -270,7 +270,13 @@ public sealed class NativeBridge : IDisposable
                 if (!expectsHtml && probe.ContentType is "text/html" or "application/xhtml+xml")
                     return Fail("The server sent a web page instead of a file (a login or session may be required).");
             }
-            catch (OperationCanceledException) { return Fail("Timed out while checking the link."); }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Some large-download CDNs take a long time to answer a second range request while the browser
+                // already has the first one open. A slow preflight must not make capture fail: the real download
+                // has its own retry and idle-timeout handling and can safely perform the probe after it is queued.
+            }
+            catch (OperationCanceledException) { throw; }
             catch (HttpRequestException ex) { return Fail(ex.Message); }
             catch (Exception ex) { return Fail(ex.Message); }
         }

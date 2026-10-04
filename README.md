@@ -11,9 +11,9 @@ A fast, private download manager and BitTorrent client for Windows. Epsilon comb
 
 ## Download
 
-**[Download Epsilon Download Manager 1.3.0 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.3.0/EpsilonDownloadManager-1.3.0-Setup.exe)**
+**[Download Epsilon Download Manager 1.3.1 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.3.1/EpsilonDownloadManager-1.3.1-Setup.exe)**
 
-Run the installer normally. Version 1.3.0 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
+Run the installer normally. Version 1.3.1 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
 
 SHA-256:
 
@@ -34,7 +34,7 @@ F064547319EB8F6D590C9B3DF5B6788EAA64004B3FCC8940703F8208014B404F
 - **Windows integration** — magnet and `.torrent` handlers, tray speed display, optional keep-awake while downloading, and in-place upgrades.
 - **English and Persian** — full RTL-aware Persian localization.
 
-See [the 1.3.0 release notes](RELEASE_NOTES_1.3.md) for the complete change list.
+See [the 1.3.1 release notes](RELEASE_NOTES_1.3.1.md) for the latest fixes, or [the 1.3.0 release notes](RELEASE_NOTES_1.3.md) for the previous feature release.
 
 ## Browser extensions
 

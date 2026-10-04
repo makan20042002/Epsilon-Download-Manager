@@ -5,7 +5,7 @@ const path = require("path");
 function makeEvent() { const l = []; return { addListener: (f) => l.push(f), fire: async (...a) => { for (const f of l) await f(...a); }, listeners: l }; }
 
 function makeChrome(hostReply) {
-  const sent = [], cancelled = [], erased = [], badges = [], menus = [];
+  const sent = [], cancelled = [], erased = [], paused = [], resumed = [], badges = [], menus = [];
   const storage = {}; const session = {};
   const area = (o) => ({
     get: async (k) => { if (typeof k === "string") return k in o ? { [k]: o[k] } : {}; if (k && typeof k === "object") return { ...k, ...Object.fromEntries(Object.keys(k).filter((x) => x in o).map((x) => [x, o[x]])) }; return { ...o }; },
@@ -14,7 +14,7 @@ function makeChrome(hostReply) {
   const c = {
     runtime: { sendNativeMessage: (host, msg, cb) => { sent.push({ host, msg }); setTimeout(() => cb(typeof hostReply === "function" ? hostReply(msg) : hostReply), 0); }, lastError: undefined,
                onInstalled: makeEvent(), onMessage: makeEvent() },
-    downloads: { onCreated: makeEvent(), cancel: async (id) => cancelled.push(id), erase: async (q) => erased.push(q.id) },
+    downloads: { onCreated: makeEvent(), pause: async (id) => paused.push(id), resume: async (id) => resumed.push(id), cancel: async (id) => cancelled.push(id), erase: async (q) => erased.push(q.id) },
     cookies: { getAll: async ({ url }) => /example\.com/.test(url) ? [{ name: "sid", value: "s1" }, { name: "pref", value: "dark" }] : [] },
     contextMenus: { removeAll: async () => { menus.length = 0; }, create: (o) => { menus.push(o); }, onClicked: makeEvent() },
     webRequest: { onHeadersReceived: makeEvent() },
@@ -22,7 +22,7 @@ function makeChrome(hostReply) {
     storage: { local: area(storage), session: area(session) },
     action: { setBadgeText: (b) => badges.push(b), setBadgeBackgroundColor: () => {} },
   };
-  return { chrome: c, sent, cancelled, erased, badges, storage, menus };
+  return { chrome: c, sent, cancelled, erased, paused, resumed, badges, storage, menus };
 }
 
 require(path.join(__dirname, "../../browser-extension/i18n.js"));   // shared texts (English unless a test switches the language)
@@ -43,7 +43,7 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
 (async () => {
   await test("captured download: cookies, referrer, UA and browser name are forwarded; browser copy cancelled + erased only after ack", async () => {
     const env = await load({ ok: true, id: 1 });
-    await env.chrome.downloads.onCreated.fire({ id: 11, url: "https://files.example.com/a/b.zip", filename: "C:\\Users\\me\\Downloads\\b.zip", referrer: "https://example.com/page", mime: "application/zip" });
+    await env.chrome.downloads.onCreated.fire({ id: 11, url: "https://example.com/redirect?id=1", finalUrl: "https://files.example.com/a/b.zip", filename: "C:\\Users\\me\\Downloads\\b.zip", referrer: "https://example.com/page", mime: "application/zip" });
     assert.strictEqual(env.sent.length, 1);
     const m = env.sent[0].msg;
     assert.strictEqual(env.sent[0].host, "com.makan.downloadmanager");
@@ -52,6 +52,7 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     assert.strictEqual(m.referrer, "https://example.com/page");
     assert.strictEqual(m.userAgent, "TestBrowser/1.0");
     assert.strictEqual(m.filePath, "C:\\Users\\me\\Downloads\\b.zip");
+    assert.deepStrictEqual(env.paused, [11]); assert.deepStrictEqual(env.resumed, []);
     assert.deepStrictEqual(env.cancelled, [11]); assert.deepStrictEqual(env.erased, [11]);
   });
 
@@ -59,6 +60,7 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     const env = await load({ ok: false, error: "The server sent a web page instead of a file" });
     await env.chrome.downloads.onCreated.fire({ id: 12, url: "https://example.com/login.php?f=1" });
     assert.strictEqual(env.sent.length, 1); assert.deepStrictEqual(env.cancelled, []);
+    assert.deepStrictEqual(env.paused, [12]); assert.deepStrictEqual(env.resumed, [12]);
     const { lastError } = await env.chrome.storage.local.get({ lastError: null });
     assert.match(lastError.message, /web page/);
     const env2 = await load(undefined); // no reply at all

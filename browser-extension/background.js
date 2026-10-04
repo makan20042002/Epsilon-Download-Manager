@@ -32,7 +32,7 @@ function callHost(payload) {
 /** Remember the desktop app's resolved palette so the popup and in-page controls can follow it. */
 function noteAppearance(reply) {
   const theme = reply && reply.theme;
-  if (!["light", "orange", "makan", "obsidian", "nebula"].includes(theme)) return;
+  if (!["light", "orange", "makan", "obsidian", "nebula", "lilac", "dracula", "uhnohh"].includes(theme)) return;
   try { ext.storage.local.set({ appTheme: theme }); } catch { /* cosmetic */ }
 }
 
@@ -95,17 +95,23 @@ function flash(text, color) {
 // ------------------------------------------------------------------ capture browser downloads
 
 ext.downloads.onCreated.addListener(async (item) => {
-  const url = item.url;
+  const url = item.finalUrl || item.url;
   if (!isHttp(url) || item.byExtensionId || pending.has(item.id)) return; // blob:, data:, file: and other extensions' downloads stay with the browser
   const s = await settings();
   if (!s.enabled || hostExcluded(url, s.exclude)) return;
   if (Date.now() - lastAltClick < 3000) return;    // Alt, Ctrl or Cmd was held on the click that started this: the browser keeps this one
 
   pending.add(item.id);
+  let paused = false;
+  let captured = false;
   try {
+    // Stop the browser from racing several megabytes ahead while Epsilon checks and accepts the link.
+    // If Epsilon declines or is unavailable, finally resumes the exact same browser download.
+    try { await ext.downloads.pause(item.id); paused = true; } catch { /* very small downloads may already be done */ }
     const response = await sendUrl(url, { filePath: item.filename || null, referrer: item.referrer || null, mime: item.mime || null });
     // Never cancel the browser's own transfer unless the desktop app has acknowledged the job.
     if (response?.ok === true) {
+      captured = true;
       try { await ext.downloads.cancel(item.id); } catch { /* already finished/cancelled */ }
       try { await ext.downloads.erase({ id: item.id }); } catch { /* keep history entry if erase is refused */ }
       flash("✓", "#2e9e5b");
@@ -116,6 +122,9 @@ ext.downloads.onCreated.addListener(async (item) => {
       flash("!", "#d64545"); // the browser simply continues its own download
     }
   } finally {
+    if (paused && !captured) {
+      try { await ext.downloads.resume(item.id); } catch { /* already completed or removed */ }
+    }
     pending.delete(item.id);
   }
 });

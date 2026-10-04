@@ -8,7 +8,7 @@ public static class ThemePalette
     public static readonly IReadOnlyDictionary<string, string> Light = new Dictionary<string, string>
     {
         ["Bg"] = "#F3F5F9", ["Panel"] = "#F3F5F9", ["Panel2"] = "#E8EDF6", ["Surface"] = "#FFFFFF", ["Border"] = "#E1E6EE",
-        ["Text"] = "#1B2430", ["Muted"] = "#5F6B7A", ["Faint"] = "#8A93A3",
+        ["Text"] = "#1B2430", ["Muted"] = "#5F6B7A", ["Faint"] = "#8A93A3", ["TopBarText"] = "#FFFFFF",
         ["Accent"] = "#2F6FEB", ["AccentDark"] = "#1F56C4", ["OnAccent"] = "#FFFFFF",
         ["Hover"] = "#EDF2FC", ["Selected"] = "#DCE7FC",
         ["Success"] = "#15803D", ["Danger"] = "#C62828", ["Warning"] = "#B45309", ["SuccessBg"] = "#E7F6EC",
@@ -20,7 +20,7 @@ public static class ThemePalette
     public static readonly IReadOnlyDictionary<string, string> Orange = new Dictionary<string, string>
     {
         ["Bg"] = "#FAF6EF", ["Panel"] = "#FAF6EF", ["Panel2"] = "#F2EBDD", ["Surface"] = "#FFFFFF", ["Border"] = "#E6DCC8",
-        ["Text"] = "#3A2E1F", ["Muted"] = "#7A6A54", ["Faint"] = "#9C8D77",
+        ["Text"] = "#3A2E1F", ["Muted"] = "#7A6A54", ["Faint"] = "#9C8D77", ["TopBarText"] = "#2A1405",
         ["Accent"] = "#D6690A", ["AccentDark"] = "#B85400", ["OnAccent"] = "#FFFFFF",
         ["Hover"] = "#F5EADA", ["Selected"] = "#F7DDBB",
         ["Success"] = "#2E7D32", ["Danger"] = "#C62828", ["Warning"] = "#B45309", ["SuccessBg"] = "#E7F3E8",
@@ -32,7 +32,7 @@ public static class ThemePalette
     public static readonly IReadOnlyDictionary<string, string> Makan = new Dictionary<string, string>
     {
         ["Bg"] = "#07111F", ["Panel"] = "#0B1728", ["Panel2"] = "#101D30", ["Surface"] = "#14243A", ["Border"] = "#213650",
-        ["Text"] = "#F4F8FF", ["Muted"] = "#A9B8CC", ["Faint"] = "#667A94",
+        ["Text"] = "#F4F8FF", ["Muted"] = "#A9B8CC", ["Faint"] = "#667A94", ["TopBarText"] = "#07111F",
         ["Accent"] = "#39F5B0", ["AccentDark"] = "#38D9FF", ["OnAccent"] = "#07111F",
         ["Hover"] = "#162B46", ["Selected"] = "#1C3556",
         ["Success"] = "#39F5B0", ["Danger"] = "#FF5C7A", ["Warning"] = "#F6C453", ["SuccessBg"] = "#0D2A22",
@@ -44,7 +44,7 @@ public static class ThemePalette
     public static readonly IReadOnlyDictionary<string, string> Obsidian = new Dictionary<string, string>
     {
         ["Bg"] = "#000000", ["Panel"] = "#0A0A0C", ["Panel2"] = "#121214", ["Surface"] = "#17181B", ["Border"] = "#2A2B2F",
-        ["Text"] = "#F2F2F4", ["Muted"] = "#9A9CA3", ["Faint"] = "#616369",
+        ["Text"] = "#F2F2F4", ["Muted"] = "#9A9CA3", ["Faint"] = "#616369", ["TopBarText"] = "#0A1022",
         ["Accent"] = "#4D7CFF", ["AccentDark"] = "#2F5FE0", ["OnAccent"] = "#FFFFFF",
         ["Hover"] = "#17181B", ["Selected"] = "#1D2333",
         ["Success"] = "#34D399", ["Danger"] = "#F5455C", ["Warning"] = "#F2B84B", ["SuccessBg"] = "#0E1F19",
@@ -56,7 +56,7 @@ public static class ThemePalette
     public static readonly IReadOnlyDictionary<string, string> Nebula = new Dictionary<string, string>
     {
         ["Bg"] = "#0A0818", ["Panel"] = "#120F26", ["Panel2"] = "#191532", ["Surface"] = "#201A3F", ["Border"] = "#362C5C",
-        ["Text"] = "#F5F2FF", ["Muted"] = "#B3A8D9", ["Faint"] = "#7C6FA3",
+        ["Text"] = "#F5F2FF", ["Muted"] = "#B3A8D9", ["Faint"] = "#7C6FA3", ["TopBarText"] = "#17102E",
         ["Accent"] = "#A78BFA", ["AccentDark"] = "#E879F9", ["OnAccent"] = "#17102E",
         ["Hover"] = "#221B45", ["Selected"] = "#2C2359",
         ["Success"] = "#39F5B0", ["Danger"] = "#FF5C7A", ["Warning"] = "#F6C453", ["SuccessBg"] = "#14261F",
@@ -67,21 +67,21 @@ public static class ThemePalette
 
     public static readonly IReadOnlyDictionary<string, string> Lilac = new Dictionary<string, string>
     {
-        ["Bg"] = "#100B18", ["Panel"] = "#181022", ["Panel2"] = "#21162E", ["Surface"] = "#291C39", ["Border"] = "#49325F",
-        ["Text"] = "#FFF7FF", ["Muted"] = "#D0B7DD", ["Faint"] = "#8E729E",
-        ["Accent"] = "#D8A7F2", ["AccentDark"] = "#B779D6", ["OnAccent"] = "#1A0D20",
-        ["Hover"] = "#2A1B3B", ["Selected"] = "#3B2750",
-        ["Success"] = "#68E0A5", ["Danger"] = "#FF6B8A", ["Warning"] = "#FFD166", ["SuccessBg"] = "#17291F",
-        ["HeaderBg"] = "#181022", ["Track"] = "#21162E", ["Input"] = "#140D1D", ["InputBorder"] = "#49325F", ["Popup"] = "#21162E",
-        ["IconGrey"] = "#D0B7DD", ["IconPurple"] = "#D8A7F2", ["IconTeal"] = "#67D8E5", ["IconAmber"] = "#FFD166",
-        ["ScrollThumb"] = "#49325F", ["ScrollThumbHover"] = "#D8A7F2", ["Disabled"] = "#66536F"
+        ["Bg"] = "#11121E", ["Panel"] = "#191A2B", ["Panel2"] = "#23253C", ["Surface"] = "#2D2F50", ["Border"] = "#5C5F8F",
+        ["Text"] = "#F5F6EB", ["Muted"] = "#D7DDBB", ["Faint"] = "#8C8EC6", ["TopBarText"] = "#121322",
+        ["Accent"] = "#8C8EC6", ["AccentDark"] = "#760E6C", ["OnAccent"] = "#121322",
+        ["Hover"] = "#343657", ["Selected"] = "#44466F",
+        ["Success"] = "#D7DDBB", ["Danger"] = "#FF6B9E", ["Warning"] = "#F5C96A", ["SuccessBg"] = "#292E2A",
+        ["HeaderBg"] = "#191A2B", ["Track"] = "#23253C", ["Input"] = "#151625", ["InputBorder"] = "#5C5F8F", ["Popup"] = "#23253C",
+        ["IconGrey"] = "#D7DDBB", ["IconPurple"] = "#E453A0", ["IconTeal"] = "#8C8EC6", ["IconAmber"] = "#F5C96A",
+        ["ScrollThumb"] = "#5C5F8F", ["ScrollThumbHover"] = "#E453A0", ["Disabled"] = "#6E708C"
     };
 
     // Dracula-inspired: charcoal-purple surfaces with its familiar pink/red accent.
     public static readonly IReadOnlyDictionary<string, string> Dracula = new Dictionary<string, string>
     {
         ["Bg"] = "#191A21", ["Panel"] = "#21222C", ["Panel2"] = "#282A36", ["Surface"] = "#303241", ["Border"] = "#44475A",
-        ["Text"] = "#F8F8F2", ["Muted"] = "#C5C1D1", ["Faint"] = "#7F7B8D",
+        ["Text"] = "#F8F8F2", ["Muted"] = "#C5C1D1", ["Faint"] = "#7F7B8D", ["TopBarText"] = "#1B1117",
         ["Accent"] = "#FF5555", ["AccentDark"] = "#FF79C6", ["OnAccent"] = "#1B1117",
         ["Hover"] = "#343746", ["Selected"] = "#493142",
         ["Success"] = "#50FA7B", ["Danger"] = "#FF5555", ["Warning"] = "#F1FA8C", ["SuccessBg"] = "#203525",
@@ -92,14 +92,14 @@ public static class ThemePalette
 
     public static readonly IReadOnlyDictionary<string, string> Uhnohh = new Dictionary<string, string>
     {
-        ["Bg"] = "#111108", ["Panel"] = "#19180C", ["Panel2"] = "#232113", ["Surface"] = "#2B2918", ["Border"] = "#4B4727",
-        ["Text"] = "#FFFBE3", ["Muted"] = "#CEC89D", ["Faint"] = "#89845F",
-        ["Accent"] = "#FFD84D", ["AccentDark"] = "#F5B942", ["OnAccent"] = "#181300",
-        ["Hover"] = "#302D16", ["Selected"] = "#443D16",
-        ["Success"] = "#9BE564", ["Danger"] = "#FF6B57", ["Warning"] = "#FFD84D", ["SuccessBg"] = "#25301A",
-        ["HeaderBg"] = "#19180C", ["Track"] = "#232113", ["Input"] = "#131208", ["InputBorder"] = "#4B4727", ["Popup"] = "#232113",
-        ["IconGrey"] = "#CEC89D", ["IconPurple"] = "#C8A8FF", ["IconTeal"] = "#67D8D0", ["IconAmber"] = "#FFD84D",
-        ["ScrollThumb"] = "#4B4727", ["ScrollThumbHover"] = "#FFD84D", ["Disabled"] = "#696640"
+        ["Bg"] = "#080808", ["Panel"] = "#101010", ["Panel2"] = "#181818", ["Surface"] = "#222222", ["Border"] = "#3B3B33",
+        ["Text"] = "#FFFDE8", ["Muted"] = "#D4D2B8", ["Faint"] = "#8C8B76", ["TopBarText"] = "#111100",
+        ["Accent"] = "#FFF700", ["AccentDark"] = "#FFB000", ["OnAccent"] = "#111100",
+        ["Hover"] = "#292914", ["Selected"] = "#3A3900",
+        ["Success"] = "#B6FF00", ["Danger"] = "#FF3D21", ["Warning"] = "#FFF700", ["SuccessBg"] = "#1D2600",
+        ["HeaderBg"] = "#101010", ["Track"] = "#202020", ["Input"] = "#0C0C0C", ["InputBorder"] = "#4A4934", ["Popup"] = "#181818",
+        ["IconGrey"] = "#D4D2B8", ["IconPurple"] = "#FF3D91", ["IconTeal"] = "#FF8A00", ["IconAmber"] = "#FFF700",
+        ["ScrollThumb"] = "#4A4934", ["ScrollThumbHover"] = "#FFF700", ["Disabled"] = "#666654"
     };
 
     public static string Resolve(string? mode, bool windowsIsDark) => mode switch

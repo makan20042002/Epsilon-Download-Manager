@@ -115,6 +115,7 @@ static class SettingsTests
             T.Check($"{name}: secondary text is readable (contrast >= 4.5)", new[] { "Bg", "Surface", "HeaderBg" }.All(k => ThemePalette.Contrast(p["Muted"], p[k]) >= 4.5), string.Join(" ", new[] { "Bg", "Surface", "HeaderBg" }.Select(k => ThemePalette.Contrast(p["Muted"], p[k]).ToString("0.0"))));
             var buttonTextBar = 4.5;
             T.Check($"{name}: text on the accent is readable (>= {buttonTextBar})", ThemePalette.Contrast(p["OnAccent"], p["AccentDark"]) >= buttonTextBar || ThemePalette.Contrast(p["OnAccent"], p["Accent"]) >= buttonTextBar, ThemePalette.Contrast(p["OnAccent"], p["AccentDark"]).ToString("0.0"));
+            T.Check($"{name}: top bar title is readable (contrast >= 4.5)", ThemePalette.Contrast(p["TopBarText"], p["Accent"]) >= 4.5, ThemePalette.Contrast(p["TopBarText"], p["Accent"]).ToString("0.0"));
             T.Check($"{name}: status colours are readable on cards (>= 3.5)", new[] { "Success", "Danger", "Warning", "Accent" }.All(k => ThemePalette.Contrast(p[k], p["Surface"]) >= 3.5), string.Join(" ", new[] { "Success", "Danger", "Warning", "Accent" }.Select(k => ThemePalette.Contrast(p[k], p["Surface"]).ToString("0.0"))));
             T.Check($"{name}: selected rows keep the text readable (>= 4.5)", ThemePalette.Contrast(p["Text"], p["Selected"]) >= 4.5 && ThemePalette.Contrast(p["Text"], p["Hover"]) >= 7, ThemePalette.Contrast(p["Text"], p["Selected"]).ToString("0.0"));
         }
