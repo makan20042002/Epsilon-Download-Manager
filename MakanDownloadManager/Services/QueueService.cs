@@ -37,6 +37,8 @@ public sealed class DownloadQueue
     public bool IsMain { get; set; }
     /// <summary>IDM: "Download N files at the same time".</summary>
     public int MaxParallel { get; set; } = 4;
+    /// <summary>By default a queue follows Options > simultaneous downloads. Turn this off for a queue-specific value.</summary>
+    public bool UseGlobalMaxParallel { get; set; } = true;
     public QueueSchedule Schedule { get; set; } = new();
     public List<long> ItemIds { get; set; } = new();
 }
@@ -168,7 +170,13 @@ public sealed class QueueService : IDisposable
 
     public void SetMaxParallel(int id, int count)
     {
-        lock (_gate) { var q = _queues.FirstOrDefault(x => x.Id == id); if (q == null) return; q.MaxParallel = Math.Clamp(count, 1, 16); Save(); }
+        lock (_gate) { var q = _queues.FirstOrDefault(x => x.Id == id); if (q == null) return; q.MaxParallel = Math.Clamp(count, 1, 16); q.UseGlobalMaxParallel = false; Save(); }
+        Changed?.Invoke();
+    }
+
+    public void SetUseGlobalMaxParallel(int id, bool useGlobal)
+    {
+        lock (_gate) { var q = _queues.FirstOrDefault(x => x.Id == id); if (q == null) return; q.UseGlobalMaxParallel = useGlobal; Save(); }
         Changed?.Invoke();
     }
 
@@ -333,7 +341,8 @@ public sealed class QueueService : IDisposable
             }
 
             // feed in order
-            var slots = Math.Clamp(q.MaxParallel, 1, 16) - active;
+            var limit = q.UseGlobalMaxParallel ? _manager.MaxActive : q.MaxParallel;
+            var slots = Math.Clamp(limit, 1, 16) - active;
             while (slots > 0 && run.Pending.Count > 0)
             {
                 if (!IsRunning(id)) break;

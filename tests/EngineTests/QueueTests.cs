@@ -33,6 +33,7 @@ static class QueueTests
         await Run("Queues persist (schedule, items, ids); deleting a download or a queue is safe", Persistence);
         await Run("Queues are independent of each other", Independent);
         await Run("Queues: 'download N files at the same time' per queue; loose downloads keep their own limit", Parallel);
+        await Run("Queues: scheduled downloads follow the simultaneous-download setting from Options by default", GlobalParallel);
         await Run("Queues: adding to a running queue starts it; removing a running queue pauses its files", LiveEditing);
         await Run("Queues: resuming one specific queued file does not start the rest of the queue up to MaxParallel (regression)", ResumeOneQueuedFileDoesNotStartTheWholeQueue);
         await Run("Queues: a failed file can be resumed while its queue has moved on", ResumeFailedDuringRun);
@@ -300,6 +301,41 @@ static class QueueTests
         T.Check("a download started on its own is not blocked by the queue, it follows MaxActive", await Program.WaitStatusPublic(loose, DownloadStatus.Complete), loose.Status);
         q.Stop(q.Main.Id);
         T.Check("the queue's parallel count survives a restart of the service", true);
+    }
+
+    static async Task GlobalParallel()
+    {
+        var dir = Sub();
+        using var m = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false) { MaxActive = 2 };
+        using var q = Make(m, out _, out _);
+        T.Check("new queues follow the Options limit", q.Main.UseGlobalMaxParallel);
+
+        var items = Enumerable.Range(1, 5).Select(i => Item(dir, $"global-par{i}.bin", "/slow.bin")).ToList();
+        foreach (var item in items) q.AddLater(item);
+        q.Start(q.Main.Id);
+
+        var peakAtTwo = 0; var first = Stopwatch.StartNew();
+        while (first.Elapsed.TotalSeconds < 2)
+        {
+            q.Pump();
+            peakAtTwo = Math.Max(peakAtTwo, items.Count(i => i.Status == "Downloading"));
+            await Task.Delay(50);
+        }
+        T.Check("a scheduled queue uses MaxActive instead of a hard-coded four", peakAtTwo == 2, peakAtTwo.ToString());
+
+        m.MaxActive = 3;
+        var peakAtThree = peakAtTwo; var changed = Stopwatch.StartNew();
+        while (changed.Elapsed.TotalSeconds < 2)
+        {
+            q.Pump();
+            peakAtThree = Math.Max(peakAtThree, items.Count(i => i.Status == "Downloading"));
+            await Task.Delay(50);
+        }
+        T.Check("changing the Options value affects an already-running scheduled queue", peakAtThree == 3, peakAtThree.ToString());
+        q.Stop(q.Main.Id);
+
+        q.SetMaxParallel(q.Main.Id, 1);
+        T.Check("choosing a queue-specific value turns off the global setting", !q.Main.UseGlobalMaxParallel && q.Main.MaxParallel == 1);
     }
 
     static async Task Independent()

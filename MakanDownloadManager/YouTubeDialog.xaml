@@ -34,6 +34,12 @@
     </DockPanel>
     <TextBlock x:Name="FileNameText" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,6,0,0"/>
 
+    <TextBlock Text="Download queue" Margin="0,12,0,4"/>
+    <DockPanel>
+      <Button DockPanel.Dock="Right" Content="New queue…" Click="NewQueue_Click" Margin="8,0,0,0"/>
+      <ComboBox x:Name="QueueBox" DisplayMemberPath="Name"/>
+    </DockPanel>
+
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
       <Button x:Name="StartButton" Content="Start Download" Click="Start_Click" IsDefault="True" IsEnabled="False" Style="{StaticResource PrimaryButton}"/>
       <Button x:Name="LaterButton" Content="Download Later" Click="Later_Click" IsEnabled="False"/>

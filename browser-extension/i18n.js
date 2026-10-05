@@ -35,6 +35,7 @@
     "Can't read this page. Reload the page and try again.": "خواندن این صفحه ممکن نیست. صفحه را دوباره بارگذاری کنید و دوباره امتحان کنید.",
     "No links found on this page.": "هیچ لینکی در این صفحه پیدا نشد.",
     "No links in the selection.": "هیچ لینکی در بخش انتخاب‌شده نیست.",
+    "Download all highlighted links with Epsilon Download Manager…": "دانلود همه پیوندهای انتخاب‌شده با مدیریت دانلود اپسیلون…",
     "That entry is no longer available. Reopen the menu.": "این مورد دیگر در دسترس نیست. منو را دوباره باز کنید.",
     "Nothing to download.": "چیزی برای دانلود نیست.",
     "Failed": "ناموفق",

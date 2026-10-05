@@ -84,6 +84,8 @@ public partial class SchedulerWindow : Window
         for (var i = 0; i < 7; i++) DayBoxes[i].IsChecked = ((s.Days >> i) & 1) == 1;
         StopAt.IsChecked = s.StopAtEnabled; StopTime.Text = s.StopTime;
         ParallelBox.Text = queue.MaxParallel.ToString(CultureInfo.InvariantCulture);
+        UseGlobalParallel.IsChecked = queue.UseGlobalMaxParallel;
+        ParallelPanel.IsEnabled = !queue.UseGlobalMaxParallel;
         RetriesOn.IsChecked = s.RetriesEnabled; RetriesBox.Text = s.Retries.ToString(CultureInfo.InvariantCulture);
         OpenOn.IsChecked = s.OpenFileEnabled; OpenPath.Text = s.OpenFile ?? "";
         ExitOn.IsChecked = s.ExitWhenDone;
@@ -138,6 +140,7 @@ public partial class SchedulerWindow : Window
         s.PowerOffWhenDone = PowerOn.IsChecked == true; s.PowerAction = (PowerAction)Math.Max(0, PowerBox.SelectedIndex); s.ForcePowerOff = ForceOn.IsChecked == true;
 
         App.Queues.SetMaxParallel(queue.Id, parallel);
+        App.Queues.SetUseGlobalMaxParallel(queue.Id, UseGlobalParallel.IsChecked == true);
         App.Queues.UpdateSchedule(queue.Id, s);
         if (!queue.IsMain && NameBox.Text.Trim().Length > 0 && NameBox.Text.Trim() != queue.Name) App.Queues.RenameQueue(queue.Id, NameBox.Text);
         return true;
@@ -152,6 +155,10 @@ public partial class SchedulerWindow : Window
     }
     void ParallelUp_Click(object sender, RoutedEventArgs e) => ChangeParallel(+1);
     void ParallelDown_Click(object sender, RoutedEventArgs e) => ChangeParallel(-1);
+    void UseGlobalParallel_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ParallelPanel != null) ParallelPanel.IsEnabled = UseGlobalParallel.IsChecked != true;
+    }
 
     void Apply_Click(object sender, RoutedEventArgs e) { if (Apply()) RefreshList(_currentId); }
     void StartNow_Click(object sender, RoutedEventArgs e) { if (!Apply()) return; App.Queues.Start(_currentId); RefreshList(_currentId); UpdateRunning(); }

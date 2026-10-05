@@ -17,9 +17,10 @@
     <TextBox x:Name="FolderBox" Grid.Row="2" Grid.Column="1" Padding="7" Margin="0,0,0,10"/>
     <Button Grid.Row="2" Grid.Column="2" Content="Browse…" Click="Browse_Click" Margin="6,0,0,10"/>
 
-    <TextBlock x:Name="QueueLabel" Grid.Row="3" Text="Download later in" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
-    <ComboBox x:Name="QueueBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Padding="6" Margin="0,0,0,10" DisplayMemberPath="Name"
-              ToolTip="Where 'Download Later' parks it. Start the queue by hand or with the Scheduler."/>
+    <TextBlock x:Name="QueueLabel" Grid.Row="3" Text="Download queue" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+    <ComboBox x:Name="QueueBox" Grid.Row="3" Grid.Column="1" Padding="6" Margin="0,0,0,10" DisplayMemberPath="Name"
+              ToolTip="Choose the queue that will contain this download."/>
+    <Button Grid.Row="3" Grid.Column="2" Content="New queue…" Click="NewQueue_Click" Margin="6,0,0,10"/>
 
     <TextBlock x:Name="InfoText" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" TextWrapping="Wrap" Foreground="{DynamicResource Muted}" Margin="0,0,0,16"/>
 

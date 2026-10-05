@@ -26,9 +26,7 @@ public partial class DownloadInfoDialog : Window
     {
         InitializeComponent();
         Title = title;
-        QueueBox.ItemsSource = App.Queues.Queues;
-        QueueBox.SelectedIndex = 0;
-        if (!App.Settings.AskQueueOnLater) { QueueLabel.Visibility = Visibility.Collapsed; QueueBox.Visibility = Visibility.Collapsed; }
+        RefreshQueues();
         if (App.Settings.OnlyAddToQueue)
         {
             // Options > Downloads: "Do not start downloading, only add files to the queue"
@@ -69,6 +67,20 @@ public partial class DownloadInfoDialog : Window
     {
         using var dialog = new Forms.FolderBrowserDialog { Description = "Choose where to save", UseDescriptionForTitle = true, SelectedPath = FolderBox.Text };
         if (dialog.ShowDialog() == Forms.DialogResult.OK) FolderBox.Text = dialog.SelectedPath;
+    }
+
+    void RefreshQueues(int? selectedId = null)
+    {
+        QueueBox.ItemsSource = App.Queues.Queues;
+        QueueBox.SelectedItem = App.Queues.Find(selectedId ?? App.Queues.Main.Id) ?? App.Queues.Main;
+    }
+
+    void NewQueue_Click(object sender, RoutedEventArgs e)
+    {
+        var ask = new TextPromptDialog("New schedule queue", "Queue name:", "New queue") { Owner = this };
+        if (ask.ShowDialog() != true || string.IsNullOrWhiteSpace(ask.Value)) return;
+        var queue = App.Queues.AddQueue(ask.Value.Trim());
+        RefreshQueues(queue.Id);
     }
 
     bool Valid()

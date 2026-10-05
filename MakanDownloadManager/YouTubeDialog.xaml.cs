@@ -21,6 +21,7 @@ public partial class YouTubeDialog : Window
     public DownloadChoice Choice { get; private set; } = DownloadChoice.Cancel;
     public YtOption? Selected => (OptionList.SelectedItem as Row)?.Option;
     public string Folder => FolderBox.Text.Trim();
+    public int QueueId => (QueueBox.SelectedItem as DownloadQueue)?.Id ?? App.Queues.Main.Id;
     /// <summary>The video title with the quality added ("Title [1080p]"), the base of the file name.</summary>
     public string ChosenTitle => Selected is { } o ? TitleFor(o) : _info?.Title ?? "video";
 
@@ -30,6 +31,7 @@ public partial class YouTubeDialog : Window
         _url = url;
         AddressText.Text = url;
         FolderBox.Text = folder;
+        RefreshQueues();
         Loaded += async (_, _) => await LoadAsync();
         Closed += (_, _) => _cts.Cancel();
     }
@@ -105,6 +107,20 @@ public partial class YouTubeDialog : Window
     {
         using var dialog = new Forms.FolderBrowserDialog { SelectedPath = Folder, Description = Loc.T("Save to") };
         if (dialog.ShowDialog() == Forms.DialogResult.OK) FolderBox.Text = dialog.SelectedPath;
+    }
+
+    void RefreshQueues(int? selectedId = null)
+    {
+        QueueBox.ItemsSource = App.Queues.Queues;
+        QueueBox.SelectedItem = App.Queues.Find(selectedId ?? App.Queues.Main.Id) ?? App.Queues.Main;
+    }
+
+    void NewQueue_Click(object sender, RoutedEventArgs e)
+    {
+        var ask = new TextPromptDialog("New schedule queue", "Queue name:", "New queue") { Owner = this };
+        if (ask.ShowDialog() != true || string.IsNullOrWhiteSpace(ask.Value)) return;
+        var queue = App.Queues.AddQueue(ask.Value.Trim());
+        RefreshQueues(queue.Id);
     }
 
     void Start_Click(object sender, RoutedEventArgs e) { Choice = DownloadChoice.Start; DialogResult = true; }

@@ -53,6 +53,21 @@
             <StackPanel Margin="12,10,12,6">
               <CheckBox x:Name="StartOnStartup" Content="Start download when Makan starts" Margin="0,0,0,10"/>
 
+              <CheckBox x:Name="UseGlobalParallel" Content="Use the simultaneous-download limit from Options" Margin="0,0,0,6" Checked="UseGlobalParallel_Changed" Unchecked="UseGlobalParallel_Changed"/>
+              <StackPanel x:Name="ParallelPanel" Orientation="Horizontal" Margin="26,0,0,12">
+                <TextBlock Text="Download" VerticalAlignment="Center"/>
+                <Border Margin="10,0" BorderBrush="{DynamicResource InputBorder}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource Surface}">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBox x:Name="ParallelBox" Width="46" BorderThickness="0" HorizontalContentAlignment="Center" Text="4" ToolTip="1 to 16"/>
+                    <StackPanel>
+                      <Button Click="ParallelUp_Click" Padding="7,1" Margin="0" BorderThickness="0" Background="Transparent"><TextBlock Text="&#xE70E;" FontFamily="{StaticResource IconFont}" FontSize="9"/></Button>
+                      <Button Click="ParallelDown_Click" Padding="7,1" Margin="0" BorderThickness="0" Background="Transparent"><TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="9"/></Button>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+                <TextBlock Text="files at the same time in this queue" VerticalAlignment="Center"/>
+              </StackPanel>
+
               <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                 <CheckBox x:Name="StartAt" Content="Start download at" VerticalAlignment="Center"/>
                 <TextBox x:Name="StartTime" Width="70" Margin="10,0,0,0" Padding="3" HorizontalContentAlignment="Center" ToolTip="24-hour time, for example 23:30"/>
@@ -103,19 +118,6 @@
 
         <TabItem Header="Files in the queue">
           <DockPanel Margin="10">
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
-              <TextBlock Text="Download" VerticalAlignment="Center"/>
-              <Border Margin="10,0" BorderBrush="{DynamicResource InputBorder}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource Surface}">
-                <StackPanel Orientation="Horizontal">
-                  <TextBox x:Name="ParallelBox" Width="46" BorderThickness="0" HorizontalContentAlignment="Center" Text="4" ToolTip="1 to 16"/>
-                  <StackPanel>
-                    <Button Click="ParallelUp_Click" Padding="7,1" Margin="0" BorderThickness="0" Background="Transparent"><TextBlock Text="&#xE70E;" FontFamily="{StaticResource IconFont}" FontSize="9"/></Button>
-                    <Button Click="ParallelDown_Click" Padding="7,1" Margin="0" BorderThickness="0" Background="Transparent"><TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="9"/></Button>
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-              <TextBlock Text="files at the same time" VerticalAlignment="Center"/>
-            </StackPanel>
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
               <Button Click="Down_Click" ToolTip="Move down" Padding="12,6"><TextBlock Text="&#xE74B;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{DynamicResource Accent}"/></Button>
               <Button Click="Up_Click" ToolTip="Move up" Padding="12,6"><TextBlock Text="&#xE74A;" FontFamily="{StaticResource IconFont}" FontSize="16" Foreground="{DynamicResource Accent}"/></Button>

@@ -53,8 +53,9 @@
         <Button Content="Cancel" IsCancel="True" Click="Cancel_Click" MinWidth="90"/>
       </StackPanel>
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <TextBlock x:Name="QueueLabel" Text="Download Later goes to:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+        <TextBlock x:Name="QueueLabel" Text="Download queue:" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
         <ComboBox x:Name="QueueBox" Width="220" Margin="8,0,0,0" DisplayMemberPath="Name"/>
+        <Button Content="New queue…" Click="NewQueue_Click" Margin="8,0,0,0"/>
       </StackPanel>
     </DockPanel>
   </Grid>

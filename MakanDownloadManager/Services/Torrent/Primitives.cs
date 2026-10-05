@@ -150,6 +150,7 @@ public sealed class TorrentStorage : IDisposable
     readonly string _root;
     readonly FileStream?[] _streams;
     readonly object _gate = new();
+    bool _readOnly;
 
     /// <param name="saveDirectory">The folder chosen by the user; a multi-file torrent gets its own sub-folder named after the torrent.</param>
     public TorrentStorage(MetaInfo meta, string saveDirectory)
@@ -176,10 +177,30 @@ public sealed class TorrentStorage : IDisposable
         if (stream != null) return stream;
         var path = FilePath(file);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.RandomAccess);
-        if (stream.Length < file.Length) stream.SetLength(file.Length);
+        stream = _readOnly
+            ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.RandomAccess)
+            : new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.RandomAccess);
+        if (!_readOnly && stream.Length < file.Length) stream.SetLength(file.Length);
         _streams[file.Index] = stream;
         return stream;
+    }
+
+    /// <summary>
+    /// A completed torrent only needs read handles for seeding. Reopen the files read-only so ordinary programs
+    /// (which commonly share reads but not writes) can open the download as soon as completion is reported.
+    /// </summary>
+    public void MarkComplete()
+    {
+        lock (_gate)
+        {
+            _readOnly = true;
+            for (var i = 0; i < _streams.Length; i++)
+            {
+                _streams[i]?.Flush();
+                _streams[i]?.Dispose();
+                _streams[i] = null;
+            }
+        }
     }
 
     /// <summary>Index of the first file that contains this position.</summary>

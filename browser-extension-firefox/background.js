@@ -135,6 +135,7 @@ function createMenus() {
   ext.contextMenus.removeAll().then(() => {
     ext.contextMenus.create({ id: "makan-link", title: t("Download with Epsilon Download Manager"), contexts: ["link"] });
     ext.contextMenus.create({ id: "makan-media", title: t("Download this media with Epsilon Download Manager"), contexts: ["video", "audio", "image"] });
+    ext.contextMenus.create({ id: "makan-selected", title: t("Download all highlighted links with Epsilon Download Manager…"), contexts: ["selection"] });
     ext.contextMenus.create({ id: "makan-links", title: t("Download all links with Epsilon Download Manager…"), contexts: ["page"] });
     ext.contextMenus.create({ id: "makan-open", title: t("Open Epsilon Download Manager"), contexts: ["page", IS_FIREFOX ? "browser_action" : "action"] });
   });
@@ -157,6 +158,7 @@ ext.contextMenus.onClicked.addListener(async (info, tab) => {
   const referrer = info.frameUrl || tab?.url || null;
   if (info.menuItemId === "makan-link" && info.linkUrl) await report(await sendUrl(info.linkUrl, { referrer, kind: "link" }));
   if (info.menuItemId === "makan-media" && info.srcUrl && isHttp(info.srcUrl)) await report(await sendUrl(info.srcUrl, { referrer, kind: "link" }));
+  if (info.menuItemId === "makan-selected" && tab?.id !== undefined) await report(await grabLinks(tab.id, { selectionOnly: true, frameId: info.frameId ?? 0 }));
   if (info.menuItemId === "makan-links" && tab?.id !== undefined) await report(await grabLinks(tab.id));
   if (info.menuItemId === "makan-open") await callHost({ kind: "show" });
 });
@@ -280,10 +282,28 @@ ext.tabs.onRemoved.addListener((tabId) => {
 // ------------------------------------------------------------------ "Download all links" (IDM's picker window in the app)
 
 /** Reads every link of the tab's page and hands the list to Epsilon, which shows a window to tick the ones to download. */
-async function grabLinks(tabId, { selectionOnly = false, frameId = 0 } = {}) {
+async function grabLinks(tabId, { selectionOnly = false, frameId = null } = {}) {
   if (tabId === undefined) return { ok: false, error: t("No page.") };
   let page;
-  try { page = await ext.tabs.sendMessage(tabId, { type: "collectLinks", selectionOnly }, { frameId }); }
+  try {
+    if (selectionOnly && frameId === null && ext.scripting?.executeScript) {
+      const frames = await ext.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        func: () => window.__makanLinks ? window.__makanLinks(true) : null,
+      });
+      const pages = (frames || []).map((x) => x?.result).filter((x) => x?.links?.length);
+      const found = new Map();
+      for (const p of pages) for (const link of p.links) {
+        const known = found.get(link.url);
+        if (!known) found.set(link.url, { ...link });
+        else if (!known.text && link.text) known.text = link.text;
+      }
+      const first = pages[0];
+      page = first ? { ...first, links: [...found.values()].slice(0, 3000) } : null;
+    } else {
+      page = await ext.tabs.sendMessage(tabId, { type: "collectLinks", selectionOnly }, { frameId: frameId ?? 0 });
+    }
+  }
   catch { return { ok: false, error: t("Can't read this page. Reload the page and try again.") }; }
   if (!page?.links?.length) return { ok: false, error: t(selectionOnly ? "No links in the selection." : "No links found on this page.") };
 

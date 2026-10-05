@@ -92,8 +92,10 @@ public sealed partial class DownloadManager
         _store.Save(item);
         DownloadStateManifest.Write(item);
 
+        // ChooseConnections already applies the learned per-server connection limit. Applying it a
+        // second time here could halve the worker count twice and make an otherwise healthy server
+        // unexpectedly slow after one throttling response.
         var workers = ChooseConnections(item, probe);
-        if (probe.AcceptRanges) workers = SuggestConnections(item, workers);
         string temp;
         var useSegments = item.TotalBytes is > 0 && probe.AcceptRanges && (workers > 1 || File.Exists(SegMapPath(item)));
         if (useSegments)

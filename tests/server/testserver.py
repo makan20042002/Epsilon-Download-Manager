@@ -285,8 +285,13 @@ class H(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, OSError):
             self.close_connection = True
 
+class TestHTTPServer(ThreadingHTTPServer):
+    # HLS downloads deliberately open many segment connections together. The stdlib default backlog is only 5,
+    # which can reject healthy bursts on Windows CI before handler threads have a chance to accept them.
+    request_queue_size = 128
+
 if __name__ == "__main__":
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
+    srv = TestHTTPServer(("127.0.0.1", PORT), H)
     srv.daemon_threads = True
     print("listening", PORT, flush=True)
     srv.serve_forever()

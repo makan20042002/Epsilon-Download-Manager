@@ -111,8 +111,7 @@ public partial class LinksDialog : Window
         InitializeComponent();
         _prompt = prompt;
         Title = string.IsNullOrWhiteSpace(prompt.PageTitle) ? "Download All Links with Makan" : "Download All Links – " + prompt.PageTitle;
-        QueueBox.ItemsSource = App.Queues.Queues; QueueBox.SelectedIndex = 0;
-        if (!App.Settings.AskQueueOnBatch) { QueueBox.Visibility = Visibility.Collapsed; QueueLabel.Visibility = Visibility.Collapsed; }
+        RefreshQueues();
         CategoryBox.ItemsSource = CategoryService.Names.ToList(); CategoryBox.SelectedIndex = CategoryService.Names.ToList().IndexOf("Video");
         FolderBox.Text = MainWindow.FolderForCategory(CategoryService.General);
 
@@ -167,6 +166,20 @@ public partial class LinksDialog : Window
         if (dialog.ShowDialog() != Forms.DialogResult.OK) return;
         FolderBox.Text = dialog.SelectedPath;
         OneFolder.IsChecked = true;
+    }
+
+    void RefreshQueues(int? selectedId = null)
+    {
+        QueueBox.ItemsSource = App.Queues.Queues;
+        QueueBox.SelectedItem = App.Queues.Find(selectedId ?? App.Queues.Main.Id) ?? App.Queues.Main;
+    }
+
+    void NewQueue_Click(object sender, RoutedEventArgs e)
+    {
+        var ask = new TextPromptDialog("New schedule queue", "Queue name:", "New queue") { Owner = this };
+        if (ask.ShowDialog() != true || string.IsNullOrWhiteSpace(ask.Value)) return;
+        var queue = App.Queues.AddQueue(ask.Value.Trim());
+        RefreshQueues(queue.Id);
     }
 
     string FolderFor(LinkRow row)

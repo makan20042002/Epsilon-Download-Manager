@@ -822,6 +822,9 @@ public sealed partial class TorrentSession
 
     void OnWantedCompleted()
     {
+        // Release write access before observers see completion. Seeding reopens these files read-only,
+        // allowing Explorer, media players and checksum tools to use them immediately.
+        _storage?.MarkComplete();
         SaveResume();
         _completed.TrySetResult();
         if (!_announcedCompleted) { _announcedCompleted = true; if (_announceKick.CurrentCount == 0) _announceKick.Release(); }

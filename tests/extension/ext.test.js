@@ -17,6 +17,7 @@ function makeChrome(hostReply) {
     downloads: { onCreated: makeEvent(), pause: async (id) => paused.push(id), resume: async (id) => resumed.push(id), cancel: async (id) => cancelled.push(id), erase: async (q) => erased.push(q.id) },
     cookies: { getAll: async ({ url }) => /example\.com/.test(url) ? [{ name: "sid", value: "s1" }, { name: "pref", value: "dark" }] : [] },
     contextMenus: { removeAll: async () => { menus.length = 0; }, create: (o) => { menus.push(o); }, onClicked: makeEvent() },
+    scripting: { executeScript: async () => [] },
     webRequest: { onHeadersReceived: makeEvent() },
     tabs: { onUpdated: makeEvent(), onRemoved: makeEvent(), query: async (q) => (q && q.active) ? [{ id: 7, title: "Some Video" }] : [{ id: 7, url: "https://example.com/watch" }, { id: 8, url: "https://other.org/" }, { id: 9, url: "https://example.com/other" }], get: async (id) => ({ id, title: "Some Video | Site" }) },
     storage: { local: area(storage), session: area(session) },
@@ -330,9 +331,16 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     assert.strictEqual(r.ok, true);
     assert.deepStrictEqual(asked, { id: 7, msg: { type: "collectLinks", selectionOnly: true }, opts: { frameId: 3 } });
     assert.strictEqual(env.sent.at(-1).msg.kind, "links");
+    env.chrome.scripting.executeScript = async (options) => {
+      assert.deepStrictEqual(options.target, { tabId: 7, allFrames: true });
+      return [
+        { frameId: 0, result: { url: "https://example.com/dl", title: "Assassins", links: [{ url: "https://edge14.example.com/g/p1.rar", text: "Part 1", kind: "link" }] } },
+        { frameId: 4, result: { url: "https://frame.example.com/", title: "Frame", links: [{ url: "https://edge14.example.com/g/p2.rar", text: "Part 2", kind: "link" }, { url: "https://edge14.example.com/g/p1.rar", text: "duplicate", kind: "link" }] } },
+      ];
+    };
     const popup = await ask(env, { type: "grabSelectedLinks", tabId: 7 });
     assert.strictEqual(popup.ok, true, "the popup can send the highlighted batch too");
-    assert.deepStrictEqual(asked, { id: 7, msg: { type: "collectLinks", selectionOnly: true }, opts: { frameId: 0 } });
+    assert.strictEqual(env.sent.at(-1).msg.items.length, 2, "selected links from every frame are merged into one batch");
     env.chrome.tabs.sendMessage = async () => ({ links: [] });
     assert.match((await ask(env, { type: "grabSelection" }, { tab: { id: 7 }, frameId: 0 })).error, /No links in the selection/);
   });

@@ -467,10 +467,11 @@ public partial class MainWindow : Window
     static DownloadItem? FindDuplicate(string url) =>
         App.Manager.Items.FirstOrDefault(i => string.Equals(i.Url, url, StringComparison.Ordinal) && i.Status != nameof(DownloadStatus.Cancelled));
 
-    /// <summary>Start Download runs it now; Download Later parks it (stopped) in the chosen queue.</summary>
+    /// <summary>Every confirmed download belongs to the chosen queue. Start Download also runs it immediately;
+    /// Download Later parks it there until that queue is started manually or by its schedule.</summary>
     static void Place(DownloadItem item, DownloadChoice choice, int queueId)
     {
-        if (choice == DownloadChoice.Start) { App.Manager.Enqueue(item); DownloadProgressWindow.ShowIfWanted(item); }
+        if (choice == DownloadChoice.Start) { App.Manager.Enqueue(item); App.Queues.AddItem(queueId, item); DownloadProgressWindow.ShowIfWanted(item); }
         else App.Queues.AddLater(item, queueId);
     }
 
@@ -647,12 +648,12 @@ public partial class MainWindow : Window
         if (dialog.Choice == DownloadChoice.Cancel || dialog.Selected is not { } option) return;
         try { Directory.CreateDirectory(dialog.Folder); }
         catch (Exception ex) { Dlg.Show(this, $"Can't use the folder \"{dialog.Folder}\":\n{ex.Message}", "Epsilon Download Manager"); return; }
-        PlaceYouTubeSelection(url, dialog.ChosenTitle, option.Key, dialog.Folder, dialog.Choice, quiet: false, option.ApproxBytes);
+        PlaceYouTubeSelection(url, dialog.ChosenTitle, option.Key, dialog.Folder, dialog.Choice, quiet: false, option.ApproxBytes, dialog.QueueId);
     }
 
     /// <summary>Builds one yt-dlp download from a chosen quality and places it in the queue. Returns false (and does
     /// nothing) if that address is already in the list - used both for a single video and for each video of a playlist.</summary>
-    bool PlaceYouTubeSelection(string url, string? title, string key, string folder, DownloadChoice choice, bool quiet, long? estimatedSize = null)
+    bool PlaceYouTubeSelection(string url, string? title, string key, string folder, DownloadChoice choice, bool quiet, long? estimatedSize = null, int? queueId = null)
     {
         var plan = YtDlpService.PlanFor(key);
         var request = new StreamRequest(YtDlpService.WithSelection(url, key), null, title, plan.OutputExtension, null, url, null, estimatedSize);
@@ -662,7 +663,7 @@ public partial class MainWindow : Window
             return false;
         }
         var item = NativeBridge.BuildStreamItem(request, Path.Combine(folder, NativeBridge.StreamFileName(request)), App.Manager.DefaultConnections);
-        Place(item, choice, App.Queues.Main.Id);
+        Place(item, choice, queueId ?? App.Queues.Main.Id);
         if (!quiet)
         {
             Dispatcher.BeginInvoke(() => Downloads.SelectedItem = item, DispatcherPriority.Background);

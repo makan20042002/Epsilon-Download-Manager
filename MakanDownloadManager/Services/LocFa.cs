@@ -805,6 +805,14 @@ public static class LocFa
         ("The diagnostic report could not be created:\n{0}", "ساخت گزارش عیب‌یابی ممکن نشد:\n{0}"),
         ("Diagnostic report", "گزارش عیب‌یابی"),
         ("Smart connections: use fewer connections for servers that throttle me", "اتصال هوشمند: برای سرورهایی که مرا محدود می‌کنند اتصال کمتر استفاده شود"),
-        ("Makan always starts with the number above. Only a server that answers 'too many requests' gets fewer connections next time (see the Intelligent Center).", "ماکان همیشه با عدد بالا شروع می‌کند. فقط سروری که «درخواست‌های بیش از حد» پاسخ می‌دهد دفعهٔ بعد اتصال کمتر می‌گیرد (مرکز هوشمند را ببینید).")
+        ("Makan always starts with the number above. Only a server that answers 'too many requests' gets fewer connections next time (see the Intelligent Center).", "ماکان همیشه با عدد بالا شروع می‌کند. فقط سروری که «درخواست‌های بیش از حد» پاسخ می‌دهد دفعهٔ بعد اتصال کمتر می‌گیرد (مرکز هوشمند را ببینید)."),
+        ("Download queue", "صف دانلود"),
+        ("Download queue:", "صف دانلود:"),
+        ("New queue…", "صف جدید…"),
+        ("New schedule queue", "صف زمان‌بندی جدید"),
+        ("Queue name:", "نام صف:"),
+        ("Choose the queue that will contain this download.", "صفی را انتخاب کنید که این دانلود در آن قرار می‌گیرد."),
+        ("Use the simultaneous-download limit from Options", "استفاده از محدودیت دانلود هم‌زمان در تنظیمات"),
+        ("files at the same time in this queue", "فایل هم‌زمان در این صف")
     };
 }
