@@ -241,6 +241,16 @@ public sealed partial class DownloadManager
         for (var i = start; i < total; i++) slots[i] = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
         var gate = new SemaphoreSlim(workerCount + 4);      // fetched-but-not-yet-written segments are bounded (memory)
         var keys = new ConcurrentDictionary<Uri, Task<byte[]>>();
+        // Resolve encryption keys before the segment burst. Some CDNs (and small local servers)
+        // reset a key request when it arrives among many parallel media requests. A key is tiny and
+        // shared by many segments, so fetching it once up front is both safer and cheaper.
+        foreach (var keyUri in segments.Select(s => s.Key?.KeyUri).Where(u => u != null).Cast<Uri>().Distinct())
+        {
+            var keyBytes = await GetHlsKeyWithRetryAsync(item, origin, keyUri, linked.Token);
+            if (keyBytes.Length != 16)
+                throw new InvalidDataException("The decryption key is not 16 bytes (login required?).");
+            keys[keyUri] = Task.FromResult(keyBytes);
+        }
         var next = start - 1;
         Exception? failure = null;
 

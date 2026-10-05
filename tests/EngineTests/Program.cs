@@ -52,6 +52,13 @@ public static class Program
             Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
             return T.Fail == 0 ? 0 : 1;
         }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "hls")
+        {
+            await HlsTests.RunAll(Base, Dir, Http);
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            try { Directory.Delete(Dir, true); } catch { }
+            return T.Fail == 0 ? 0 : 1;
+        }
         if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "perf" || (args.Length > 0 && args[0] == "-perf"))
         {
             await TorrentPerformanceTests.RunAllBenchmarks();
