@@ -1,0 +1,45 @@
+name: Publish Windows release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer and extension packages
+        shell: pwsh
+        run: .\build-installer.ps1
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content .\VERSION.txt -Raw).Trim()
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw "Tag $env:GITHUB_REF_NAME does not match VERSION.txt ($version)." }
+          gh release create $env:GITHUB_REF_NAME `
+            ".\installer-output\EpsilonDownloadManager-$version-Setup.exe" `
+            ".\publish\extension-packages\epsilon-chrome-edge.zip" `
+            ".\publish\extension-packages\epsilon-firefox.zip" `
+            --title "Epsilon Download Manager $version" `
+            --notes-file ".\RELEASE_NOTES_$version.md" `
+            --verify-tag
