@@ -10,7 +10,18 @@ static class T
     public static void Check(string name, bool ok, string? detail = null)
     {
         if (ok) { Pass++; Console.WriteLine($"  PASS  {name}"); }
-        else { Fail++; Console.WriteLine($"  FAIL  {name}  {detail}"); }
+        else
+        {
+            Fail++;
+            Console.WriteLine($"  FAIL  {name}  {detail}");
+            // Public GitHub Actions pages hide raw logs from signed-out visitors. Emit the exact
+            // failed assertion as an annotation so intermittent Windows failures remain diagnosable.
+            if (string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                static string Escape(string value) => value.Replace("%", "%25").Replace("\r", "%0D").Replace("\n", "%0A");
+                Console.WriteLine($"::error title=Engine test failed::{Escape(name + (string.IsNullOrWhiteSpace(detail) ? "" : " — " + detail))}");
+            }
+        }
     }
     public static string Sha(string path) { using var s = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(s)).ToLowerInvariant(); }
 }
