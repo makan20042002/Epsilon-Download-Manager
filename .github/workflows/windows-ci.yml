@@ -36,6 +36,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install encrypted-stream test dependency
+        run: python -m pip install cryptography
+
       - name: Run validation and tests
         shell: pwsh
         run: .\tests\run-all.ps1
