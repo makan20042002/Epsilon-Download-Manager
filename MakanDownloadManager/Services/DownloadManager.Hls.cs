@@ -322,7 +322,9 @@ public sealed partial class DownloadManager
                 await AcquireBandwidthAsync(item, (int)Math.Min(data.Length, int.MaxValue), ct);
                 if (segment.Key is { Method: "AES-128", KeyUri: { } keyUri } key)
                 {
-                    var keyTask = keys.GetOrAdd(keyUri, u => GetHlsBytesAsync(item, origin, u, null, null, ct));
+                    // All workers share one key request. Retry that request inside the shared task so
+                    // a brief key-server failure does not make every segment re-download at once.
+                    var keyTask = keys.GetOrAdd(keyUri, u => GetHlsKeyWithRetryAsync(item, origin, u, ct));
                     byte[] keyBytes;
                     try
                     {
@@ -347,6 +349,18 @@ public sealed partial class DownloadManager
                 }
                 return data;
             }
+            catch (Exception ex) when (attempt < 5 && !ct.IsCancellationRequested && RetryPolicy.IsTransient(ex))
+            {
+                await Task.Delay(RetryPolicy.DelayFor(ex, attempt), ct);
+            }
+        }
+    }
+
+    async Task<byte[]> GetHlsKeyWithRetryAsync(DownloadItem item, Uri origin, Uri keyUri, CancellationToken ct)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try { return await GetHlsBytesAsync(item, origin, keyUri, null, null, ct); }
             catch (Exception ex) when (attempt < 5 && !ct.IsCancellationRequested && RetryPolicy.IsTransient(ex))
             {
                 await Task.Delay(RetryPolicy.DelayFor(ex, attempt), ct);
