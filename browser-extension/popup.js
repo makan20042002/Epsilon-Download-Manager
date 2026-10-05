@@ -7,8 +7,8 @@ const send = (message) => ext.runtime.sendMessage(message);
 
 let tab = null;
 let foundLinks = [];
-const THEMES = ["obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal", "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass"];
-const OLD_THEMES = { light: "platinum-blue", orange: "champagne-minimal", makan: "sapphire-noir", dark: "sapphire-noir", epsilon: "sapphire-noir", obsidian: "obsidian-gold", uhnohh: "obsidian-gold", nebula: "royal-amethyst", lilac: "rose-titanium", dracula: "rose-titanium" };
+const THEMES = ["obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal", "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass", "dracula"];
+const OLD_THEMES = { light: "platinum-blue", orange: "champagne-minimal", makan: "sapphire-noir", dark: "sapphire-noir", epsilon: "sapphire-noir", obsidian: "obsidian-gold", uhnohh: "obsidian-gold", nebula: "royal-amethyst", lilac: "rose-titanium" };
 let selectedTheme = "app";
 let appTheme = "sapphire-noir";
 

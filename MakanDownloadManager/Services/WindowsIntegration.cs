@@ -1,4 +1,6 @@
 using Microsoft.Win32;
+using System.Runtime.InteropServices;
+using Windows.ApplicationModel;
 
 namespace MakanDownloadManager.Services;
 
@@ -8,6 +10,16 @@ public static class WindowsIntegration
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string RunName = "MakanDownloadManager";
     const string HostName = "com.makan.downloadmanager";
+
+    public static bool IsPackaged
+    {
+        get
+        {
+            var length = 0;
+            var result = GetCurrentPackageFullName(ref length, null);
+            return result != AppModelErrorNoPackage;
+        }
+    }
 
     public static bool LaunchOnStartup
     {
@@ -26,6 +38,37 @@ public static class WindowsIntegration
         }
         catch (Exception) { return false; }
     }
+
+    /// <summary>Reads the Store/MSIX startup task, or the normal Run entry for an unpackaged install.</summary>
+    public static async Task<bool> GetLaunchOnStartupAsync()
+    {
+        if (!IsPackaged) return LaunchOnStartup;
+        try
+        {
+            var task = await StartupTask.GetAsync("EpsilonDownloadManagerStartup");
+            return task.State is StartupTaskState.Enabled or StartupTaskState.EnabledByPolicy;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Changes the packaged startup task when installed from the Store.</summary>
+    public static async Task<bool> SetLaunchOnStartupAsync(bool enabled, string exePath)
+    {
+        if (!IsPackaged) return SetLaunchOnStartup(enabled, exePath);
+        try
+        {
+            var task = await StartupTask.GetAsync("EpsilonDownloadManagerStartup");
+            if (!enabled) { task.Disable(); return true; }
+            var state = await task.RequestEnableAsync();
+            return state is StartupTaskState.Enabled or StartupTaskState.EnabledByPolicy;
+        }
+        catch { return false; }
+    }
+
+    const int AppModelErrorNoPackage = 15700;
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    static extern int GetCurrentPackageFullName(ref int packageFullNameLength, char[]? packageFullName);
 
     public sealed record BrowserStatus(string Name, bool Registered);
 

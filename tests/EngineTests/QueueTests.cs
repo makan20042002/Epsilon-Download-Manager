@@ -37,6 +37,7 @@ static class QueueTests
         await Run("Queues: adding to a running queue starts it; removing a running queue pauses its files", LiveEditing);
         await Run("Queues: resuming one specific queued file does not start the rest of the queue up to MaxParallel (regression)", ResumeOneQueuedFileDoesNotStartTheWholeQueue);
         await Run("Queues: a failed file can be resumed while its queue has moved on", ResumeFailedDuringRun);
+        await Run("Queues: completed files are removed from the schedule but remain in download history", CompletedLeavesSchedule);
     }
 
     static async Task Run(string title, Func<Task> body)
@@ -83,6 +84,29 @@ static class QueueTests
         q.Start(q.Main.Id);
         T.Check("starting the queue downloads it", await Until(q, () => item.Status == "Complete") && new FileInfo(item.FilePath).Length == 307200, item.LastError);
         T.Check("queue finished exactly once, nothing else happened", await Until(q, () => !q.IsRunning(q.Main.Id)) && finished == 1 && power.Calls.Count == 0, string.Join(",", power.Calls));
+    }
+
+    static async Task CompletedLeavesSchedule()
+    {
+        var dir = Sub();
+        using var m = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false);
+        using var q = Make(m, out _, out _);
+        var item = Item(dir, "schedule-complete.bin");
+        q.AddLater(item);
+        q.Start(q.Main.Id);
+        T.Check("download completes", await Until(q, () => item.Status == "Complete"));
+        q.Pump();
+        T.Check("completed file is no longer in the schedule queue", !q.Main.ItemIds.Contains(item.Id) && item.QueueName == null);
+        T.Check("completed file remains in download history", m.Items.Any(x => x.Id == item.Id) && File.Exists(item.FilePath));
+
+        await m.RemoveAsync(item, deleteFile: false);
+        T.Check("remove from app keeps the completed file on disk", !m.Items.Any(x => x.Id == item.Id) && File.Exists(item.FilePath));
+
+        var erase = Item(dir, "delete-from-disk.bin");
+        q.AddLater(erase); q.Start(q.Main.Id);
+        T.Check("second download completes", await Until(q, () => erase.Status == "Complete"));
+        await m.RemoveAsync(erase, deleteFile: true);
+        T.Check("delete completely removes the completed file from disk", !m.Items.Any(x => x.Id == erase.Id) && !File.Exists(erase.FilePath));
     }
 
     static async Task Order()

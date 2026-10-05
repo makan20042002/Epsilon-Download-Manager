@@ -159,6 +159,7 @@ public sealed class TorrentEngine : IDisposable
     {
         _sessions.TryRemove(session.InfoHashHex, out _);
         await session.StopAsync(deleteData).ConfigureAwait(false);
+        session.DiskPipeline.Dispose();
         if (deleteData) DeleteTorrentFile(session.InfoHashHex);
     }
 
@@ -213,6 +214,7 @@ public sealed class TorrentEngine : IDisposable
     {
         _cts.Cancel();
         try { _listener?.Stop(); } catch (Exception) { }
+        foreach (var session in _sessions.Values) session.DiskPipeline.Dispose();
         Dht?.Dispose();
         if (_portMapper != null) _ = _portMapper.DisposeAsync().AsTask();   // best-effort, fire-and-forget: Dispose() itself cannot await
     }

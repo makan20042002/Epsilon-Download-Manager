@@ -8,7 +8,7 @@ public static class ThemePalette
     public static readonly string[] Names =
     [
         "obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal",
-        "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass"
+        "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass", "dracula"
     ];
 
     public static readonly IReadOnlyDictionary<string, string> ObsidianGold = Palette(
@@ -57,9 +57,14 @@ public static class ThemePalette
         "#20111B", "#301825", "#180D14", "#6A3B56", "#301825", "#D9B4C8", "#C69AFF", "#66D2D6", "#F2C565", "#6A3B56", "#E187B1", "#79596A");
 
     public static readonly IReadOnlyDictionary<string, string> ArcticGlass = Palette(
-        "#E9F5FF", "#F4FAFF", "#D9ECFA", "#FFFFFF", "#B7D7EC", "#102A43", "#486B86", "#789BB4", "#FFFFFF",
-        "#087AB8", "#045A8A", "#FFFFFF", "#E0F1FC", "#C5E5F7", "#167451", "#B42346", "#985600", "#DFF3EB",
-        "#F4FAFF", "#D9ECFA", "#FFFFFF", "#ACCEE4", "#FFFFFF", "#486B86", "#6C4BA8", "#087A88", "#985600", "#ACCEE4", "#087AB8", "#879EAF");
+        "#07131F", "#0B2133", "#103049", "#153C58", "#2B6687", "#EDF9FF", "#A9D4E8", "#6E9DB5", "#07131F",
+        "#45C7FF", "#0D86C6", "#03131D", "#174C6D", "#1E5D80", "#62E0B1", "#FF6F91", "#FFD166", "#10382E",
+        "#0B2133", "#103049", "#081A28", "#2B6687", "#103049", "#A9D4E8", "#BFA5FF", "#55DFE5", "#FFD166", "#2B6687", "#45C7FF", "#557F95");
+
+    public static readonly IReadOnlyDictionary<string, string> Dracula = Palette(
+        "#1E1F29", "#282A36", "#343746", "#3C3F51", "#5A5F78", "#F8F8F2", "#C9C9C2", "#8B8D9A", "#1E1F29",
+        "#BD93F9", "#8B5CC7", "#171820", "#44475A", "#50536A", "#50FA7B", "#FF6E78", "#F1FA8C", "#243C2B",
+        "#282A36", "#343746", "#21222C", "#5A5F78", "#343746", "#C9C9C2", "#FF79C6", "#8BE9FD", "#FFB86C", "#5A5F78", "#BD93F9", "#6B6E82");
 
     public static string Normalize(string? theme)
     {
@@ -71,7 +76,8 @@ public static class ThemePalette
             "orange" => "champagne-minimal",
             "obsidian" or "uhnohh" => "obsidian-gold",
             "nebula" => "royal-amethyst",
-            "lilac" or "dracula" => "rose-titanium",
+            "lilac" => "rose-titanium",
+            "dracula" => "dracula",
             "makan" or "dark" or "epsilon" => "sapphire-noir",
             _ => "sapphire-noir"
         };
@@ -91,6 +97,7 @@ public static class ThemePalette
         "ivory-luxe" => IvoryLuxe,
         "rose-titanium" => RoseTitanium,
         "arctic-glass" => ArcticGlass,
+        "dracula" => Dracula,
         _ => SapphireNoir
     };
 

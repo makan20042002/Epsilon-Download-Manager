@@ -23,13 +23,14 @@ public partial class SettingsWindow : Window
 
         // General
         ShowBrowserStatus();
+        LaunchStartup.IsEnabled = !WindowsIntegration.IsPackaged;
         LaunchStartup.IsChecked = WindowsIntegration.LaunchOnStartup;
         ClipboardWatch.IsChecked = s.ClipboardWatch;
         var allowed = s.CaptureBrowsers.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
         BrChrome.IsChecked = allowed.Contains("chrome"); BrEdge.IsChecked = allowed.Contains("edge"); BrFirefox.IsChecked = allowed.Contains("firefox");
         BrOpera.IsChecked = allowed.Contains("opera"); BrVivaldi.IsChecked = allowed.Contains("vivaldi"); BrOther.IsChecked = allowed.Contains("other");
         LanguageBox.SelectedIndex = s.Language == "fa" ? 1 : 0;
-        ThemeBox.SelectedIndex = s.Theme switch { "obsidian-gold" => 0, "platinum-blue" => 1, "royal-amethyst" => 2, "emerald-executive" => 3, "champagne-minimal" => 4, "graphite-copper" => 5, "sapphire-noir" => 6, "ivory-luxe" => 7, "rose-titanium" => 8, "arctic-glass" => 9, "auto" => 10, _ => 6 };
+        ThemeBox.SelectedIndex = s.Theme switch { "obsidian-gold" => 0, "platinum-blue" => 1, "royal-amethyst" => 2, "emerald-executive" => 3, "champagne-minimal" => 4, "graphite-copper" => 5, "sapphire-noir" => 6, "ivory-luxe" => 7, "rose-titanium" => 8, "arctic-glass" => 9, "dracula" => 10, "auto" => 11, _ => 6 };
 
         // File types
         FileTypesBox.Text = s.FileTypes; SitesBox.Text = s.ExcludedSites; AddressesBox.Text = s.ExcludedAddresses;
@@ -91,6 +92,13 @@ public partial class SettingsWindow : Window
         _loading = false;
         CategoryCombo.SelectedIndex = 0;
         RefreshToolStatus(initial: true);
+        if (WindowsIntegration.IsPackaged) _ = LoadPackagedStartupAsync();
+    }
+
+    async Task LoadPackagedStartupAsync()
+    {
+        LaunchStartup.IsChecked = await WindowsIntegration.GetLaunchOnStartupAsync();
+        LaunchStartup.IsEnabled = true;
     }
 
     // ---------------------------------------------------------------- General
@@ -212,7 +220,7 @@ public partial class SettingsWindow : Window
         catch (Exception ex) { Dlg.Show(this, Loc.F("Can't use the {0} folder:\n{1}", Loc.T(what), ex.Message), "Options", MessageBoxButton.OK, MessageBoxImage.Warning); return false; }
     }
 
-    void Ok_Click(object sender, RoutedEventArgs e)
+    async void Ok_Click(object sender, RoutedEventArgs e)
     {
         StoreCategoryFields();
         var s = App.Settings;
@@ -227,12 +235,19 @@ public partial class SettingsWindow : Window
         if (BrOpera.IsChecked == true) browsers.Add("opera"); if (BrVivaldi.IsChecked == true) browsers.Add("vivaldi"); if (BrOther.IsChecked == true) browsers.Add("other");
         s.CaptureBrowsers = browsers.Count == 0 ? "none" : string.Join(",", browsers);
         s.ClipboardWatch = ClipboardWatch.IsChecked == true;
-        if ((LaunchStartup.IsChecked == true) != WindowsIntegration.LaunchOnStartup)
-            WindowsIntegration.SetLaunchOnStartup(LaunchStartup.IsChecked == true, Environment.ProcessPath ?? "");
+        if ((LaunchStartup.IsChecked == true) != await WindowsIntegration.GetLaunchOnStartupAsync())
+        {
+            var changed = await WindowsIntegration.SetLaunchOnStartupAsync(LaunchStartup.IsChecked == true, Environment.ProcessPath ?? "");
+            if (!changed && LaunchStartup.IsChecked == true)
+            {
+                Dlg.Show(this, Loc.T("Windows did not allow Epsilon Download Manager to start automatically. You can enable it in Windows Settings > Apps > Startup."), "Options", MessageBoxButton.OK, MessageBoxImage.Information);
+                LaunchStartup.IsChecked = await WindowsIntegration.GetLaunchOnStartupAsync();
+            }
+        }
         var newLanguage = LanguageBox.SelectedIndex == 1 ? "fa" : "en";
         var languageChanged = newLanguage != s.Language;
         s.Language = newLanguage;
-        s.Theme = ThemeBox.SelectedIndex switch { 0 => "obsidian-gold", 1 => "platinum-blue", 2 => "royal-amethyst", 3 => "emerald-executive", 4 => "champagne-minimal", 5 => "graphite-copper", 6 => "sapphire-noir", 7 => "ivory-luxe", 8 => "rose-titanium", 9 => "arctic-glass", 10 => "auto", _ => "sapphire-noir" };
+        s.Theme = ThemeBox.SelectedIndex switch { 0 => "obsidian-gold", 1 => "platinum-blue", 2 => "royal-amethyst", 3 => "emerald-executive", 4 => "champagne-minimal", 5 => "graphite-copper", 6 => "sapphire-noir", 7 => "ivory-luxe", 8 => "rose-titanium", 9 => "arctic-glass", 10 => "dracula", 11 => "auto", _ => "sapphire-noir" };
 
         // File types
         s.FileTypes = FileTypesBox.Text.Trim(); s.ExcludedSites = SitesBox.Text.Trim(); s.ExcludedAddresses = AddressesBox.Text.Trim();

@@ -763,12 +763,13 @@ public sealed partial class TorrentSession
         bool ok;
         try
         {
-            ok = await Task.Run(() =>
-            {
-                if (!SHA1.HashData(piece.Buffer).AsSpan().SequenceEqual(meta.PieceHash(piece.Index))) return false;
-                _storage!.Write(meta.PieceOffset(piece.Index), piece.Buffer);
-                return true;
-            }, ct).ConfigureAwait(false);
+            var diskTask = new DiskWriteTask(
+                piece.Index,
+                piece.Buffer,
+                meta.PieceOffset(piece.Index),
+                meta.PieceHash(piece.Index).ToArray(),
+                piece.Contributors);
+            ok = await DiskPipeline.EnqueueAndVerifyAsync(diskTask, _storage!, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {

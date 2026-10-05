@@ -498,6 +498,7 @@ public static class LocFa
         ("Ivory Luxe", "عاج لوکس"),
         ("Rose Titanium", "رز تیتانیومی"),
         ("Arctic Glass", "شیشهٔ قطبی"),
+        ("Dracula", "دراکولا"),
         ("Download status", "وضعیت دانلود"),
         ("File size", "حجم فایل"),
         ("Downloaded", "دانلود شده"),

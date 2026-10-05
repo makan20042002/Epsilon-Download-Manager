@@ -57,6 +57,7 @@
               <ComboBoxItem Content="Ivory Luxe"/>
               <ComboBoxItem Content="Rose Titanium"/>
               <ComboBoxItem Content="Arctic Glass"/>
+              <ComboBoxItem Content="Dracula"/>
               <ComboBoxItem Content="Follow Windows"/>
             </ComboBox>
             <TextBlock Text="The theme changes as soon as you press OK." Foreground="{DynamicResource Muted}" Margin="0,6,0,0"/>

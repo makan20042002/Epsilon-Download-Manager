@@ -15,6 +15,6 @@
     <Compile Include="..\..\MakanDownloadManager\Models\*.cs" />
     <Compile Include="..\..\MakanDownloadManager\Services\Torrent\*.cs" />
     <Compile Include="..\..\MakanDownloadManager\Services\*.cs"
-             Exclude="..\..\MakanDownloadManager\Services\DownloadDb.cs;..\..\MakanDownloadManager\Services\HistoryService.cs;..\..\MakanDownloadManager\Services\DbQueueStore.cs;..\..\MakanDownloadManager\Services\DesktopServices.cs;..\..\MakanDownloadManager\Services\DownloadSleepGuard.cs" />
+             Exclude="..\..\MakanDownloadManager\Services\DownloadDb.cs;..\..\MakanDownloadManager\Services\HistoryService.cs;..\..\MakanDownloadManager\Services\DbQueueStore.cs;..\..\MakanDownloadManager\Services\DesktopServices.cs;..\..\MakanDownloadManager\Services\DownloadSleepGuard.cs;..\..\MakanDownloadManager\Services\WindowsIntegration.cs" />
   </ItemGroup>
 </Project>

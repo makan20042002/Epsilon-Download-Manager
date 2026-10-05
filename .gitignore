@@ -6,6 +6,8 @@ bin/
 obj/
 publish/
 installer-output/
+msix-output/
+msix-stage/
 *.exe
 *.msi
 *.pdb

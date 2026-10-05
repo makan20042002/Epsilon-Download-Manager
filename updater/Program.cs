@@ -9,7 +9,7 @@ using MakanUpdater;
 // The package is downloaded (HTTPS only, redirects followed by hand and checked) and verified BEFORE the installed application is
 // stopped; files are then swapped with rollback (see FileSwap). Exit code 0 = updated, 1 = failed (the installation is unchanged).
 
-const string ProductVersion = "1.4.2";
+const string ProductVersion = "1.5.0";
 
 static string Arg(string name, string fallback = "")
 {

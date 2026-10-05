@@ -318,6 +318,7 @@ public sealed class QueueService : IDisposable
     public void Pump()
     {
         if (_disposed) return;
+        PruneCompletedItems();
         List<(int Id, Run Run)> runs;
         lock (_gate) runs = _runs.Select(kv => (kv.Key, kv.Value)).ToList();
 
@@ -357,6 +358,23 @@ public sealed class QueueService : IDisposable
             var retryPending = items.Any(i => i.Status == nameof(DownloadStatus.Failed) && run.RetriesLeft.TryGetValue(i.Id, out var l) && l > 0);
             if (run.Pending.Count == 0 && !items.Any(IsActive) && !retryPending) Finish(id, q, run);
         }
+    }
+
+    /// <summary>Completed transfers no longer belong to a future schedule run. Keeping them in ItemIds made the
+    /// scheduler look unfinished and left old files visible forever, even though the transfer itself had completed.</summary>
+    void PruneCompletedItems()
+    {
+        var completed = _manager.Items.Where(i => i.Status == nameof(DownloadStatus.Complete)).ToDictionary(i => i.Id);
+        if (completed.Count == 0) return;
+        var changed = false;
+        lock (_gate)
+        {
+            foreach (var q in _queues) changed |= q.ItemIds.RemoveAll(completed.ContainsKey) > 0;
+            if (changed) Save();
+        }
+        if (!changed) return;
+        foreach (var item in completed.Values) item.QueueName = null;
+        Changed?.Invoke();
     }
 
     void Finish(int id, DownloadQueue q, Run run)
@@ -434,12 +452,14 @@ public sealed class QueueService : IDisposable
         }
         // forget downloads that no longer exist, label the ones that do
         var byId = _manager.Items.ToDictionary(i => i.Id);
+        var cleaned = false;
         lock (_gate)
             foreach (var q in _queues)
             {
-                q.ItemIds.RemoveAll(id => !byId.ContainsKey(id));
+                cleaned |= q.ItemIds.RemoveAll(id => !byId.ContainsKey(id) || byId[id].Status == nameof(DownloadStatus.Complete)) > 0;
                 foreach (var id in q.ItemIds) byId[id].QueueName = q.Name;
             }
+        if (cleaned) lock (_gate) Save();
     }
 
     void Save()

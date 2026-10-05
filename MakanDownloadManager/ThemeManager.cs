@@ -89,7 +89,7 @@ public static class ThemeManager
     public static void Apply(string? mode)
     {
         var resolved = ThemePalette.Resolve(mode, WindowsUsesDarkApps());
-        var dark = resolved is "obsidian-gold" or "royal-amethyst" or "emerald-executive" or "graphite-copper" or "sapphire-noir" or "rose-titanium";
+        var dark = resolved is "obsidian-gold" or "royal-amethyst" or "emerald-executive" or "graphite-copper" or "sapphire-noir" or "rose-titanium" or "arctic-glass" or "dracula";
         var resources = Application.Current.Resources;
         var p = ThemePalette.For(resolved);
         foreach (var (name, hex) in p) resources[name] = Brush(hex);

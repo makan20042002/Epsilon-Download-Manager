@@ -46,7 +46,9 @@ public sealed class RemoteStatusServer : IDisposable
             // "+": needs a URL ACL reservation or admin rights on some systems; localhost-only still works without either,
             // and still serves a phone if the phone happens to be the same machine, but a real phone on Wi-Fi needs the
             // broader binding above - if that failed, this fallback at least keeps the feature from refusing to start.
+            try { listener.Close(); } catch (Exception) { }
             listener = new HttpListener();
+            listener.Prefixes.Add($"http://127.0.0.1:{port}/");
             listener.Prefixes.Add($"http://localhost:{port}/");
             listener.Start();
         }

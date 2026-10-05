@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Threading.Channels;
 
@@ -30,11 +29,14 @@ public sealed class DiskWriteTask
 /// </summary>
 public sealed class TorrentAsyncDiskPipeline : IDisposable
 {
-    readonly Channel<DiskWriteTask> _writeChannel;
+    sealed record DiskWork(DiskWriteTask Task, TorrentStorage Storage);
+
+    readonly Channel<DiskWork> _writeChannel;
     readonly Task[] _workers;
     readonly CancellationTokenSource _cts = new();
     readonly RateMeter _writeRateMeter = new();
     readonly RateMeter _hashingRateMeter = new();
+    int _disposed;
 
     public int MaxQueueCapacity { get; }
     public int QueueDepth => _writeChannel.Reader.Count;
@@ -51,7 +53,7 @@ public sealed class TorrentAsyncDiskPipeline : IDisposable
             SingleWriter = false
         };
 
-        _writeChannel = Channel.CreateBounded<DiskWriteTask>(options);
+        _writeChannel = Channel.CreateBounded<DiskWork>(options);
         _workers = new Task[workerCount];
 
         for (var i = 0; i < workerCount; i++)
@@ -63,23 +65,8 @@ public sealed class TorrentAsyncDiskPipeline : IDisposable
     public async Task<bool> EnqueueAndVerifyAsync(DiskWriteTask task, TorrentStorage storage, CancellationToken ct)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
-        await _writeChannel.Writer.WriteAsync(task, linkedCts.Token).ConfigureAwait(false);
-
-        // Process actual disk operation on worker pool
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                var success = ProcessDiskTask(task, storage);
-                task.CompletionSource.TrySetResult(success);
-            }
-            catch (Exception ex)
-            {
-                task.CompletionSource.TrySetException(ex);
-            }
-        }, linkedCts.Token);
-
-        return await task.CompletionSource.Task.ConfigureAwait(false);
+        await _writeChannel.Writer.WriteAsync(new DiskWork(task, storage), linkedCts.Token).ConfigureAwait(false);
+        return await task.CompletionSource.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
     }
 
     private async Task WorkerLoopAsync(CancellationToken ct)
@@ -88,13 +75,26 @@ public sealed class TorrentAsyncDiskPipeline : IDisposable
         {
             while (await _writeChannel.Reader.WaitToReadAsync(ct).ConfigureAwait(false))
             {
-                while (_writeChannel.Reader.TryRead(out var task))
+                while (_writeChannel.Reader.TryRead(out var work))
                 {
-                    task.CompletionSource.TrySetResult(true);
+                    try
+                    {
+                        var success = ProcessDiskTask(work.Task, work.Storage);
+                        work.Task.CompletionSource.TrySetResult(success);
+                    }
+                    catch (Exception ex)
+                    {
+                        work.Task.CompletionSource.TrySetException(ex);
+                    }
                 }
             }
         }
         catch (OperationCanceledException) { }
+        finally
+        {
+            while (_writeChannel.Reader.TryRead(out var work))
+                work.Task.CompletionSource.TrySetCanceled(ct);
+        }
     }
 
     private bool ProcessDiskTask(DiskWriteTask task, TorrentStorage storage)
@@ -120,8 +120,10 @@ public sealed class TorrentAsyncDiskPipeline : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeChannel.Writer.TryComplete();
         _cts.Cancel();
+        try { Task.WaitAll(_workers, TimeSpan.FromSeconds(2)); } catch (Exception) { }
         _cts.Dispose();
     }
 }

@@ -283,8 +283,10 @@ public sealed partial class DownloadManager
 
     static int ChooseChunkSize(long total, int workers)
     {
-        var target = total / Math.Max(1, workers * 8);
-        var clamped = Math.Clamp(target, 2L * 1024 * 1024, 64L * 1024 * 1024);
+        // Keep several small ranges available per worker.  A large fixed tail used to leave one
+        // connection doing the final 64 MiB while every other connection sat idle.
+        var target = total / Math.Max(1, workers * 16);
+        var clamped = Math.Clamp(target, 1L * 1024 * 1024, 16L * 1024 * 1024);
         return (int)(clamped / 65536 * 65536);
     }
 
@@ -303,12 +305,14 @@ public sealed partial class DownloadManager
         catch { return null; }
     }
 
-    static void SaveMap(Microsoft.Win32.SafeHandles.SafeFileHandle handle, ChunkMap map, string path)
+    static void SaveMap(Microsoft.Win32.SafeHandles.SafeFileHandle handle, ChunkMap map, string path, bool flushData)
     {
         lock (map)
         {
-            // Data first, then the map, so the map never claims bytes that are not on disk.
-            RandomAccess.FlushToDisk(handle);
+            // Persist the lightweight map frequently, but force the much more expensive full-file
+            // disk flush only periodically and at pause/completion. This removes a recurring speed
+            // drop on slower disks while keeping crash recovery conservative.
+            if (flushData) RandomAccess.FlushToDisk(handle);
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(map));
             File.Move(tmp, path, true);
@@ -354,12 +358,15 @@ public sealed partial class DownloadManager
             using var persistStop = new CancellationTokenSource();
             var persist = Task.Run(async () =>
             {
+                var dataFlush = Stopwatch.StartNew();
                 try
                 {
                     while (true)
                     {
                         await Task.Delay(3000, persistStop.Token);
-                        SaveMap(handle, map, mapPath);
+                        var flushData = dataFlush.Elapsed >= TimeSpan.FromSeconds(20);
+                        SaveMap(handle, map, mapPath, flushData);
+                        if (flushData) dataFlush.Restart();
                     }
                 }
                 catch (OperationCanceledException) { }
@@ -379,7 +386,7 @@ public sealed partial class DownloadManager
             await Task.WhenAll(tasks);
             persistStop.Cancel();
             await persist;
-            try { SaveMap(handle, map, mapPath); } catch (Exception ex) { _diagnostics.Error("Could not save segment map.", ex); }
+            try { SaveMap(handle, map, mapPath, flushData: true); } catch (Exception ex) { _diagnostics.Error("Could not save segment map.", ex); }
             return 0;
         });
 
@@ -686,7 +693,13 @@ public sealed partial class DownloadManager
 
     HttpRequestMessage BuildRequest(HttpMethod method, DownloadItem item, Uri uri)
     {
-        var request = new HttpRequestMessage(method, uri);
+        // Prefer HTTP/2 multiplexing where the server supports it, with a transparent HTTP/1.1
+        // fallback for older download hosts.
+        var request = new HttpRequestMessage(method, uri)
+        {
+            Version = HttpVersion.Version20,
+            VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
+        };
         if (!string.IsNullOrWhiteSpace(item.Cookie)) request.Headers.TryAddWithoutValidation("Cookie", item.Cookie);
         if (Uri.TryCreate(item.Referrer, UriKind.Absolute, out var referrer)) request.Headers.Referrer = referrer;
         var agent = string.IsNullOrWhiteSpace(item.UserAgent) ? DefaultUserAgent : item.UserAgent;

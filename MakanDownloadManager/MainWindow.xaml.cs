@@ -1129,14 +1129,11 @@ public partial class MainWindow : Window
     {
         var selected = SelectedItems().ToList();
         if (selected.Count == 0) return;
-        var anyDone = selected.Any(x => x.Status == nameof(DownloadStatus.Complete) && File.Exists(x.FilePath));
-        var deleteFile = false;
-        if (anyDone)
-        {
-            var answer = Dlg.Show(this, "Also delete the downloaded file(s) from disk?\n\nYes = delete file and remove from list\nNo = remove from list only", "Delete", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-            if (answer == MessageBoxResult.Cancel) return;
-            deleteFile = answer == MessageBoxResult.Yes;
-        }
+        var answer = Dlg.Show(this,
+            $"Remove {selected.Count} selected download(s)?\n\nYes = delete the downloaded files from the hard drive and remove them from Epsilon\nNo = remove them only from Epsilon and keep completed files\nCancel = do nothing\n\nUnfinished temporary data is removed in either case because it cannot be resumed without its download entry.",
+            "Delete", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.Cancel) return;
+        var deleteFile = answer == MessageBoxResult.Yes;
         foreach (var item in selected) await App.Manager.RemoveAsync(item, deleteFile);
     }
 
@@ -1144,8 +1141,11 @@ public partial class MainWindow : Window
     {
         var done = _items.Where(x => x.Status == nameof(DownloadStatus.Complete)).ToList();
         if (done.Count == 0) return;
-        if (Dlg.Show(this, $"Remove {done.Count} finished download(s) from the list?\nThe files on disk are kept.", "Delete Completed", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
-        foreach (var item in done) await App.Manager.RemoveAsync(item, false);
+        var answer = Dlg.Show(this,
+            $"Remove {done.Count} completed download(s)?\n\nYes = delete their files from the hard drive and remove them from Epsilon\nNo = remove them only from Epsilon and keep the files\nCancel = do nothing",
+            "Delete Completed", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.Cancel) return;
+        foreach (var item in done) await App.Manager.RemoveAsync(item, answer == MessageBoxResult.Yes);
     }
 
     void Open_Click(object? sender, RoutedEventArgs? e)
