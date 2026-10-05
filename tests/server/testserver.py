@@ -9,7 +9,7 @@ BIG = rnd.randbytes(40 * 1024 * 1024)          # 40 MB, > 32MB => 4+ connections
 MID = rnd.randbytes(6 * 1024 * 1024)
 SMALL = rnd.randbytes(300 * 1024)
 FILES = {"/big.bin": BIG, "/mid.bin": MID, "/small.bin": SMALL}
-STATS = {"hits": {}, "bytes": 0, "flaky_left": 6, "throttle_left": 2, "cookie_at": {}, "fseg_left": 2, "ua": {}}
+STATS = {"hits": {}, "bytes": 0, "flaky_left": 6, "throttle_left": 2, "cookie_at": {}, "fseg_left": 2, "key_left": 1, "ua": {}}
 LOCK = threading.Lock()
 
 def sha(b): return hashlib.sha256(b).hexdigest()
@@ -127,7 +127,7 @@ class H(BaseHTTPRequestHandler):
             return self._plain(200, body, "application/json")
         if path == "/__reset":
             with LOCK:
-                STATS["hits"].clear(); STATS["cookie_at"].clear(); STATS["ua"].clear(); STATS["bytes"] = 0; STATS["flaky_left"] = 6; STATS["throttle_left"] = 2; STATS["fseg_left"] = 2
+                STATS["hits"].clear(); STATS["cookie_at"].clear(); STATS["ua"].clear(); STATS["bytes"] = 0; STATS["flaky_left"] = 6; STATS["throttle_left"] = 2; STATS["fseg_left"] = 2; STATS["key_left"] = 1
             return self._plain(200, b"ok")
         if path == "/hls/master.m3u8":
             if self.headers.get("Cookie") != "session=abc" or self.headers.get("Referer") != "https://site.example/watch":
@@ -161,7 +161,12 @@ class H(BaseHTTPRequestHandler):
             rep, name = md.group(1), md.group(2)
             size = 5000 if name == "init.mp4" else (40000 if rep == "a1" else 30000 if name.startswith("t-") else 20000 if rep == "list" else 100000)
             return self._data(dseg(rep, name, size), head)
-        if path == "/hls/key.bin": return self._plain(200, HLS_KEY, "application/octet-stream")
+        if path == "/hls/key.bin":
+            with LOCK:
+                left = STATS["key_left"]
+                if left > 0: STATS["key_left"] = left - 1
+            if left > 0: return self._plain(503, b"temporary key failure")
+            return self._plain(200, HLS_KEY, "application/octet-stream")
         if path in HLS_PLAYLISTS and path != "/hls/master.m3u8":
             if path == "/hls/cookie.m3u8" and "session=abc" not in (self.headers.get("Cookie") or ""): return self._plain(403, b"cookie required")
             if path == "/hls/html.m3u8": return self._plain(200, HLS_PLAYLISTS[path](), "text/html")

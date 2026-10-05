@@ -14,7 +14,7 @@ public static class Branding
     public const string CreatorGitHubUrl = "https://github.com/makan20042002";
     public const string CoCreatorGitHubUrl = "https://github.com/Uhnohh";
     public const string Tagline = "Fast, intelligent, private — built for Windows";
-    public const string Version = "1.4.1";
+    public const string Version = "1.4.2";
 
     public static string Copyright => $"Created by {Creator}  ·  {WebsiteHost}";
 }

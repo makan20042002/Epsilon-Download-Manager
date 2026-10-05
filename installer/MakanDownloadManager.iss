@@ -1,7 +1,7 @@
 ; Epsilon Download Manager - one-file installer (Inno Setup 6.3 or newer; free: https://jrsoftware.org/isdl.php)
 ; Build with build-installer.ps1 (it publishes first, then runs this script).
 #define MyAppName "Epsilon Download Manager"
-#define MyAppVersion "1.4.1"
+#define MyAppVersion "1.4.2"
 #define MyAppPublisher "Makan A.D."
 #define MyAppURL "https://makanlab.tech"
 #define MyAppExeName "MakanDownloadManager.exe"
@@ -38,7 +38,7 @@ UsePreviousTasks=yes
 UsePreviousPrivileges=yes
 CloseApplications=force
 RestartApplications=no
-VersionInfoVersion=1.4.1.0
+VersionInfoVersion=1.4.2.0
 
 [Tasks]
 Name: "startup";     Description: "Start Epsilon quietly in the tray when I sign in to Windows (the browser extension always finds it)"

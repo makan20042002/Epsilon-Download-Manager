@@ -322,7 +322,20 @@ public sealed partial class DownloadManager
                 await AcquireBandwidthAsync(item, (int)Math.Min(data.Length, int.MaxValue), ct);
                 if (segment.Key is { Method: "AES-128", KeyUri: { } keyUri } key)
                 {
-                    var keyBytes = await keys.GetOrAdd(keyUri, u => GetHlsBytesAsync(item, origin, u, null, null, ct));
+                    var keyTask = keys.GetOrAdd(keyUri, u => GetHlsBytesAsync(item, origin, u, null, null, ct));
+                    byte[] keyBytes;
+                    try
+                    {
+                        keyBytes = await keyTask;
+                    }
+                    catch
+                    {
+                        // Never leave a failed request in the shared cache. Segment retries must
+                        // perform a fresh request instead of awaiting the same faulted Task forever.
+                        if (keys.TryGetValue(keyUri, out var cached) && ReferenceEquals(cached, keyTask))
+                            keys.TryRemove(keyUri, out _);
+                        throw;
+                    }
                     if (keyBytes.Length != 16) { keys.TryRemove(keyUri, out _); throw new InvalidDataException("The decryption key is not 16 bytes (login required?)."); }
                     try
                     {

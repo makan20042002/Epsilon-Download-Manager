@@ -77,6 +77,8 @@ static class HlsTests
         m.Enqueue(a); m.Enqueue(b);
         T.Check("explicit-IV stream completes", await Wait(a, DownloadStatus.Complete), a.LastError);
         T.Check("explicit-IV plaintext is exact", T.Sha(a.FilePath) == await Expect("enc"));
+        T.Check("a temporary key failure is retried with a fresh request", await Hits("/hls/key.bin") >= 2,
+            (await Hits("/hls/key.bin")).ToString());
         T.Check("sequence-IV stream completes", await Wait(b, DownloadStatus.Complete), b.LastError);
         T.Check("sequence-IV plaintext is exact", T.Sha(b.FilePath) == await Expect("enc-seq"));
     }
