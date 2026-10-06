@@ -18,6 +18,6 @@ The Chrome/Edge package is a separate MV3 service-worker build. Chrome has disab
 ## Installation
 1. Install Epsilon Download Manager 1.7.1.
 2. Run `install-browser-integration.ps1` in a normal (not elevated) PowerShell window: it registers Makan for your own Windows account. The Setup.exe does this for you.
-3. Open `about:debugging#/runtime/this-firefox` > *Load Temporary Add-on…* > choose `manifest.json` from this folder (temporary: Firefox removes it when it closes). A permanent install needs an add-on signed by Mozilla, or Firefox Developer Edition / ESR with `xpinstall.signatures.required` set to false and `extension-packages\makan-firefox.zip` opened as `.xpi`.
+3. Install the Mozilla-signed extension from [Firefox Add-ons](https://addons.mozilla.org/addon/epsilon-download-manager/). For development testing only, open `about:debugging#/runtime/this-firefox` > *Load Temporary Add-on…* and choose `manifest.json` from this folder.
 4. Restart Firefox after native-host registration if it was already running.
 5. Use the Makan toolbar button or a download/context menu to test the connection.

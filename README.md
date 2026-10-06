@@ -51,11 +51,11 @@ The Windows installer registers Epsilon's native browser connection. Browsers st
 
 ### Firefox
 
-The public Firefox extension has been submitted to Mozilla:
+Install the officially published Firefox extension from Mozilla Add-ons:
 
-**[Epsilon Download Manager for Firefox](https://addons.mozilla.org/firefox/addon/epsilon-download-manager/)**
+**[Epsilon Download Manager for Firefox](https://addons.mozilla.org/addon/epsilon-download-manager/)**
 
-While a new version is awaiting Mozilla review, it can be tested from `about:debugging#/runtime/this-firefox` by choosing **Load Temporary Add-on** and selecting `browser-extension-firefox/manifest.json`.
+The Mozilla-signed store version remains installed after Firefox restarts. Development builds can still be tested temporarily from `about:debugging#/runtime/this-firefox` by choosing **Load Temporary Add-on** and selecting `browser-extension-firefox/manifest.json`.
 
 ## Requirements
 
