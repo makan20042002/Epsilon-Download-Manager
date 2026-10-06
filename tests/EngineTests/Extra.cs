@@ -32,6 +32,8 @@ static class Extra
         await Run("Remote status server: token required, status JSON, add-by-URL and add-by-magnet, duplicates", RemoteServer);
         await Run("NetworkBoost: pause/resume bookkeeping (needs no real Windows service or admin rights to test)", NetworkBoostTests);
         await Run("Proxy: mode switching, per-protocol filtering, and credentials for regular HTTP(S) downloads", ProxyTests);
+        await Run("Multi-Network: connections spread over several networks, a dead network is dropped, off by default", MultiNetwork);
+        await Run("No network at all: the download waits instead of using up its retries", WaitsForNetwork);
         await HlsTests.RunAll(Base, Dir, Http);
         await QueueTests.RunAll(Base, Dir, Http);
         await SettingsTests.RunAll(Base, Dir, Http);
@@ -273,6 +275,80 @@ static class Extra
 
         T.Check("too little downloaded yet: no copy is made at all", manager.PreparePlayableCopy(startMissing, minimumBytes: 100) == null);
         return Task.CompletedTask;
+    }
+
+    static async Task MultiNetwork()
+    {
+        var dir = Sub();
+        var a = new NetworkLink("test-a", "Ethernet", System.Net.IPAddress.Parse("127.0.0.1"));
+        var b = new NetworkLink("test-b", "Wi-Fi", System.Net.IPAddress.Parse("127.0.0.2"));
+        var dead = new NetworkLink("test-dead", "USB tethering", System.Net.IPAddress.Parse("203.0.113.77"));   // not an address of this machine: binding fails
+
+        using (var m = new DownloadManager(new MemoryStore()) { LinkProbe = () => new[] { a, b } })
+        {
+            var off = new DownloadItem { Url = Base + "/big.bin", FilePath = Path.Combine(dir, "off.bin"), Connections = 4 };
+            m.Enqueue(off);
+            T.Check("switched off (the default) a download completes as before", await Program_WaitStatus(off, DownloadStatus.Complete), off.LastError);
+            T.Check("...and uses no per-network bookkeeping at all", m.GetLinkUsage(off).Count == 0);
+        }
+
+        using (var m = new DownloadManager(new MemoryStore()) { MultiNetworkEnabled = true, LinkProbe = () => new[] { a, b } })
+        {
+            var item = new DownloadItem { Url = Base + "/big.bin", FilePath = Path.Combine(dir, "two.bin"), Connections = 4 };
+            m.Enqueue(item);
+            var usage = await WatchLinks(m, item);
+            T.Check("with two networks the download completes", await Program_WaitStatus(item, DownloadStatus.Complete), item.LastError);
+            T.Check("...byte-exact", File.Exists(item.FilePath) && T.Sha(item.FilePath) == await ShaOf("/big.bin"));
+            T.Check("both networks carried part of the file", usage.Count == 2 && usage.All(u => u.Bytes > 0 && u.Active), string.Join(", ", usage.Select(u => u.Link.Name + "=" + u.Bytes)));
+            T.Check("together they never carried more than the file", usage.Sum(u => u.Bytes) <= new FileInfo(item.FilePath).Length, usage.Sum(u => u.Bytes).ToString());
+        }
+
+        using (var m = new DownloadManager(new MemoryStore()) { MultiNetworkEnabled = true, LinkProbe = () => new[] { a, dead } })
+        {
+            var item = new DownloadItem { Url = Base + "/big.bin", FilePath = Path.Combine(dir, "dead.bin"), Connections = 4 };
+            m.Enqueue(item);
+            var usage = await WatchLinks(m, item);
+            T.Check("a network that does not work never fails the download", await Program_WaitStatus(item, DownloadStatus.Complete), item.LastError);
+            T.Check("...the file is still byte-exact", File.Exists(item.FilePath) && T.Sha(item.FilePath) == await ShaOf("/big.bin"));
+            T.Check("the dead network is dropped and carried nothing", usage.Count == 2 && !usage[1].Active && usage[1].Bytes == 0 && usage[0].Active && usage[0].Bytes > 0);
+            T.Check("no retry was counted against the download for it", item.RetryCount == 0, item.RetryCount.ToString());
+        }
+
+        using (var m = new DownloadManager(new MemoryStore()) { MultiNetworkEnabled = true, LinkProbe = () => new[] { a } })
+        {
+            var item = new DownloadItem { Url = Base + "/mid.bin", FilePath = Path.Combine(dir, "one.bin"), Connections = 4 };
+            m.Enqueue(item);
+            T.Check("with only one network connected the switch changes nothing", await Program_WaitStatus(item, DownloadStatus.Complete) && m.GetLinkUsage(item).Count == 0, item.LastError);
+        }
+    }
+
+    /// <summary>The per-network counters exist only while a download runs: returns the last reading before it ended.</summary>
+    static async Task<IReadOnlyList<(NetworkLink Link, long Bytes, bool Active)>> WatchLinks(DownloadManager m, DownloadItem item)
+    {
+        IReadOnlyList<(NetworkLink Link, long Bytes, bool Active)> last = Array.Empty<(NetworkLink, long, bool)>();
+        for (var i = 0; i < 6000 && item.Status is not ("Complete" or "Failed"); i++)
+        {
+            var now = m.GetLinkUsage(item);
+            if (now.Count > 0) last = now;
+            await Task.Delay(10);
+        }
+        return last;
+    }
+
+    static async Task WaitsForNetwork()
+    {
+        var dir = Sub();
+        var up = false;
+        using var m = new DownloadManager(new MemoryStore()) { NetworkUpProbe = () => Volatile.Read(ref up) };
+        var item = new DownloadItem { Url = "http://127.0.0.1:1/never.bin", FilePath = Path.Combine(dir, "never.bin") };   // nothing listens there: a connection error
+        m.Enqueue(item);
+        var waiting = false;
+        for (var i = 0; i < 100 && !waiting; i++) { await Task.Delay(100); waiting = (item.LastError ?? "").StartsWith("Waiting for the network", StringComparison.Ordinal); }
+        T.Check("with no network the download says it is waiting", waiting, item.LastError);
+        await Task.Delay(4000);
+        T.Check("...and keeps waiting, without failing or counting retries", item.Status == DownloadStatus.Downloading.ToString() && item.RetryCount == 0, item.Status + " / " + item.RetryCount);
+        Volatile.Write(ref up, true);
+        T.Check("once a network is back the normal retry rules apply again", await Program.WaitStatusPublic(item, DownloadStatus.Failed, 90), item.Status + " / " + item.LastError);
     }
 
     static async Task RemoteServer()

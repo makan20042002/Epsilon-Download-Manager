@@ -40,6 +40,7 @@ public partial class MainWindow : Window
     bool _marqueeDragging;
     Point _marqueeStart;
     Point _marqueeCurrent;
+    List<DownloadItem> _pendingDelete = new();
 
     static bool AskFirst => App.Db.Get("ask_before_download") != "0";
 
@@ -48,6 +49,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         UpdateThemeGlyph();
         UpdateStatusPills();
+        UpdateMultiNetButton();
+        UpdateSpeedLimiterButton();
         try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/Assets/makan.ico", UriKind.Absolute)); } catch (Exception) { /* the default icon is fine */ }
         BuildCategoryTree();
         _tray = CreateTray();
@@ -109,7 +112,8 @@ public partial class MainWindow : Window
     {
         FillCategoryNodes(); UpdateCounts(); _view?.Refresh(); UpdateThemeGlyph(); UpdateStatusPills();
         _clipboardTimer.IsEnabled = App.Settings.ClipboardWatch;
-        UpdateSpeedLimiterCaption(App.Manager.GlobalLimitBytesPerSec / 1024);   // e.g. a bandwidth profile applied from the Intelligent Center
+        UpdateMultiNetButton();
+        UpdateSpeedLimiterButton();
     });
 
     TreeViewItem Node(string tag, string glyph, string text)
@@ -168,6 +172,14 @@ public partial class MainWindow : Window
 
     void Tree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e) => _view?.Refresh();
 
+    void FilterTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string tag }) return;
+        var node = Tree.Items.OfType<TreeViewItem>().FirstOrDefault(x => string.Equals(x.Tag as string, tag, StringComparison.Ordinal));
+        if (node != null) node.IsSelected = true;
+        _view?.Refresh();
+    }
+
     void UpdateCounts()
     {
         var byCategory = _items.GroupBy(x => x.CategoryName).ToDictionary(g => g.Key, g => g.Count());
@@ -183,10 +195,11 @@ public partial class MainWindow : Window
 
     void ToggleCategories_Click(object sender, RoutedEventArgs e)
     {
-        var show = ShowCategories.IsChecked;
+        var show = ShowCategories.IsChecked == true;
         CategoryPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         Splitter.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        CategoryColumn.Width = show ? new GridLength(210) : new GridLength(0);
+        CategoryColumn.Width = show ? new GridLength(230) : new GridLength(0);
+        SplitterColumn.Width = show ? new GridLength(10) : new GridLength(0);
     }
 
     void Sort_Click(object sender, RoutedEventArgs e)
@@ -846,7 +859,7 @@ public partial class MainWindow : Window
         OpenLinkPicker(urls.Select(u => new LinkEntry(u, null, KindOf(u))), page, new Uri(page).Host);
     }
 
-    void ShowDropTarget_Click(object sender, RoutedEventArgs e) => SetDropTarget(ShowDropTarget.IsChecked);
+    void ShowDropTarget_Click(object sender, RoutedEventArgs e) => SetDropTarget(ShowDropTarget.IsChecked == true);
 
     /// <summary>Shows or hides the small floating window that accepts dropped links.</summary>
     public void SetDropTarget(bool show)
@@ -926,108 +939,89 @@ public partial class MainWindow : Window
     }
     // ---- queues ----------------------------------------------------------------------------------------------------------
 
-    // ---- speed limiter (toolbar, IDM-style) ---------------------------------------------------------------------------
+    void More_Click(object? sender, RoutedEventArgs? e) => MorePopup.IsOpen = true;
 
-    bool _speedLimiterSyncing;
+    // ---- quick speed limiter -------------------------------------------------------------------------------------------
 
     void SpeedLimiter_Click(object? sender, RoutedEventArgs? e)
     {
-        SyncSpeedLimiterUi();
+        var kbps = App.Settings.SpeedKbps;
+        SpeedLimiterRateBox.Text = (kbps > 0 ? kbps : 1024).ToString();
+        SpeedLimiterScopeBox.SelectedIndex = App.Settings.SpeedLimitScope == "per_file" ? 1 : 0;
+        SpeedLimiterStatus.Text = kbps <= 0
+            ? Loc.T("Downloads currently have no speed limit.")
+            : Loc.F("Current limit: {0}", FormatSpeedLimit(kbps, App.Settings.SpeedLimitScope == "per_file"));
         SpeedLimiterPopup.IsOpen = true;
+        SpeedLimiterRateBox.Focus();
+        SpeedLimiterRateBox.SelectAll();
     }
 
-    void More_Click(object? sender, RoutedEventArgs? e) => MorePopup.IsOpen = true;
-
-    /// <summary>Fills the popup from the current global limit and (re)builds the preset buttons.</summary>
-    void SyncSpeedLimiterUi()
+    void SpeedLimiterPreset_Click(object sender, RoutedEventArgs e)
     {
-        _speedLimiterSyncing = true;
-        try
+        if (sender is Button { Tag: string value }) SpeedLimiterRateBox.Text = value;
+    }
+
+    void SpeedLimiterApply_Click(object? sender, RoutedEventArgs? e)
+    {
+        if (!long.TryParse(SpeedLimiterRateBox.Text.Trim(), out var kbps) || kbps <= 0)
         {
-            var kbps = App.Manager.GlobalLimitBytesPerSec / 1024;
-            SpeedLimiterToggle.IsChecked = kbps > 0;
-            SpeedLimiterSlider.IsEnabled = kbps > 0;
-            SpeedLimiterBox.IsEnabled = kbps > 0;
-            SpeedLimiterSlider.Value = Math.Min(SpeedLimiterSlider.Maximum, kbps);
-            SpeedLimiterBox.Text = kbps > 0 ? kbps.ToString() : "";
-            SpeedCombined.IsChecked = App.Manager.LimitScope == SpeedLimitScope.Combined;
-            SpeedPerFile.IsChecked = App.Manager.LimitScope == SpeedLimitScope.PerDownload;
-
-            SpeedLimiterPresets.Children.Clear();
-            foreach (var profile in App.BandwidthProfiles.Load())
-            {
-                var presetKbps = profile.LimitBytesPerSec <= 0 ? 0 : Math.Max(1, profile.LimitBytesPerSec / 1024);
-                var button = new Button { Style = (Style)FindResource("ToolBtn"), Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(10, 5, 10, 5), MinWidth = 0, Tag = presetKbps };
-                button.Content = new TextBlock { Text = Loc.T(profile.Name), FontSize = 12 };
-                button.ToolTip = Loc.T(profile.Description);
-                button.Click += (_, _) => ApplySpeedLimitKbps(presetKbps);
-                SpeedLimiterPresets.Children.Add(button);
-            }
-            UpdateSpeedLimiterCaption(kbps);
+            SpeedLimiterRateBox.Focus();
+            SpeedLimiterRateBox.SelectAll();
+            return;
         }
-        finally { _speedLimiterSyncing = false; }
-    }
-
-    void SpeedLimiterToggle_Click(object sender, RoutedEventArgs e)
-    {
-        if (_speedLimiterSyncing) return;
-        var on = SpeedLimiterToggle.IsChecked == true;
-        SpeedLimiterSlider.IsEnabled = on; SpeedLimiterBox.IsEnabled = on;
-        ApplySpeedLimitKbps(on ? Math.Max(1, (long)SpeedLimiterSlider.Value) : 0);
-    }
-
-    void SpeedLimiterSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_speedLimiterSyncing) return;
-        var kbps = (long)Math.Round(e.NewValue);
-        _speedLimiterSyncing = true;
-        try { SpeedLimiterBox.Text = kbps.ToString(); }
-        finally { _speedLimiterSyncing = false; }
-        ApplySpeedLimitKbps(kbps);
-    }
-
-    void SpeedLimiterBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_speedLimiterSyncing || !long.TryParse(SpeedLimiterBox.Text, out var kbps) || kbps < 0) return;
-        _speedLimiterSyncing = true;
-        try { SpeedLimiterSlider.Value = Math.Min(SpeedLimiterSlider.Maximum, kbps); }
-        finally { _speedLimiterSyncing = false; }
-        ApplySpeedLimitKbps(kbps);
-    }
-
-    void SpeedScope_Click(object sender, RoutedEventArgs e)
-    {
-        if (_speedLimiterSyncing) return;
-        var scope = SpeedPerFile.IsChecked == true ? SpeedLimitScope.PerDownload : SpeedLimitScope.Combined;
-        App.Settings.SpeedLimitScope = scope == SpeedLimitScope.PerDownload ? "per_file" : "combined";
-        App.Manager.LimitScope = scope;
-        UpdateSpeedLimiterCaption(App.Manager.GlobalLimitBytesPerSec / 1024);
-    }
-
-    /// <summary>Applies the limit at once to every current and future ordinary download. Torrents have their own separate
-    /// bandwidth limits in Options > BitTorrent, the way a dedicated torrent client keeps them apart from anything else.</summary>
-    void ApplySpeedLimitKbps(long kbps)
-    {
-        kbps = Math.Max(0, kbps);
         App.Settings.SpeedKbps = kbps;
-        App.Manager.GlobalLimitBytesPerSec = kbps * 1024;
-        UpdateSpeedLimiterCaption(kbps);
-        if (App.Manager.Torrents != null)
-        {
-            SpeedLimiterTorrentNote.Visibility = Visibility.Visible;
-            SpeedLimiterTorrentNote.Text = Loc.T("Torrents have their own limits in Options > BitTorrent.");
-        }
+        App.Settings.SpeedLimitScope = SpeedLimiterScopeBox.SelectedIndex == 1 ? "per_file" : "combined";
+        App.RaiseSettingsChanged();
+        SpeedLimiterPopup.IsOpen = false;
+        Footer.Text = Loc.F("Speed limit set to {0}.", FormatSpeedLimit(kbps, App.Settings.SpeedLimitScope == "per_file"));
     }
 
-    void UpdateSpeedLimiterCaption(long kbps)
+    void SpeedLimiterUnlimited_Click(object? sender, RoutedEventArgs? e)
     {
-        var amount = kbps >= 1024 ? $"{kbps / 1024.0:0.#} MB/s" : $"{kbps} KB/s";
-        SpeedLimiterCaption.Text = kbps <= 0 ? Loc.T("Unlimited") : App.Manager.LimitScope == SpeedLimitScope.PerDownload ? amount + "/file" : amount;
-        BtnSpeedLimiter.ToolTip = kbps <= 0
-            ? Loc.T("Limit download speed")
-            : App.Manager.LimitScope == SpeedLimitScope.PerDownload
-                ? $"Each download is limited to {amount} — click to change"
-                : $"All downloads combined are limited to {amount} — click to change";
+        App.Settings.SpeedKbps = 0;
+        App.RaiseSettingsChanged();
+        SpeedLimiterPopup.IsOpen = false;
+        Footer.Text = Loc.T("Speed limit removed.");
+    }
+
+    void SpeedLimiterCancel_Click(object? sender, RoutedEventArgs? e) => SpeedLimiterPopup.IsOpen = false;
+
+    void UpdateSpeedLimiterButton()
+    {
+        var kbps = App.Settings.SpeedKbps;
+        SpeedLimiterCaption.Text = kbps <= 0
+            ? Loc.T("Unlimited")
+            : FormatSpeedLimit(kbps, App.Settings.SpeedLimitScope == "per_file");
+    }
+
+    static string FormatSpeedLimit(long kbps, bool perFile)
+    {
+        var speed = kbps >= 1024 && kbps % 1024 == 0 ? $"{kbps / 1024} MB/s" : $"{kbps} KB/s";
+        return $"{speed} {(perFile ? Loc.T("each") : Loc.T("total"))}";
+    }
+
+    // ---- Multi-Network --------------------------------------------------------------------------------------------------
+
+    /// <summary>Turns Multi-Network on or off. It applies to downloads that start (or resume) from now on.</summary>
+    void MultiNet_Click(object? sender, RoutedEventArgs? e)
+    {
+        var on = !App.Settings.MultiNetwork;
+        App.Settings.MultiNetwork = on;
+        App.Manager.MultiNetworkEnabled = on;
+        UpdateMultiNetButton();
+        var links = App.Manager.CurrentLinks();
+        Footer.Text = !on
+            ? Loc.T("Multi-Network is off: downloads use the normal connection.")
+            : links.Count >= 2
+                ? Loc.F("Multi-Network is on: new downloads will use {0}.", string.Join(" + ", links.Select(l => Loc.T(l.Kind))))
+                : Loc.T("Multi-Network is on, but only one network is connected. Connect a second one (Ethernet, Wi-Fi or a tethered phone) to gain speed.");
+    }
+
+    void UpdateMultiNetButton()
+    {
+        var on = App.Settings.MultiNetwork;
+        MultiNetCaption.Text = Loc.T(on ? "Multi-Net: On" : "Multi-Net: Off");
+        MultiNetGlyph.SetResourceReference(TextBlock.ForegroundProperty, on ? "Success" : "IconGrey");
     }
 
     void Center_Click(object? sender, RoutedEventArgs? e)
@@ -1125,27 +1119,50 @@ public partial class MainWindow : Window
         Footer.Text = Loc.T("Priority changed");
     }
 
-    async void Remove_Click(object? sender, RoutedEventArgs? e)
+    void Remove_Click(object? sender, RoutedEventArgs? e)
     {
-        var selected = SelectedItems().ToList();
-        if (selected.Count == 0) return;
-        var answer = Dlg.Show(this,
-            $"Remove {selected.Count} selected download(s)?\n\nYes = delete the downloaded files from the hard drive and remove them from Epsilon\nNo = remove them only from Epsilon and keep completed files\nCancel = do nothing\n\nUnfinished temporary data is removed in either case because it cannot be resumed without its download entry.",
-            "Delete", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (answer == MessageBoxResult.Cancel) return;
-        var deleteFile = answer == MessageBoxResult.Yes;
-        foreach (var item in selected) await App.Manager.RemoveAsync(item, deleteFile);
+        _pendingDelete = SelectedItems().ToList();
+        if (_pendingDelete.Count == 0) return;
+        MorePopup.IsOpen = false;
+        DeleteBarTitle.Text = Loc.F("Remove {0} selected download(s)?", _pendingDelete.Count);
+        DeleteUnfinishedDataButton.IsEnabled = _pendingDelete.Any(x => x.Status != nameof(DownloadStatus.Complete));
+        Downloads.ScrollIntoView(_pendingDelete[0]);
+        Downloads.UpdateLayout();
+        DeleteActionPopup.PlacementTarget = Downloads.ItemContainerGenerator.ContainerFromItem(_pendingDelete[0]) as UIElement ?? Downloads;
+        DeleteActionPopup.HorizontalOffset = Math.Max(0, (Downloads.ActualWidth - 760) / 2);
+        DeleteActionPopup.IsOpen = true;
+    }
+
+    async void DeleteBarRemove_Click(object? sender, RoutedEventArgs? e) => await ApplyDeleteChoiceAsync(false);
+    async void DeleteBarDisk_Click(object? sender, RoutedEventArgs? e) => await ApplyDeleteChoiceAsync(true);
+    void DeleteBarCancel_Click(object? sender, RoutedEventArgs? e) => CloseDeleteBar();
+
+    async Task ApplyDeleteChoiceAsync(bool deleteUnfinishedData)
+    {
+        var pending = _pendingDelete.ToList();
+        CloseDeleteBar();
+        foreach (var item in pending)
+        {
+            var unfinished = item.Status != nameof(DownloadStatus.Complete);
+            await App.Manager.RemoveAsync(item, deleteUnfinishedData && unfinished, preservePartialData: unfinished && !deleteUnfinishedData);
+        }
+        Footer.Text = deleteUnfinishedData
+            ? Loc.T("Selected entries and unfinished data were deleted. Completed files were kept.")
+            : Loc.T("Selected entries were removed. Files on disk were kept.");
+    }
+
+    void CloseDeleteBar()
+    {
+        DeleteActionPopup.IsOpen = false;
+        _pendingDelete.Clear();
     }
 
     async void DeleteCompleted_Click(object? sender, RoutedEventArgs? e)
     {
         var done = _items.Where(x => x.Status == nameof(DownloadStatus.Complete)).ToList();
         if (done.Count == 0) return;
-        var answer = Dlg.Show(this,
-            $"Remove {done.Count} completed download(s)?\n\nYes = delete their files from the hard drive and remove them from Epsilon\nNo = remove them only from Epsilon and keep the files\nCancel = do nothing",
-            "Delete Completed", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (answer == MessageBoxResult.Cancel) return;
-        foreach (var item in done) await App.Manager.RemoveAsync(item, answer == MessageBoxResult.Yes);
+        foreach (var item in done) await App.Manager.RemoveAsync(item, false);
+        Footer.Text = Loc.F("Removed {0} completed download(s) from Epsilon. Files were kept.", done.Count);
     }
 
     void Open_Click(object? sender, RoutedEventArgs? e)
@@ -1242,6 +1259,18 @@ public partial class MainWindow : Window
         ThemeIvoryLuxeCheck.Visibility = ThemeManager.Current == "ivory-luxe" ? Visibility.Visible : Visibility.Collapsed;
         ThemeRoseTitaniumCheck.Visibility = ThemeManager.Current == "rose-titanium" ? Visibility.Visible : Visibility.Collapsed;
         ThemeArcticGlassCheck.Visibility = ThemeManager.Current == "arctic-glass" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeDraculaCheck.Visibility = ThemeManager.Current == "dracula" ? Visibility.Visible : Visibility.Collapsed;
+        ThemeMakanLabCheck.Visibility = ThemeManager.Current == "makan-lab" ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    void AppMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { ContextMenu: { } menu } button)
+        {
+            menu.PlacementTarget = button;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
     }
 
     void Settings_Click(object sender, RoutedEventArgs e)
@@ -1447,7 +1476,8 @@ public partial class MainWindow : Window
         if (signature != _statusSignature) { _statusSignature = signature; _view.Refresh(); UpdateToolbar(); UpdateCounts(); }
 
         TotalSpeed.Text = $"{Format(total)}/s";
-        ActiveText.Text = $"{active} active · {_items.Count} in list";
+        ActiveText.Text = Loc.F("{0} active · {1} files", active, _items.Count);
+        CanvasSummary.Text = Loc.F("{0} active · {1} total", active, _items.Count);
 
         long upload = 0;
         foreach (var item in _items) if (App.Manager.SessionOf(item) is { } session) upload += session.UploadRate;

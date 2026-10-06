@@ -1,0 +1,2 @@
+# Keep the licence text byte-identical on every machine (no CRLF conversion noise in git status).
+LICENSE text eol=lf

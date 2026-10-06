@@ -14,7 +14,7 @@
   try { ext.storage.local.get({ lang: "en" }).then((r) => { if (r && r.lang) I18N.setLang(r.lang); }, () => {}); } catch { /* English */ }
 
   // The popup and in-page controls follow Epsilon's active desktop theme unless the user overrides it here.
-  const THEMES = ["obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal", "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass", "dracula"];
+  const THEMES = ["obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal", "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass", "dracula", "makan-lab"];
   const OLD_THEMES = { light: "platinum-blue", orange: "champagne-minimal", makan: "sapphire-noir", dark: "sapphire-noir", epsilon: "sapphire-noir", obsidian: "obsidian-gold", uhnohh: "obsidian-gold", nebula: "royal-amethyst", lilac: "rose-titanium" };
   let savedTheme = "app";
   let appTheme = "sapphire-noir";
@@ -116,6 +116,7 @@
     :host([data-theme="rose-titanium"]) { --bar-bg:linear-gradient(180deg,#3C1E30,#20111B); --bar-border:#6A3B56; --bar-shadow:0 6px 20px rgba(0,0,0,.62); --accent:#E187B1; --accent2:#63D59A; --tool-bg:#301825; --tool-border:#6A3B56; --tool-fg:#D9B4C8; --tool-hover:#48243A; --menu-bg:#301825; --menu-fg:#FFF3F9; --menu-border:#6A3B56; --item-hover:#48243A; --item-active:#5B2C48; --item-disabled:#79596A; --sep:#6A3B56; --note-fg:#D9B4C8; --note-bad:#FF6680; }
     :host([data-theme="arctic-glass"]) { --bar-bg:linear-gradient(180deg,rgba(16,48,73,.97),rgba(7,19,31,.97)); --bar-border:#2B6687; --bar-shadow:0 3px 16px rgba(0,0,0,.38); --accent:#45C7FF; --accent2:#62E0B1; --tool-bg:#103049; --tool-border:#2B6687; --tool-fg:#A9D4E8; --tool-hover:#174C6D; --menu-bg:#0B2133; --menu-fg:#EDF9FF; --menu-border:#2B6687; --menu-shadow:0 12px 32px rgba(0,0,0,.5); --item-hover:#174C6D; --item-active:#1E5D80; --item-disabled:#557F95; --sep:#2B6687; --note-fg:#A9D4E8; --note-bad:#FF6F91; }
     :host([data-theme="dracula"]) { --bar-bg:linear-gradient(180deg,#343746,#282A36); --bar-border:#5A5F78; --bar-shadow:0 3px 16px rgba(0,0,0,.42); --accent:#BD93F9; --accent2:#50FA7B; --tool-bg:#343746; --tool-border:#5A5F78; --tool-fg:#C9C9C2; --tool-hover:#44475A; --menu-bg:#282A36; --menu-fg:#F8F8F2; --menu-border:#5A5F78; --menu-shadow:0 12px 32px rgba(0,0,0,.55); --item-hover:#44475A; --item-active:#50536A; --item-disabled:#6B6E82; --sep:#5A5F78; --note-fg:#C9C9C2; --note-bad:#FF6E78; }
+    :host([data-theme="makan-lab"]) { --bar-bg:#0A0E17; --bar-border:#24324A; --bar-shadow:0 6px 18px rgba(0,0,0,.55); --accent:#58A6FF; --accent2:#FFB44A; --tool-bg:#101724; --tool-border:#24324A; --tool-fg:#A9B6C8; --tool-hover:#152238; --menu-bg:#101724; --menu-fg:#F2F6FC; --menu-border:#24324A; --item-hover:#152238; --item-active:#1B3150; --item-disabled:#59677A; --sep:#24324A; --note-fg:#A9B6C8; --note-bad:#FF6B7D; }
 
     .bar { display: inline-flex; align-items: center; gap: 2px; background: var(--bar-bg); border: 1px solid var(--bar-border); border-radius: var(--radius);
            box-shadow: var(--bar-shadow); padding: 2px; opacity: .92; user-select: none; transition: opacity .15s ease; }

@@ -165,6 +165,7 @@ public partial class App : Application
         Manager.DefaultConnections = Settings.Connections;
         Manager.LimitScope = Settings.SpeedLimitScope == "per_file" ? SpeedLimitScope.PerDownload : SpeedLimitScope.Combined;
         Manager.GlobalLimitBytesPerSec = Settings.SpeedKbps * 1024;
+        Manager.MultiNetworkEnabled = Settings.MultiNetwork;
         Manager.TempDirectory = string.IsNullOrWhiteSpace(Settings.TempDirectory) ? null : Settings.TempDirectory;
         Manager.SetFileDateFromServer = Settings.SetFileDateFromServer;
         Manager.IgnoreModifiedOnResume = Settings.IgnoreModifiedOnResume;

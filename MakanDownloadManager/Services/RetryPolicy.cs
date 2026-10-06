@@ -30,6 +30,28 @@ public static class RetryPolicy
         return ex.InnerException is not null && IsTransient(ex.InnerException);
     }
 
+    /// <summary>True when the failure is about reaching the server at all (no route, DNS, a dropped or refused
+    /// connection) rather than about what the server answered or about this computer's disk.</summary>
+    public static bool IsNetworkFailure(Exception ex)
+    {
+        for (Exception? e = ex; e != null; e = e.InnerException)
+        {
+            switch (e)
+            {
+                case HttpRequestException { StatusCode: not null }:
+                case AuthenticationException:
+                case InvalidDataException:
+                    return false;
+                case System.Net.Sockets.SocketException:
+                case TimeoutException:
+                    return true;
+                case IOException io when IsDiskProblem(io):
+                    return false;
+            }
+        }
+        return ex is HttpRequestException or IOException;
+    }
+
     /// <summary>Server asked us to slow down (429 / 503): callers should reduce parallel connections.</summary>
     public static bool IsThrottle(Exception ex) =>
         ex is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable };

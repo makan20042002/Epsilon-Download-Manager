@@ -8,7 +8,7 @@ public static class ThemePalette
     public static readonly string[] Names =
     [
         "obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal",
-        "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass", "dracula"
+        "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass", "dracula", "makan-lab"
     ];
 
     public static readonly IReadOnlyDictionary<string, string> ObsidianGold = Palette(
@@ -66,6 +66,12 @@ public static class ThemePalette
         "#BD93F9", "#8B5CC7", "#171820", "#44475A", "#50536A", "#50FA7B", "#FF6E78", "#F1FA8C", "#243C2B",
         "#282A36", "#343746", "#21222C", "#5A5F78", "#343746", "#C9C9C2", "#FF79C6", "#8BE9FD", "#FFB86C", "#5A5F78", "#BD93F9", "#6B6E82");
 
+    /// <summary>The MAKAN LAB website palette: ink-black surfaces, electric blue and warm amber.</summary>
+    public static readonly IReadOnlyDictionary<string, string> MakanLab = Palette(
+        "#05070D", "#0A0E17", "#101724", "#151E2E", "#24324A", "#F2F6FC", "#A9B6C8", "#718096", "#F2F6FC",
+        "#58A6FF", "#2F81F7", "#07111F", "#152238", "#1B3150", "#4ED6A8", "#FF6B7D", "#FFB44A", "#102A24",
+        "#0A0E17", "#111A28", "#080C14", "#293A55", "#101724", "#A9B6C8", "#B79CFF", "#55D6E8", "#FFB44A", "#293A55", "#58A6FF", "#59677A");
+
     public static string Normalize(string? theme)
     {
         var value = (theme ?? "").Trim().ToLowerInvariant();
@@ -98,6 +104,7 @@ public static class ThemePalette
         "rose-titanium" => RoseTitanium,
         "arctic-glass" => ArcticGlass,
         "dracula" => Dracula,
+        "makan-lab" => MakanLab,
         _ => SapphireNoir
     };
 

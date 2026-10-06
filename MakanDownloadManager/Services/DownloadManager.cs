@@ -131,6 +131,14 @@ public sealed partial class DownloadManager : IDisposable
         if (_localLimiters.TryGetValue(item.Id, out var limiter)) limiter.Limit = EffectiveLocalLimit(item);
     }
 
+    /// <summary>Replaces the "is any network connected" check (tests).</summary>
+    public Func<bool>? NetworkUpProbe { get; set; }
+    bool IsNetworkUp()
+    {
+        try { return (NetworkUpProbe ?? System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable)(); }
+        catch (Exception) { return true; }
+    }
+
     /// <summary>Raised (from any thread) when a download is created.</summary>
     public event Action<DownloadItem>? ItemAdded;
     /// <summary>Raised (from any thread) after an item is removed.</summary>
@@ -278,8 +286,9 @@ public sealed partial class DownloadManager : IDisposable
         SafeTick();
     }
 
-    /// <summary>Stops the download if running, then removes it from the list (and optionally deletes the finished file).</summary>
-    public async Task RemoveAsync(DownloadItem item, bool deleteFile)
+    /// <summary>Stops the download, removes its library entry and optionally deletes data from disk.
+    /// The UI can preserve unfinished data for an explicit "remove only" choice.</summary>
+    public async Task RemoveAsync(DownloadItem item, bool deleteFile, bool preservePartialData = false)
     {
         Task? running = null;
         lock (_stateGate)
@@ -295,7 +304,7 @@ public sealed partial class DownloadManager : IDisposable
         {
             try { await running.WaitAsync(TimeSpan.FromSeconds(10)); } catch { }
         }
-        DeletePartialFiles(item);
+        if (!preservePartialData) DeletePartialFiles(item);
         DownloadStateManifest.Delete(item);
         if (IsTorrentUrl(item.Url)) await RemoveTorrentAsync(item, deleteFile);          // a torrent's files are its own list, never "the folder"
         else if (deleteFile) TryDelete(item.FilePath);
@@ -383,6 +392,19 @@ public sealed partial class DownloadManager : IDisposable
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     throw;
+                }
+                catch (Exception ex) when (RetryPolicy.IsNetworkFailure(ex) && !IsNetworkUp())
+                {
+                    // No network at all (cable out, Wi-Fi off, waking from sleep): that is not the download's fault.
+                    // Wait for a connection instead of using up the retries and failing; Pause/Stop still work.
+                    last = ex;
+                    item.LastError = "Waiting for the network connection…";
+                    _store.Save(item);
+                    _diagnostics.Error($"Download #{item.Id} is waiting for the network to come back", ex);
+                    while (!IsNetworkUp()) await Task.Delay(1000, ct);
+                    await Task.Delay(1500, ct);   // give the adapter a moment to get its address
+                    item.LastError = null;
+                    attempt--;
                 }
                 catch (Exception ex) when (attempt < MaxRetries && RetryPolicy.IsTransient(ex))
                 {
@@ -540,6 +562,7 @@ public sealed partial class DownloadManager : IDisposable
         _globalLimiter.Dispose();
         foreach (var limiter in _localLimiters.Values) limiter.Dispose();
         _http.Dispose();
+        DisposeLinkClients();
     }
 
     /// <summary>Stops the scheduler and every transfer, waiting up to six seconds for them to save their position (they resume next time).</summary>

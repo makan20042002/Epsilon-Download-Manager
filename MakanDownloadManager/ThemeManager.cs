@@ -17,7 +17,7 @@ public static class ThemeManager
     public static bool IsDark { get; private set; }
     /// <summary>The theme actually in effect right now - what "auto" and Windows' own
     /// setting resolved to, not necessarily what's stored in Settings.Theme (which can be "auto").</summary>
-    public static string Current { get; private set; } = "sapphire-noir";
+    public static string Current { get; private set; } = "platinum-blue";
     /// <summary>False when Themes/ControlStyles.xaml could not be loaded; the standard Windows controls are used then.</summary>
     public static bool ControlStylesLoaded { get; private set; }
     public static string? ControlStylesError { get; private set; }
@@ -89,7 +89,7 @@ public static class ThemeManager
     public static void Apply(string? mode)
     {
         var resolved = ThemePalette.Resolve(mode, WindowsUsesDarkApps());
-        var dark = resolved is "obsidian-gold" or "royal-amethyst" or "emerald-executive" or "graphite-copper" or "sapphire-noir" or "rose-titanium" or "arctic-glass" or "dracula";
+        var dark = resolved is "obsidian-gold" or "royal-amethyst" or "emerald-executive" or "graphite-copper" or "sapphire-noir" or "rose-titanium" or "arctic-glass" or "dracula" or "makan-lab";
         var resources = Application.Current.Resources;
         var p = ThemePalette.For(resolved);
         foreach (var (name, hex) in p) resources[name] = Brush(hex);

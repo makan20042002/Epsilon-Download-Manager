@@ -18,6 +18,8 @@ public sealed partial class DownloadManager
 {
     const int BufferSize = 256 * 1024;
     static readonly TimeSpan ReadIdleTimeout = TimeSpan.FromSeconds(30);
+    /// <summary>How often a segmented download flushes its data and saves its progress map.</summary>
+    internal static TimeSpan MapSaveInterval { get; set; } = TimeSpan.FromSeconds(15);
 
     // ---------------------------------------------------------------- probing
 
@@ -305,16 +307,21 @@ public sealed partial class DownloadManager
         catch { return null; }
     }
 
-    static void SaveMap(Microsoft.Win32.SafeHandles.SafeFileHandle handle, ChunkMap map, string path, bool flushData)
+    /// <summary>
+    /// Writes the progress map so that it never claims more than the disk really holds: the counters are copied first,
+    /// then the data file is flushed, and only that copy is saved. A power cut or system crash can therefore lose at
+    /// most the last few seconds of progress, but can never leave a "finished" range that was still only in memory
+    /// (which used to produce a silently corrupt file after resuming).
+    /// </summary>
+    static void SaveMap(Microsoft.Win32.SafeHandles.SafeFileHandle handle, ChunkMap map, string path)
     {
         lock (map)
         {
-            // Persist the lightweight map frequently, but force the much more expensive full-file
-            // disk flush only periodically and at pause/completion. This removes a recurring speed
-            // drop on slower disks while keeping crash recovery conservative.
-            if (flushData) RandomAccess.FlushToDisk(handle);
+            var durable = new long[map.Done.Length];
+            for (var i = 0; i < durable.Length; i++) durable[i] = Volatile.Read(ref map.Done[i]);
+            RandomAccess.FlushToDisk(handle);
             var tmp = path + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(map));
+            File.WriteAllText(tmp, JsonSerializer.Serialize(new ChunkMap { Total = map.Total, ChunkSize = map.ChunkSize, Done = durable }));
             File.Move(tmp, path, true);
         }
     }
@@ -324,6 +331,14 @@ public sealed partial class DownloadManager
         var data = SegPath(item);
         var mapPath = SegMapPath(item);
         workers = Math.Clamp(workers, 1, MaxConnectionsPerDownload);
+
+        // Multi-Network (optional): spread the connections over every connected network so their speeds add up.
+        var links = MultiNetworkEnabled ? CurrentLinks() : Array.Empty<NetworkLink>();
+        if (links.Count < 2) links = Array.Empty<NetworkLink>();
+        if (links.Count > 0) workers = Math.Clamp(Math.Max(workers, links.Count), 1, MaxConnectionsPerDownload);
+        // Parallel ranges only add speed when each one has its own TCP connection. Over HTTP/2 they would all share a
+        // single connection, so ranges ask for HTTP/1.1 (switched back if a server turns out to refuse it).
+        var separateConnections = workers > 1;
 
         var loaded = LoadMap(mapPath, total);
         if (loaded == null || !File.Exists(data) || new FileInfo(data).Length != total)
@@ -335,6 +350,7 @@ public sealed partial class DownloadManager
         var map = loaded;
         item.DiskLoadedBytes = map.Done.Sum();
         var live = Live(item); live.Map = map; live.Workers = workers;
+        live.LinkBytes = new long[links.Count]; live.LinkFailures = new int[links.Count]; live.Links = links.Count > 0 ? links : null;
         for (var w = 0; w < workers; w++) live.Info[w] = "Send GET...";
 
         // Preallocating up front reserves the disk space (failing early if the disk is full) and avoids fragmentation.
@@ -358,15 +374,14 @@ public sealed partial class DownloadManager
             using var persistStop = new CancellationTokenSource();
             var persist = Task.Run(async () =>
             {
-                var dataFlush = Stopwatch.StartNew();
                 try
                 {
                     while (true)
                     {
-                        await Task.Delay(3000, persistStop.Token);
-                        var flushData = dataFlush.Elapsed >= TimeSpan.FromSeconds(20);
-                        SaveMap(handle, map, mapPath, flushData);
-                        if (flushData) dataFlush.Restart();
+                        // The flush is the expensive part on slow disks, so it stays periodic; the map is only ever
+                        // written together with it (see SaveMap).
+                        await Task.Delay(MapSaveInterval, persistStop.Token);
+                        SaveMap(handle, map, mapPath);
                     }
                 }
                 catch (OperationCanceledException) { }
@@ -386,7 +401,7 @@ public sealed partial class DownloadManager
             await Task.WhenAll(tasks);
             persistStop.Cancel();
             await persist;
-            try { SaveMap(handle, map, mapPath, flushData: true); } catch (Exception ex) { _diagnostics.Error("Could not save segment map.", ex); }
+            try { SaveMap(handle, map, mapPath); } catch (Exception ex) { _diagnostics.Error("Could not save segment map.", ex); }
             return 0;
         });
 
@@ -420,6 +435,7 @@ public sealed partial class DownloadManager
             {
                 try { await DownloadChunkOnceAsync(chunk, workerIndex, buffer); return; }
                 catch (OperationCanceledException) when (work.IsCancellationRequested) { throw; }
+                catch (LinkFailedException) { attempt--; }   // one network had a problem: try again at once, it does not count against the download
                 catch (RangeNotSupportedException) { throw; }
                 catch (Exception ex) when (attempt < 5 && RetryPolicy.IsTransient(ex))
                 {
@@ -438,15 +454,40 @@ public sealed partial class DownloadManager
         {
             var start = map.StartOf(chunk);
             var length = map.LengthOf(chunk);
+            if (Volatile.Read(ref map.Done[chunk]) >= length) return;
+
+            // Which network carries this request: each worker keeps to one network until that network has failed too often.
+            var link = links.Count > 0 ? workerIndex % links.Count : -1;
+            if (link >= 0 && Volatile.Read(ref live.LinkFailures[link]) >= LinkFailureLimit) link = -1;
+            try { await FetchAsync(link >= 0 ? ClientFor(links[link]) : _http); }
+            catch (Exception ex) when (link >= 0 && !work.IsCancellationRequested)
+            {
+                // Anything that goes wrong on one particular network (unplugged, a sign-in page, a link that only works
+                // from the address it was created for) must not fail the download: after a few failures this
+                // download simply stops using that network.
+                if (Interlocked.Increment(ref live.LinkFailures[link]) == LinkFailureLimit)
+                    _diagnostics.Error($"Multi-Network: download #{item.Id} stopped using {links[link].Kind} after repeated errors", ex);
+                throw new LinkFailedException(ex.Message, ex);
+            }
+
+            async Task FetchAsync(HttpClient http)
+            {
             var have = Volatile.Read(ref map.Done[chunk]);
             if (have >= length) return;
-
             var from = start + have;
             var to = start + length - 1;
             using var request = BuildRequest(HttpMethod.Get, item);
+            if (Volatile.Read(ref separateConnections)) { request.Version = HttpVersion.Version11; request.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower; }
             request.Headers.Range = new RangeHeaderValue(from, to);
             AddIfRange(request, item);
-            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, work);
+            HttpResponseMessage response;
+            try { response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, work); }
+            catch (HttpRequestException ex) when (ex.HttpRequestError == HttpRequestError.VersionNegotiationError)
+            {
+                Volatile.Write(ref separateConnections, false);   // an HTTP/2-only server: the retry uses HTTP/2 again
+                throw;
+            }
+            using var responseScope = response;
 
             if (response.StatusCode != HttpStatusCode.PartialContent)
             {
@@ -472,7 +513,9 @@ public sealed partial class DownloadManager
                 Volatile.Write(ref map.Done[chunk], written + read); // one worker owns a chunk at a time
                 tracker.Add(read);
                 Interlocked.Add(ref live.Bytes[workerIndex], read);
+                if (link >= 0) Interlocked.Add(ref live.LinkBytes[link], read);
                 remaining -= read;
+            }
             }
         }
     }
@@ -558,6 +601,10 @@ public sealed partial class DownloadManager
         public readonly string[] Info = new string[MaxConnectionsPerDownload];
         public volatile int Workers = 1;
         public bool? ResumeSupported;
+        /// <summary>Multi-Network: the networks this download is spread over (null = the ordinary single route).</summary>
+        public volatile IReadOnlyList<NetworkLink>? Links;
+        public long[] LinkBytes = Array.Empty<long>();
+        public int[] LinkFailures = Array.Empty<int>();
         public LiveState() { for (var i = 0; i < Info.Length; i++) Info[i] = ""; }
     }
 
@@ -745,7 +792,7 @@ public sealed partial class DownloadManager
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         try
         {
-            if (File.Exists(target)) File.Delete(target);
+            // One replace operation: there is never a moment with neither the old nor the new file on disk.
             File.Move(source, target, true);
         }
         catch

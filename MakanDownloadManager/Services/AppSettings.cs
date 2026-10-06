@@ -78,7 +78,7 @@ public sealed class AppSettings
     {
         get
         {
-            return ThemePalette.Normalize(Text("theme", "sapphire-noir"));
+            return ThemePalette.Normalize(Text("theme", "platinum-blue"));
         }
         set => _store.Set("theme", ThemePalette.Normalize(value));
     }
@@ -88,6 +88,8 @@ public sealed class AppSettings
     public long SpeedKbps { get => long.TryParse(_store.Get("speed_kbps"), out var v) ? Math.Max(0, v) : 0; set => _store.Set("speed_kbps", Math.Max(0, value).ToString()); }
     /// <summary>"combined" shares the toolbar limit between all files; "per_file" gives every file the full limit.</summary>
     public string SpeedLimitScope { get => _store.Get("speed_limit_scope") == "per_file" ? "per_file" : "combined"; set => _store.Set("speed_limit_scope", value == "per_file" ? "per_file" : "combined"); }
+    /// <summary>Multi-Network: spread one download over every connected network (Wi-Fi + Ethernet + tethering). Off by default.</summary>
+    public bool MultiNetwork { get => Flag("multi_network", false); set => Put("multi_network", value); }
     public int Connections { get => int.TryParse(_store.Get("connections"), out var v) ? Math.Clamp(v, 1, 16) : 8; set => _store.Set("connections", Math.Clamp(value, 1, 16).ToString()); }
     public bool AutoResume { get => Flag("auto_resume", false); set => Put("auto_resume", value); }
     public bool KeepAwakeWhileDownloading { get => Flag("keep_awake_downloading", true); set => Put("keep_awake_downloading", value); }

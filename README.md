@@ -11,30 +11,32 @@ A fast, private download manager and BitTorrent client for Windows. Epsilon comb
 
 ## Download
 
-**[Download Epsilon Download Manager 1.3.1 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.3.1/EpsilonDownloadManager-1.3.1-Setup.exe)**
+**[Download Epsilon Download Manager 1.6.0 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.6.0/EpsilonDownloadManager-1.6.0-Setup.exe)**
 
-Run the installer normally. Version 1.3.1 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
+Run the installer normally. Version 1.6.0 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
 
 SHA-256:
 
 ```text
-F064547319EB8F6D590C9B3DF5B6788EAA64004B3FCC8940703F8208014B404F
+D190956AA8494A165FEF0EA67E7F04C3384D6D4E6B6EC3667CA797EA545D2E4B
 ```
 
 ## Highlights
 
 - **Fast, reliable downloads** — up to 16 connections, exact-byte resume after pause/restart, retry with back-off, checksum verification, and live handling of network-speed changes.
+- **Multi-Network downloads** — optionally distribute segmented HTTP connections across connected Wi-Fi, Ethernet, or tethered networks, with automatic fallback when one link fails.
 - **Flexible speed limits** — unlimited by default, a combined global limit, and optional independent per-file limits.
 - **BitTorrent Engine 2.0** — magnet links and `.torrent` files, DHT, PEX, HTTP/UDP trackers, UPnP/NAT-PMP, file priority, seeding controls, and per-torrent bandwidth limits. Torrents have no artificial speed cap unless you set one.
 - **Browser integration** — Chrome, Edge, Brave, and Firefox capture, context-menu commands, selected-link batches, page-link grabbing, and an on-video download button.
 - **Media downloads** — native HLS and DASH plus YouTube and other supported sites through yt-dlp, including quality selection, audio extraction, playlists, and subtitles.
 - **Scheduling and queues** — parallel queue limits, Start All/Schedule/Stop All controls, retryable failed items, and a complete schedule stop that does not advance to the next file.
 - **Accurate resume feedback** — separate network and disk-loading progress, so restoring a partial download never looks frozen.
-- **Eight accessible themes** — Light, Orange, Makan, Obsidian, Nebula, Lilac, Dracula, and Uhnohh, plus Follow Windows. The browser extension follows the desktop theme.
+- **Redesigned desktop shell** — a compact productivity layout with a neutral title rail, left navigation, rectangular commands, and no large solid-color header or IDM-style icon ribbon.
+- **Website-matched themes** — Platinum Blue is the default for new installs, and the new Makan Lab theme uses the live site’s ink, electric-blue, and amber palette. The browser extension follows the desktop theme.
 - **Windows integration** — magnet and `.torrent` handlers, tray speed display, optional keep-awake while downloading, and in-place upgrades.
 - **English and Persian** — full RTL-aware Persian localization.
 
-See [the 1.3.1 release notes](RELEASE_NOTES_1.3.1.md) for the latest fixes, or [the 1.3.0 release notes](RELEASE_NOTES_1.3.md) for the previous feature release.
+See [the 1.6.0 release notes](RELEASE_NOTES_1.6.0.md) for the latest changes, or [the 1.5.0 release notes](RELEASE_NOTES_1.5.0.md) for the previous release.
 
 ## Browser extensions
 

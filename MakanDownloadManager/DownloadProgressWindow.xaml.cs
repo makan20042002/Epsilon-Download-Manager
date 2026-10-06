@@ -179,7 +179,7 @@ public partial class DownloadProgressWindow : Window
         ResumeText.Text = Loc.T("Resume capability") + ": " + (_resume == null ? "—" : Loc.T(_resume == true ? "Yes" : "No"));
         ResumeText.Foreground = _resume == true ? Green : _resume == false ? Amber : Muted;
 
-        LimiterChipText.Text = Loc.T("Speed Limiter") + ": " + (item.SpeedLimitBytesPerSec > 0 ? Speed(item.SpeedLimitBytesPerSec) : Loc.T("Unlimited"));
+        LimiterChipText.Text = Loc.T("Speed Limiter") + ": " + (item.SpeedLimitBytesPerSec > 0 ? Speed(item.SpeedLimitBytesPerSec) : Loc.T("Off"));
         CompletionChipText.Text = Loc.T("On completion") + ": " + CompletionSummary();
 
         StartPauseButton.Content = Loc.T(running ? "Pause" : "Start");

@@ -23,6 +23,10 @@ tests/**/obj/
 domains/
 Epsilon_Theme_System_Cleanup_TASK.md
 
+# Old installers, source snapshots and recordings kept locally only
+_archive/
+*.rar
+
 # OS noise
 .DS_Store
 Thumbs.db

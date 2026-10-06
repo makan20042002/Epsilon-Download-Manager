@@ -30,7 +30,7 @@ public partial class SettingsWindow : Window
         BrChrome.IsChecked = allowed.Contains("chrome"); BrEdge.IsChecked = allowed.Contains("edge"); BrFirefox.IsChecked = allowed.Contains("firefox");
         BrOpera.IsChecked = allowed.Contains("opera"); BrVivaldi.IsChecked = allowed.Contains("vivaldi"); BrOther.IsChecked = allowed.Contains("other");
         LanguageBox.SelectedIndex = s.Language == "fa" ? 1 : 0;
-        ThemeBox.SelectedIndex = s.Theme switch { "obsidian-gold" => 0, "platinum-blue" => 1, "royal-amethyst" => 2, "emerald-executive" => 3, "champagne-minimal" => 4, "graphite-copper" => 5, "sapphire-noir" => 6, "ivory-luxe" => 7, "rose-titanium" => 8, "arctic-glass" => 9, "dracula" => 10, "auto" => 11, _ => 6 };
+        ThemeBox.SelectedIndex = s.Theme switch { "obsidian-gold" => 0, "platinum-blue" => 1, "royal-amethyst" => 2, "emerald-executive" => 3, "champagne-minimal" => 4, "graphite-copper" => 5, "sapphire-noir" => 6, "ivory-luxe" => 7, "rose-titanium" => 8, "arctic-glass" => 9, "dracula" => 10, "makan-lab" => 11, "auto" => 12, _ => 1 };
 
         // File types
         FileTypesBox.Text = s.FileTypes; SitesBox.Text = s.ExcludedSites; AddressesBox.Text = s.ExcludedAddresses;
@@ -51,7 +51,9 @@ public partial class SettingsWindow : Window
         AvOn.IsChecked = s.AntivirusEnabled; AvProgramBox.Text = s.AntivirusProgram; AvArgsBox.Text = s.AntivirusArguments;
 
         // Connection
-        Slots.Value = s.MaxActive; Speed.Text = s.SpeedKbps.ToString(CultureInfo.InvariantCulture); SpeedScope.SelectedIndex = s.SpeedLimitScope == "per_file" ? 1 : 0; Connections.Value = s.Connections;
+        Slots.Value = s.MaxActive; SpeedLimitOn.IsChecked = s.SpeedKbps > 0; Speed.Text = (s.SpeedKbps > 0 ? s.SpeedKbps : 1024).ToString(CultureInfo.InvariantCulture);
+        MultiNetOn.IsChecked = s.MultiNetwork; MultiNetStatus.Text = DescribeNetworks();
+        SpeedScope.SelectedIndex = s.SpeedLimitScope == "per_file" ? 1 : 0; Connections.Value = s.Connections;
         AutoResume.IsChecked = s.AutoResume; KeepAwake.IsChecked = s.KeepAwakeWhileDownloading; Ffmpeg.Text = s.FfmpegPath;
         SmartConnections.IsChecked = s.AdaptiveConnections && s.SmartDownloads;
         BoostSpeed.IsChecked = s.BoostDownloadSpeed;
@@ -224,7 +226,10 @@ public partial class SettingsWindow : Window
     {
         StoreCategoryFields();
         var s = App.Settings;
-        var kb = long.TryParse(Speed.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? Math.Max(0, parsed) : 0;
+        // The limiter is a switch plus a value: off means no limit at all, on always means a real limit (at least 1 KB/s).
+        var kb = SpeedLimitOn.IsChecked == true
+            ? (long.TryParse(Speed.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0 ? parsed : Math.Max(1, s.SpeedKbps))
+            : 0;
         var baseFolder = BaseFolderBox.Text.Trim(); var tempFolder = TempFolderBox.Text.Trim(); var torrentFolder = TorrentFolderBox.Text.Trim();
         if (baseFolder.Length == 0) baseFolder = s.DefaultFolder;
         if (!TryFolder(baseFolder, "main download") || !TryFolder(tempFolder, "temporary")) return;
@@ -247,7 +252,7 @@ public partial class SettingsWindow : Window
         var newLanguage = LanguageBox.SelectedIndex == 1 ? "fa" : "en";
         var languageChanged = newLanguage != s.Language;
         s.Language = newLanguage;
-        s.Theme = ThemeBox.SelectedIndex switch { 0 => "obsidian-gold", 1 => "platinum-blue", 2 => "royal-amethyst", 3 => "emerald-executive", 4 => "champagne-minimal", 5 => "graphite-copper", 6 => "sapphire-noir", 7 => "ivory-luxe", 8 => "rose-titanium", 9 => "arctic-glass", 10 => "dracula", 11 => "auto", _ => "sapphire-noir" };
+        s.Theme = ThemeBox.SelectedIndex switch { 0 => "obsidian-gold", 1 => "platinum-blue", 2 => "royal-amethyst", 3 => "emerald-executive", 4 => "champagne-minimal", 5 => "graphite-copper", 6 => "sapphire-noir", 7 => "ivory-luxe", 8 => "rose-titanium", 9 => "arctic-glass", 10 => "dracula", 11 => "makan-lab", 12 => "auto", _ => "platinum-blue" };
 
         // File types
         s.FileTypes = FileTypesBox.Text.Trim(); s.ExcludedSites = SitesBox.Text.Trim(); s.ExcludedAddresses = AddressesBox.Text.Trim();
@@ -271,6 +276,7 @@ public partial class SettingsWindow : Window
         s.YtCookiesBrowser = CookiesBox.SelectedIndex switch { 1 => "chrome", 2 => "edge", 3 => "firefox", 4 => "brave", _ => "" };
 
         // Connection
+        s.MultiNetwork = MultiNetOn.IsChecked == true;
         s.MaxActive = (int)Slots.Value; s.SpeedKbps = kb; s.SpeedLimitScope = SpeedScope.SelectedIndex == 1 ? "per_file" : "combined"; s.Connections = (int)Connections.Value; s.AutoResume = AutoResume.IsChecked == true; s.KeepAwakeWhileDownloading = KeepAwake.IsChecked == true; s.FfmpegPath = Ffmpeg.Text.Trim();
         s.AdaptiveConnections = SmartConnections.IsChecked == true; s.SmartDownloads = SmartConnections.IsChecked == true;
         s.BoostDownloadSpeed = BoostSpeed.IsChecked == true;
@@ -311,6 +317,16 @@ public partial class SettingsWindow : Window
     void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
 
     void RandomTorrentPort_Click(object sender, RoutedEventArgs e) => TorrentPortBox.Text = Random.Shared.Next(10000, 65000).ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>What Multi-Network would use right now, in plain words.</summary>
+    static string DescribeNetworks()
+    {
+        var links = App.Manager.CurrentLinks();
+        if (links.Count >= 2) return Loc.F("Connected now: {0}", string.Join(" + ", links.Select(l => Loc.T(l.Kind) + " (" + l.Name + ")")));
+        return links.Count == 1
+            ? Loc.F("Only one network is connected now ({0}). Connect a second one to use this.", Loc.T(links[0].Kind))
+            : Loc.T("No network with internet access was found right now.");
+    }
 
     void RefreshRemoteUrl()
     {
