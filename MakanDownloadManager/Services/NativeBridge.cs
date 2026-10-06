@@ -90,7 +90,8 @@ public sealed class BridgeResponse
 public sealed class NativeBridge : IDisposable
 {
     public const string PipeName = "com.makan.downloadmanager";
-    public const string Version = "1.7.0";
+    public const string Version = "1.7.1";
+    public static string EffectivePipeName => Environment.GetEnvironmentVariable("EPSILON_NATIVE_PIPE") is { Length: > 0 } value ? value : PipeName;
 
     static readonly JsonSerializerOptions In = new() { PropertyNameCaseInsensitive = true };
     static readonly JsonSerializerOptions Out = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
@@ -130,6 +131,7 @@ public sealed class NativeBridge : IDisposable
     readonly CancellationTokenSource _cts = new();
     readonly Task _serverTask;
     readonly DiagnosticsService _diagnostics = new();
+    readonly string _pipeName;
 
     /// <summary>Raised on a background thread when the browser asks to show the window or open a media stream.</summary>
     public event Action<BridgeCommand>? UiCommand;
@@ -141,6 +143,7 @@ public sealed class NativeBridge : IDisposable
         _downloadDir = downloadDir;
         _streamDir = streamDir;
         _folderFor = folderForFile;
+        _pipeName = EffectivePipeName;
         _serverTask = Task.Run(ServerLoopAsync);
     }
 
@@ -151,7 +154,7 @@ public sealed class NativeBridge : IDisposable
             NamedPipeServerStream? pipe = null;
             try
             {
-                pipe = new NamedPipeServerStream(PipeName, PipeDirection.InOut, 16, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                pipe = new NamedPipeServerStream(_pipeName, PipeDirection.InOut, 16, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
                 await pipe.WaitForConnectionAsync(_cts.Token);
                 var connected = pipe;
                 pipe = null; // ownership moves to the handler

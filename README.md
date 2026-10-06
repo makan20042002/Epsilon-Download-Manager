@@ -11,14 +11,14 @@ A fast, private download manager and BitTorrent client for Windows. Epsilon comb
 
 ## Download
 
-**[Download Epsilon Download Manager 1.7.0 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.7.0/EpsilonDownloadManager-1.7.0-Setup.exe)**
+**[Download Epsilon Download Manager 1.7.1 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.7.1/EpsilonDownloadManager-1.7.1-Setup.exe)**
 
-Run the installer normally. Version 1.7.0 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
+Run the installer normally. Version 1.7.1 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
 
 SHA-256:
 
 ```text
-47168248FD290BEEC39388498D1AD7F96B25E4485704A7CCBFC3AB13C1D750E3
+6B2955878C4A7686E013DB2B621BBB70FCAA9A80E67FEC2C1305087279C6DB11
 ```
 
 ## Highlights
@@ -36,7 +36,7 @@ SHA-256:
 - **Windows integration** — magnet and `.torrent` handlers, tray speed display, optional keep-awake while downloading, and in-place upgrades.
 - **English and Persian** — full RTL-aware Persian localization.
 
-See [the 1.7.0 release notes](RELEASE_NOTES_1.7.0.md) for the latest changes, or [the 1.6.0 release notes](RELEASE_NOTES_1.6.0.md) for the previous release.
+See [the 1.7.1 release notes](RELEASE_NOTES_1.7.1.md) for the latest changes, or [the 1.7.0 release notes](RELEASE_NOTES_1.7.0.md) for the previous release.
 
 ## Browser extensions
 

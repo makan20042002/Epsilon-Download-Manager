@@ -8,7 +8,7 @@ namespace MakanDownloadManager.Services.Torrent;
 public enum TorrentState { Stopped, Metadata, Checking, Downloading, Seeding, Paused, Error, Finished }
 public enum FilePriority { Skip = 0, Normal = 1, High = 2 }
 
-public sealed record PeerInfo(string Address, string Client, string Flags, double Progress, long DownRate, long UpRate, long Downloaded, long Uploaded, bool Incoming);
+public sealed record PeerInfo(string Address, string Client, string Flags, double Progress, long DownRate, long UpRate, long Downloaded, long Uploaded, bool Incoming, bool Encrypted = false);
 public sealed record TrackerInfo(string Url, string Status, int? Seeders, int? Leechers, DateTime? LastAnnounce, int Tier);
 public sealed record TorrentFileInfo(int Index, string Path, long Length, long Done, FilePriority Priority);
 
@@ -64,7 +64,7 @@ public sealed partial class TorrentSession
     /// number here is what makes a torrent take minutes to find its first working peers.</summary>
     const int MaxHalfOpen = 40;
     static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
-    /// <summary>Upload requests one peer may have waiting (for the upload limit) before further ones are ignored.</summary>
+    /// <summary>Upload requests one peer may have queued before its read loop waits for them to be served.</summary>
     const int MaxPendingUploadsPerPeer = 64;
     const int OurUtMetadata = 2, OurUtPex = 1;
     static readonly HttpClient WebSeedClient = new(new SocketsHttpHandler
@@ -550,6 +550,23 @@ public sealed partial class TorrentSession
         {
             var conn = await PeerConnection.ConnectAsync(ep, ConnectTimeout, ct).ConfigureAwait(false);
             connected = true;
+            var encryption = _engine.Options.Encryption;
+            if (encryption != EncryptionMode.Off)
+            {
+                try
+                {
+                    using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    limit.CancelAfter(TimeSpan.FromSeconds(8));
+                    await conn.NegotiateOutgoingAsync(_hash, encryption != EncryptionMode.Require, limit.Token).ConfigureAwait(false);
+                }
+                catch (Exception) when (!ct.IsCancellationRequested && encryption == EncryptionMode.Prefer)
+                {
+                    // this peer does not speak encryption (or something in between broke it): once more, plainly
+                    conn.Dispose();
+                    conn = await PeerConnection.ConnectAsync(ep, ConnectTimeout, ct).ConfigureAwait(false);
+                }
+                catch (Exception) { conn.Dispose(); throw; }
+            }
             await RunPeerAsync(conn, null, ct).ConfigureAwait(false);
         }
         catch (Exception) when (!ct.IsCancellationRequested) { /* unreachable or misbehaving: try again later */ }
@@ -680,7 +697,7 @@ public sealed partial class TorrentSession
                 await UpdateInterestAsync(peer, ct).ConfigureAwait(false);
                 await RequestMoreAsync(peer, ct).ConfigureAwait(false);
                 break;
-            case PeerConnection.Request: QueueUpload(peer, payload, ct); break;
+            case PeerConnection.Request: await QueueUploadAsync(peer, payload, ct).ConfigureAwait(false); break;
             case PeerConnection.Piece: await HandlePieceAsync(peer, payload, ct).ConfigureAwait(false); break;
             case PeerConnection.Port:
                 if (payload.Length == 2 && _engine.Dht != null && !IsPrivate && _engine.Dht.Bootstrap.Count < 32) _engine.Dht.Bootstrap.Add(new IPEndPoint(peer.EndPoint.Address, (payload[0] << 8) | payload[1]));
@@ -941,9 +958,17 @@ public sealed partial class TorrentSession
     /// limit made an upload wait, nothing could be received from that peer either - a tight upload limit throttled the
     /// download as well.
     /// </summary>
-    void QueueUpload(PeerState peer, byte[] payload, CancellationToken ct)
+    async Task QueueUploadAsync(PeerState peer, byte[] payload, CancellationToken ct)
     {
-        if (Interlocked.Increment(ref peer.PendingUploads) > MaxPendingUploadsPerPeer) { Interlocked.Decrement(ref peer.PendingUploads); return; }
+        // A request must never be dropped: the other client keeps waiting for the block (other clients send hundreds
+        // of requests at once). With a long backlog the read loop waits for it to drain instead - ordinary back-pressure.
+        if (Volatile.Read(ref peer.PendingUploads) >= MaxPendingUploadsPerPeer)
+        {
+            Task tail;
+            lock (peer.UploadGate) tail = peer.UploadTail;
+            await tail.WaitAsync(ct).ConfigureAwait(false);
+        }
+        Interlocked.Increment(ref peer.PendingUploads);
         payload = payload.ToArray();   // the read loop may reuse its buffer for the next message before this one is served
         // One peer's requests are still answered in the order they arrived; they just no longer hold up its read loop.
         lock (peer.UploadGate) peer.UploadTail = ServeAfterAsync(peer.UploadTail, peer, payload, ct);

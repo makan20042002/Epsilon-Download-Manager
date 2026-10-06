@@ -9,6 +9,10 @@ const crypto = require("crypto");
 const http = require("http");
 const { spawn } = require("child_process");
 
+// A developer may have the installed desktop app running while the suite runs. Give this
+// end-to-end stack its own pipe so native-host messages cannot be consumed by that app.
+process.env.EPSILON_NATIVE_PIPE = `com.makan.downloadmanager.e2e.${process.pid}`;
+
 const ROOT = path.join(__dirname, "..", "..");
 const BASE = "http://127.0.0.1:18080";
 const HOST_DLL = path.join(ROOT, "MakanNativeHost/bin/Release/net8.0/MakanNativeHost.dll");

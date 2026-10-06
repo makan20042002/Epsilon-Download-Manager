@@ -38,6 +38,7 @@ public partial class MainWindow : Window
     readonly HashSet<object> _marqueeBase = new();
     bool _marqueeArmed;
     bool _marqueeDragging;
+    bool _marqueeFromRow;
     Point _marqueeStart;
     Point _marqueeCurrent;
     List<DownloadItem> _pendingDelete = new();
@@ -52,6 +53,7 @@ public partial class MainWindow : Window
         UpdateStatusPills();
         UpdateMultiNetButton();
         UpdateSpeedLimiterButton();
+        CompactRowsItem.IsChecked = App.Settings.CompactRows; Downloads.Tag = App.Settings.CompactRows ? "compact" : null;
         try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/Assets/makan.ico", UriKind.Absolute)); } catch (Exception) { /* the default icon is fine */ }
         BuildCategoryTree();
         _tray = CreateTray();
@@ -359,7 +361,7 @@ public partial class MainWindow : Window
 
     void Exit_Click(object sender, RoutedEventArgs e) => ExitApplication();
 
-    /// <summary>A queue's "Exit Makan when done": no questions asked (the queue only runs the exit after all its downloads are finished).</summary>
+    /// <summary>A queue's "Exit Epsilon when done": no questions asked (the queue only runs the exit after all its downloads are finished).</summary>
     public void ExitFromScheduler()
     {
         _exiting = true;
@@ -574,6 +576,7 @@ public partial class MainWindow : Window
         {
             Url = p.Url, FilePath = Path.Combine(dialog.Folder, finalName), Priority = 5,
             Cookie = p.Cookie, Referrer = p.Referrer, UserAgent = p.UserAgent,
+            ExpectedSha256 = dialog.ExpectedSha256,
             Connections = p.Connections > 0 ? p.Connections : App.Manager.DefaultConnections,
             SpeedLimitBytesPerSec = Math.Max(0, p.SpeedLimitBytesPerSec), Overwrite = overwrite,
             // name still only guessed from the URL: let the server's real name replace it when the download starts
@@ -1043,21 +1046,118 @@ public partial class MainWindow : Window
 
     // ---- Multi-Network --------------------------------------------------------------------------------------------------
 
+    bool _multiNetFilling;
+
     void MultiNet_Click(object? sender, RoutedEventArgs? e)
     {
+        FillMultiNetPanel();
         UpdateMultiNetButton();
         MultiNetPopup.IsOpen = true;
     }
 
+    /// <summary>Shows the real adapters with a tick each, and the two sharing options, from the saved settings.</summary>
+    void FillMultiNetPanel()
+    {
+        _multiNetFilling = true;
+        try
+        {
+            MultiNetLinksPanel.Children.Clear();
+            var links = App.Manager.CurrentLinks();
+            foreach (var link in links)
+            {
+                var name = link.Name;
+                var speed = link.SpeedBps >= 1_000_000_000 ? $"{link.SpeedBps / 1e9:0.#} Gbps" : link.SpeedBps > 0 ? $"{link.SpeedBps / 1e6:0} Mbps" : "";
+                var known = new HashSet<string>(App.Settings.MultiNetKnown.Split('|', StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
+                var box = new CheckBox
+                {
+                    IsChecked = !App.Manager.MultiNetworkExcluded.Contains(name) && (!App.Settings.MultiNetAskNewNetwork || known.Contains(name)), Margin = new Thickness(2, 3, 0, 3),
+                    Content = Loc.T(link.Kind) + (link.IsMetered ? " · " + Loc.T("metered") : "") + "  ·  " + name + "  ·  " + link.Address + (speed.Length > 0 ? "  ·  " + speed : "")
+                };
+                box.Click += (_, _) =>
+                {
+                    var excluded = new HashSet<string>(App.Manager.MultiNetworkExcluded, StringComparer.OrdinalIgnoreCase);
+                    var approved = new HashSet<string>(App.Manager.MultiNetworkKnown, StringComparer.OrdinalIgnoreCase);
+                    if (box.IsChecked == true) { excluded.Remove(name); approved.Add(name); } else excluded.Add(name);
+                    App.Manager.MultiNetworkExcluded = excluded;
+                    App.Manager.MultiNetworkKnown = approved;
+                    App.Settings.MultiNetExcluded = string.Join("|", excluded);
+                    App.Settings.MultiNetKnown = string.Join("|", approved);
+                    UpdateMultiNetButton();
+                };
+                var row = new DockPanel();
+                var color = NetworkColor(name);
+                var swatch = new Button { Width = 24, Height = 20, Padding = new Thickness(0), Margin = new Thickness(0, 1, 6, 1), ToolTip = Loc.T("Change this network's segment colour") };
+                swatch.Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(color)!;
+                swatch.Click += (_, _) => { var next = NextNetworkColor(color); SaveNetworkColor(name, next); swatch.Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(next)!; color = next; };
+                DockPanel.SetDock(swatch, Dock.Right); row.Children.Add(swatch); row.Children.Add(box);
+                MultiNetLinksPanel.Children.Add(row);
+            }
+            if (links.Count == 0) MultiNetLinksPanel.Children.Add(new TextBlock { Text = Loc.T("No network with internet access was found right now."), TextWrapping = TextWrapping.Wrap });
+            MultiNetBalanceBox.SelectedIndex = App.Settings.MultiNetBalanceBySpeed ? 0 : 1;
+            MultiNetMinBox.Text = App.Settings.MultiNetMinMb.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            MultiNetAvoidMeteredBox.IsChecked = App.Settings.MultiNetAvoidMetered;
+            MultiNetKeepOneFreeBox.IsChecked = App.Settings.MultiNetKeepOneFree;
+            MultiNetAskNewBox.IsChecked = App.Settings.MultiNetAskNewNetwork;
+            MultiNetDailyBox.Text = App.Settings.MultiNetDailyLimitMb.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            MultiNetRetryBox.Text = App.Settings.MultiNetRetryMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        finally { _multiNetFilling = false; }
+    }
+
+    static readonly string[] MultiNetPalette = ["#7568DF", "#13C8F5", "#22E58A", "#FFB44A", "#FF6B8A", "#A873F0"];
+    static Dictionary<string, string> NetworkColors()
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var part in App.Settings.MultiNetColors.Split('|', StringSplitOptions.RemoveEmptyEntries)) { var at = part.LastIndexOf('='); if (at > 0) result[part[..at]] = part[(at + 1)..]; }
+        return result;
+    }
+    static string NetworkColor(string name) => NetworkColors().TryGetValue(name, out var value) ? value : MultiNetPalette[Math.Abs(StringComparer.OrdinalIgnoreCase.GetHashCode(name)) % MultiNetPalette.Length];
+    static string NextNetworkColor(string color) { var i = Array.FindIndex(MultiNetPalette, x => x.Equals(color, StringComparison.OrdinalIgnoreCase)); return MultiNetPalette[(i + 1 + MultiNetPalette.Length) % MultiNetPalette.Length]; }
+    static void SaveNetworkColor(string name, string color)
+    {
+        var colors = NetworkColors(); colors[name] = color;
+        App.Settings.MultiNetColors = string.Join("|", colors.Select(x => x.Key + "=" + x.Value));
+        App.Manager.MultiNetworkColors = colors;
+    }
+
+    void MultiNetOption_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_multiNetFilling || !IsLoaded) return;
+        App.Settings.MultiNetBalanceBySpeed = MultiNetBalanceBox.SelectedIndex != 1;
+        App.Manager.MultiNetworkBalanceBySpeed = App.Settings.MultiNetBalanceBySpeed;
+        if (int.TryParse(MultiNetMinBox.Text.Trim(), out var mb) && mb > 0) { App.Settings.MultiNetMinMb = mb; App.Manager.MultiNetworkMinBytes = App.Settings.MultiNetMinMb * 1024L * 1024L; }
+        App.Settings.MultiNetAvoidMetered = MultiNetAvoidMeteredBox.IsChecked == true; App.Manager.MultiNetworkAvoidMetered = App.Settings.MultiNetAvoidMetered;
+        App.Settings.MultiNetKeepOneFree = MultiNetKeepOneFreeBox.IsChecked == true; App.Manager.MultiNetworkKeepOneFree = App.Settings.MultiNetKeepOneFree;
+        App.Settings.MultiNetAskNewNetwork = MultiNetAskNewBox.IsChecked == true; App.Manager.MultiNetworkAskNewNetwork = App.Settings.MultiNetAskNewNetwork;
+        if (int.TryParse(MultiNetDailyBox.Text.Trim(), out var daily) && daily >= 0) { App.Settings.MultiNetDailyLimitMb = daily; App.Manager.MultiNetworkDailyLimitBytes = daily * 1024L * 1024L; }
+        if (int.TryParse(MultiNetRetryBox.Text.Trim(), out var retry) && retry > 0) { App.Settings.MultiNetRetryMinutes = retry; App.Manager.MultiNetworkRetryMinutes = retry; }
+        MultiNetMinBox.Text = App.Settings.MultiNetMinMb.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     void MultiNetOn_Click(object? sender, RoutedEventArgs? e) => SetMultiNetwork(true);
     void MultiNetOff_Click(object? sender, RoutedEventArgs? e) => SetMultiNetwork(false);
+
+    async void MultiNetTest_Click(object sender, RoutedEventArgs e)
+    {
+        MultiNetTestButton.IsEnabled = false;
+        MultiNetStatusText.Text = Loc.T("Testing a real transfer through each selected network…");
+        try
+        {
+            var results = await App.Manager.ProbeNetworkLinksAsync(CancellationToken.None);
+            if (results.Count == 0) { MultiNetStatusText.Text = Loc.T("No selected network with an internet route was found."); return; }
+            MultiNetStatusText.Text = string.Join("\n", results.Select(r => r.Success
+                ? $"✓ {r.Link.Name}: {DownloadItem.FormatBytes(r.BytesPerSecond)}/s"
+                : $"✕ {r.Link.Name}: {r.Error}"));
+        }
+        finally { MultiNetTestButton.IsEnabled = true; }
+    }
 
     void SetMultiNetwork(bool on)
     {
         App.Settings.MultiNetwork = on;
         App.Manager.MultiNetworkEnabled = on;
         UpdateMultiNetButton();
-        var links = App.Manager.CurrentLinks();
+        var links = App.Manager.UsableLinks();
         Footer.Text = !on
             ? Loc.T("Multi-Network is off: downloads use the normal connection.")
             : links.Count >= 2
@@ -1070,9 +1170,9 @@ public partial class MainWindow : Window
     {
         var on = App.Settings.MultiNetwork;
         MultiNetCaption.Text = Loc.T("Multi-Net");
-        var links = on ? App.Manager.CurrentLinks().Count : 0;
+        var links = on ? App.Manager.UsableLinks().Count : 0;
         MultiNetState.Text = on ? Loc.F("On · {0} networks", Math.Max(1, links)) : Loc.T("Off");
-        MultiNetGlyph.SetResourceReference(TextBlock.ForegroundProperty, on ? "Success" : "IconGrey");
+        if (on) BtnMultiNet.SetResourceReference(Control.BackgroundProperty, "Selected"); else BtnMultiNet.Background = System.Windows.Media.Brushes.Transparent;
         MultiNetOnButton.SetResourceReference(Control.BackgroundProperty, on ? "Accent" : "Surface");
         MultiNetOnButton.SetResourceReference(Control.ForegroundProperty, on ? "OnAccent" : "Text");
         MultiNetOffButton.SetResourceReference(Control.BackgroundProperty, on ? "Surface" : "Accent");
@@ -1095,10 +1195,10 @@ public partial class MainWindow : Window
         try
         {
             var smart = App.Settings.AdaptiveConnections && App.Settings.SmartDownloads;
-            SmartText.Text = Loc.T(smart ? "SMART ENGINE ON" : "SMART ENGINE OFF");
+            SmartText.Text = Loc.T(smart ? "Smart engine on" : "Smart engine off");
             SmartDot.SetResourceReference(Border.BackgroundProperty, smart ? "Success" : "Faint");
             var browser = WindowsIntegration.Browsers().Any(b => b.Registered);
-            BrowserText.Text = Loc.T(browser ? "BROWSER CONNECTED" : "BROWSER NOT CONNECTED");
+            BrowserText.Text = Loc.T(browser ? "Browser connected" : "Browser not connected");
             FooterBrowser.Text = Loc.T(browser ? "Connected" : "Not connected");
             BrowserDot.SetResourceReference(Border.BackgroundProperty, browser ? "Success" : "Warning");
         }
@@ -1114,6 +1214,104 @@ public partial class MainWindow : Window
 
     void StartMainQueue_Click(object? sender, RoutedEventArgs? e) => App.Queues.Start(App.Queues.Main.Id);
     void StopQueues_Click(object? sender, RoutedEventArgs? e) => App.Queues.StopAll();
+    // ---- Queues menu (menu bar and toolbar): new queue, start/stop one queue, how many files at the same time ----------
+
+    static readonly int[] ParallelChoices = { 1, 2, 3, 4, 6, 8, 12, 16 };
+
+    void QueuesMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, QueuesMenu)) return;   // a sub-menu of ours opened: nothing to rebuild
+        FillQueuesMenu(QueuesMenu.Items);
+    }
+
+    void QueuesButton_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu { PlacementTarget = (FrameworkElement)sender, Placement = PlacementMode.Bottom };
+        FillQueuesMenu(menu.Items);
+        menu.IsOpen = true;
+    }
+
+    void NewQueue_Click(object? sender, RoutedEventArgs? e)
+    {
+        var ask = new TextPromptDialog("New schedule queue", "Queue name:", "New queue") { Owner = this };
+        if (ask.ShowDialog() != true || string.IsNullOrWhiteSpace(ask.Value)) return;
+        var queue = App.Queues.AddQueue(ask.Value.Trim());
+        Footer.Text = Loc.F("Queue \"{0}\" was created. Add downloads to it with Move to queue.", queue.Name);
+    }
+
+    void FillQueuesMenu(ItemCollection items)
+    {
+        static MenuItem Entry(string header, Action? click = null, bool enabled = true)
+        {
+            var entry = new MenuItem { Header = header, IsEnabled = enabled };
+            if (click != null) entry.Click += (_, _) => click();
+            return entry;
+        }
+        MenuItem Parallel(string header, Func<int?> current, Action<int> set, Action? followOptions = null, bool following = false)
+        {
+            var parent = new MenuItem { Header = header };
+            if (followOptions != null)
+            {
+                var follow = new MenuItem { Header = Loc.F("Same as Options ({0})", App.Settings.MaxActive), IsCheckable = true, IsChecked = following };
+                follow.Click += (_, _) => followOptions();
+                parent.Items.Add(follow);
+                parent.Items.Add(new Separator());
+            }
+            foreach (var n in ParallelChoices)
+            {
+                var count = n;
+                var choice = new MenuItem { Header = count.ToString(System.Globalization.CultureInfo.InvariantCulture), IsCheckable = true, IsChecked = current() == count };
+                choice.Click += (_, _) => set(count);
+                parent.Items.Add(choice);
+            }
+            return parent;
+        }
+
+        items.Clear();
+        items.Add(Entry(Loc.T("New queue…"), () => NewQueue_Click(this, null)));
+        items.Add(new Separator());
+        foreach (var q in App.Queues.Queues)
+        {
+            var id = q.Id; var running = App.Queues.IsRunning(id);
+            var entry = new MenuItem { Header = Loc.F("{0}  ({1} files)", q.Name, q.ItemIds.Count) + (running ? "  ▶" : "") };
+            entry.Items.Add(Entry(Loc.T("Start this queue"), () => { App.Queues.Start(id); UpdateToolbar(); }, !running));
+            entry.Items.Add(Entry(Loc.T("Stop this queue"), () => { App.Queues.Stop(id); UpdateToolbar(); }, running));
+            entry.Items.Add(new Separator());
+            entry.Items.Add(Parallel(Loc.T("Files at the same time"), () => q.UseGlobalMaxParallel ? null : q.MaxParallel,
+                n => { App.Queues.SetUseGlobalMaxParallel(id, false); App.Queues.SetMaxParallel(id, n); },
+                () => App.Queues.SetUseGlobalMaxParallel(id, true), q.UseGlobalMaxParallel));
+            if (!q.IsMain)
+            {
+                entry.Items.Add(new Separator());
+                entry.Items.Add(Entry(Loc.T("Delete this queue"), () => App.Queues.RemoveQueue(id)));
+            }
+            items.Add(entry);
+        }
+        items.Add(new Separator());
+        items.Add(Entry(Loc.T("Start all queues"), () => { foreach (var q in App.Queues.Queues) App.Queues.Start(q.Id); UpdateToolbar(); }));
+        items.Add(Entry(Loc.T("Stop all queues"), () => { App.Queues.StopAll(); UpdateToolbar(); }));
+        items.Add(new Separator());
+        items.Add(Parallel(Loc.T("Downloads at the same time (outside queues)"), () => App.Settings.MaxActive, n => { App.Settings.MaxActive = n; App.Manager.MaxActive = n; }));
+        items.Add(Entry(Loc.T("Scheduler and queues…"), () => Scheduler_Click(this, null)));
+    }
+
+    /// <summary>The "•••" button of a row: the same menu as a right-click, for people who do not right-click.</summary>
+    void RowMore_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement button || Ancestor<ListViewItem>(button) is not { } row) return;
+        if (!row.IsSelected) { Downloads.SelectedItems.Clear(); row.IsSelected = true; }
+        if (Downloads.ContextMenu is not { } menu) return;
+        Downloads_ContextMenuOpening(Downloads, null!);
+        menu.PlacementTarget = button; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true;
+        e.Handled = true;
+    }
+
+    void CompactRows_Click(object sender, RoutedEventArgs e)
+    {
+        App.Settings.CompactRows = CompactRowsItem.IsChecked;
+        Downloads.Tag = CompactRowsItem.IsChecked ? "compact" : null;
+    }
+
     void StartQueue_Click(object sender, RoutedEventArgs e) => ShowQueueMenu((FrameworkElement)sender, start: true);
     void StopQueue_Click(object sender, RoutedEventArgs e) => ShowQueueMenu((FrameworkElement)sender, start: false);
 
@@ -1188,7 +1386,7 @@ public partial class MainWindow : Window
     {
         _pendingDelete = SelectedItems().ToList();
         if (_pendingDelete.Count == 0) return;
-        var remembered = App.Db.Get("delete_choice");
+        var remembered = App.Settings.DeleteAction != "ask" ? App.Settings.DeleteAction : App.Db.Get("delete_choice");
         if (remembered is "remove" or "file" or "complete")
         {
             _ = ApplyDeleteChoiceAsync(remembered);
@@ -1221,7 +1419,7 @@ public partial class MainWindow : Window
     async Task ApplyDeleteChoiceAsync(string choice)
     {
         var pending = _pendingDelete.ToList();
-        if (RememberDeleteChoice.IsChecked == true) App.Db.Set("delete_choice", choice);
+        if (RememberDeleteChoice.IsChecked == true) { App.Settings.DeleteAction = choice; App.Db.Set("delete_choice", choice); }
         CloseDeleteBar();
         foreach (var item in pending)
         {
@@ -1246,6 +1444,7 @@ public partial class MainWindow : Window
     void ResetDeleteChoice_Click(object? sender, RoutedEventArgs? e)
     {
         App.Db.Set("delete_choice", "");
+        App.Settings.DeleteAction = "ask";
         Footer.Text = Loc.T("Epsilon will ask what to delete next time.");
     }
 
@@ -1330,33 +1529,82 @@ public partial class MainWindow : Window
         try { Clipboard.SetText(text); _lastClipboard = text; } catch (Exception) { /* clipboard busy */ }
     }
     void Media_Click(object sender, RoutedEventArgs e) => new MediaWindow { Owner = this }.ShowDialog();
-    void Themes_Click(object? sender, RoutedEventArgs? e) => ThemePopup.IsOpen = true;
-    /// <summary>Applies a built-in theme selected from the More menu.</summary>
+    // ---- Themes panel: every theme as a card with a three-colour swatch, in one panel under the toolbar ----------------
+
+    static readonly (string Id, string Name, string P1, string P2, string P3, bool Light)[] ThemeCardList =
+    {
+        ("platinum-blue", "Platinum Blue", "#F3F8FF", "#176ED6", "#7DB7F2", true),
+        ("makan-lab", "Makan Lab", "#0A1019", "#2D83FF", "#42D7CF", false),
+        ("dracula", "Dracula", "#282A36", "#BD93F9", "#50FA7B", false),
+        ("obsidian-gold", "Obsidian Gold", "#14110B", "#E0B75A", "#FFF0C4", false),
+        ("emerald-executive", "Emerald", "#071B17", "#45D8AE", "#A8F1DC", false),
+        ("sapphire-noir", "Sapphire Noir", "#061327", "#2E86FF", "#8DC1FF", false),
+        ("royal-amethyst", "Royal Amethyst", "#150D2C", "#A873F0", "#D8B9FF", false),
+        ("arctic-glass", "Arctic Glass", "#0B2133", "#45C7FF", "#B9ECFF", false),
+        ("graphite-copper", "Graphite Copper", "#151311", "#E28A4D", "#FFD0AD", false),
+        ("rose-titanium", "Rose Titanium", "#20111B", "#E187B1", "#FFD1E7", false),
+        ("ivory-luxe", "Ivory Luxe", "#FFFAF0", "#9A6B32", "#DFC08F", true),
+        ("champagne-minimal", "Champagne", "#FBF7F1", "#9B682D", "#E6D3B7", true),
+    };
+
+    void Themes_Click(object? sender, RoutedEventArgs? e)
+    {
+        BuildThemeCards();
+        ThemePopup.IsOpen = !ThemePopup.IsOpen;
+    }
+
+    void ThemeClose_Click(object sender, RoutedEventArgs e) => ThemePopup.IsOpen = false;
+
+    void BuildThemeCards()
+    {
+        static Color C(string hex) => (Color)ColorConverter.ConvertFromString(hex);
+        ThemeCards.Children.Clear();
+        ThemeCards.Columns = ActualWidth < 900 ? 3 : ActualWidth < 1150 ? 4 : 6;
+        foreach (var theme in ThemeCardList)
+        {
+            var current = ThemeManager.Current == theme.Id;
+            // the swatch: page colour, accent and highlight as three diagonal bands
+            var swatch = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+            swatch.GradientStops.Add(new GradientStop(C(theme.P1), 0)); swatch.GradientStops.Add(new GradientStop(C(theme.P1), 0.5));
+            swatch.GradientStops.Add(new GradientStop(C(theme.P2), 0.5)); swatch.GradientStops.Add(new GradientStop(C(theme.P2), 0.75));
+            swatch.GradientStops.Add(new GradientStop(C(theme.P3), 0.75)); swatch.GradientStops.Add(new GradientStop(C(theme.P3), 1));
+            var name = new TextBlock { Text = Loc.T(theme.Name), FontSize = 12.5, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
+            name.SetResourceReference(TextBlock.ForegroundProperty, "Text");
+            var kind = new TextBlock { Text = Loc.T(current ? "Current" : theme.Light ? "Light" : "Dark"), FontSize = 11.5, Margin = new Thickness(0, 3, 0, 0) };
+            kind.SetResourceReference(TextBlock.ForegroundProperty, current ? "Accent" : "Muted");
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center }; text.Children.Add(name); text.Children.Add(kind);
+            var chip = new Border { Width = 40, Height = 33, CornerRadius = new CornerRadius(6), Background = swatch, Margin = new Thickness(0, 0, 10, 0), BorderThickness = new Thickness(1) };
+            chip.SetResourceReference(Border.BorderBrushProperty, "Border");
+            var row = new DockPanel(); DockPanel.SetDock(chip, Dock.Left); row.Children.Add(chip); row.Children.Add(text);
+            var card = new Border { CornerRadius = new CornerRadius(8), Padding = new Thickness(8), Margin = new Thickness(0, 0, 8, 8), BorderThickness = new Thickness(current ? 2 : 1), Child = row, Cursor = Cursors.Hand, Focusable = true };
+            card.SetResourceReference(Border.BackgroundProperty, "Surface");
+            card.SetResourceReference(Border.BorderBrushProperty, current ? "Accent" : "Border");
+            var id = theme.Id;
+            card.MouseLeftButtonUp += (_, _) => ApplyThemeFromPanel(id);
+            card.KeyDown += (_, k) => { if (k.Key is Key.Enter or Key.Space) ApplyThemeFromPanel(id); };
+            card.ToolTip = Loc.T(theme.Name);
+            ThemeCards.Children.Add(card);
+        }
+    }
+
+    /// <summary>Applies at once and keeps the panel open, so the user can try several themes in a row.</summary>
+    void ApplyThemeFromPanel(string id)
+    {
+        App.Settings.Theme = id;
+        ThemeManager.Apply(id);
+        BuildThemeCards();
+    }
+
+    /// <summary>Applies a built-in theme selected from a menu.</summary>
     void SetTheme_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string theme }) return;
         App.Settings.Theme = theme;
         ThemeManager.Apply(App.Settings.Theme);
         ThemePopup.IsOpen = false;
-        UpdateThemeGlyph();
     }
 
-    void UpdateThemeGlyph()
-    {
-        CurrentThemeText.Text = Loc.F("Current: {0} · all 12 palettes", ThemeManager.Current.Replace('-', ' '));
-        ThemeObsidianGoldCheck.Visibility = ThemeManager.Current == "obsidian-gold" ? Visibility.Visible : Visibility.Collapsed;
-        ThemePlatinumBlueCheck.Visibility = ThemeManager.Current == "platinum-blue" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeRoyalAmethystCheck.Visibility = ThemeManager.Current == "royal-amethyst" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeEmeraldExecutiveCheck.Visibility = ThemeManager.Current == "emerald-executive" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeChampagneMinimalCheck.Visibility = ThemeManager.Current == "champagne-minimal" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeGraphiteCopperCheck.Visibility = ThemeManager.Current == "graphite-copper" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeSapphireNoirCheck.Visibility = ThemeManager.Current == "sapphire-noir" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeIvoryLuxeCheck.Visibility = ThemeManager.Current == "ivory-luxe" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeRoseTitaniumCheck.Visibility = ThemeManager.Current == "rose-titanium" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeArcticGlassCheck.Visibility = ThemeManager.Current == "arctic-glass" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeDraculaCheck.Visibility = ThemeManager.Current == "dracula" ? Visibility.Visible : Visibility.Collapsed;
-        ThemeMakanLabCheck.Visibility = ThemeManager.Current == "makan-lab" ? Visibility.Visible : Visibility.Collapsed;
-    }
+    void UpdateThemeGlyph() { if (ThemePopup.IsOpen) BuildThemeCards(); }
 
     void AppMenu_Click(object sender, RoutedEventArgs e)
     {
@@ -1397,12 +1645,16 @@ public partial class MainWindow : Window
     {
         if (e.ChangedButton != MouseButton.Left) return;
         var source = e.OriginalSource as DependencyObject;
-        if (Ancestor<ListViewItem>(source) != null || Ancestor<GridViewColumnHeader>(source) != null || Ancestor<ScrollBar>(source) != null) return;
+        if (Ancestor<ButtonBase>(source) != null || Ancestor<ScrollBar>(source) != null) return;   // check boxes, the "•••" button, the scroll bar
 
         _marqueeArmed = true;
         _marqueeDragging = false;
+        _marqueeFromRow = Ancestor<ListViewItem>(source) != null;
         _marqueeStart = _marqueeCurrent = e.GetPosition(Downloads);
         _marqueeBase.Clear();
+        // Rows now fill the whole list, so a drag has to be able to start on a row as well. A plain click on a row still
+        // selects it as usual; only when the mouse really moves does it turn into a selection rectangle (see MouseMove).
+        if (_marqueeFromRow) return;
         if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0)
             foreach (var item in Downloads.SelectedItems.Cast<object>()) _marqueeBase.Add(item);
         else
@@ -1421,6 +1673,14 @@ public partial class MainWindow : Window
             if (Math.Abs(_marqueeCurrent.X - _marqueeStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
                 Math.Abs(_marqueeCurrent.Y - _marqueeStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
             _marqueeDragging = true;
+            if (_marqueeFromRow)
+            {
+                if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0)
+                    foreach (var item in Downloads.SelectedItems.Cast<object>()) _marqueeBase.Add(item);
+                else
+                    Downloads.UnselectAll();
+                Mouse.Capture(Downloads, CaptureMode.Element);
+            }
             SelectionRectangle.Visibility = Visibility.Visible;
             _marqueeScrollTimer.Start();
         }
@@ -1431,14 +1691,16 @@ public partial class MainWindow : Window
     void Downloads_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (!_marqueeArmed || e.ChangedButton != MouseButton.Left) return;
-        if (_marqueeDragging) UpdateMarquee();
+        var wasDragging = _marqueeDragging;
+        if (wasDragging) UpdateMarquee();
+        var fromRow = _marqueeFromRow;
         EndMarquee();
-        e.Handled = true;
+        if (wasDragging || !fromRow) e.Handled = true;   // a plain click on a row is left to the list
     }
 
     void Downloads_LostMouseCapture(object sender, MouseEventArgs e)
     {
-        if (_marqueeArmed) EndMarquee();
+        if (_marqueeArmed && !(_marqueeFromRow && !_marqueeDragging) && Mouse.Captured != Downloads) EndMarquee();
     }
 
     void UpdateMarquee()
@@ -1488,6 +1750,7 @@ public partial class MainWindow : Window
     {
         _marqueeArmed = false;
         _marqueeDragging = false;
+        _marqueeFromRow = false;
         _marqueeScrollTimer.Stop();
         SelectionRectangle.Visibility = Visibility.Collapsed;
         if (Mouse.Captured == Downloads) Mouse.Capture(null);

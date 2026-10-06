@@ -77,7 +77,7 @@ public sealed class FirstRunWindow : Window
     void Refresh()
     {
         var connected = WindowsIntegration.Browsers().Any(b => b.Registered);
-        _browserStatus.Text = Loc.T(connected ? "Connected - Makan will offer to grab video/audio and captured downloads." : "Not yet - open your browser's extensions page and turn it on.");
+        _browserStatus.Text = Loc.T(connected ? "Connected - Epsilon will offer to grab video/audio and captured downloads." : "Not yet - open your browser's extensions page and turn it on.");
 
         var ready = App.Manager.YtDlp is { } yt && File.Exists(yt.ExePath);
         _toolsStatus.Text = Loc.T(ready ? "Ready." : "Not installed yet - needed only for YouTube-style sites.");

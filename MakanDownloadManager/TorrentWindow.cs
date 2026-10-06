@@ -83,7 +83,7 @@ public sealed class TorrentWindow : Window
         var root = new DockPanel { Margin = new Thickness(16) };
 
         // ---- header: name, progress, live numbers, and the pause/open/magnet buttons
-        var header = new StackPanel();
+        var header = new StackPanel { Margin = new Thickness(16) };
         header.Children.Add(_title);
         header.Children.Add(_state.Tap(t => t.SetResourceReference(TextBlock.ForegroundProperty, "Muted")));
         header.Children.Add(_bar);
@@ -98,8 +98,10 @@ public sealed class TorrentWindow : Window
         buttons.Children.Add(Btn("Copy magnet link", CopyMagnet_Click));
         buttons.Children.Add(Btn("Remove…", Remove_Click));
         header.Children.Add(buttons);
-        DockPanel.SetDock(header, Dock.Top);
-        root.Children.Add(header);
+        var headerCard = new Border { Child = header };
+        if (TryFindResource("CardBorder") is Style cardStyle) headerCard.Style = cardStyle;
+        DockPanel.SetDock(headerCard, Dock.Top);
+        root.Children.Add(headerCard);
 
         // ---- footer: per-torrent speed limits (0/blank = follow the global limiter)
         var footer = new Border { Padding = new Thickness(0, 10, 0, 0), Margin = new Thickness(0, 10, 0, 0) };

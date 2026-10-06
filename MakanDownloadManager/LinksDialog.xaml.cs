@@ -110,7 +110,7 @@ public partial class LinksDialog : Window
     {
         InitializeComponent();
         _prompt = prompt;
-        Title = string.IsNullOrWhiteSpace(prompt.PageTitle) ? "Download All Links with Makan" : "Download All Links – " + prompt.PageTitle;
+        Title = string.IsNullOrWhiteSpace(prompt.PageTitle) ? "Download All Links with Epsilon" : "Download All Links – " + prompt.PageTitle;
         RefreshQueues();
         CategoryBox.ItemsSource = CategoryService.Names.ToList(); CategoryBox.SelectedIndex = CategoryService.Names.ToList().IndexOf("Video");
         FolderBox.Text = MainWindow.FolderForCategory(CategoryService.General);
@@ -158,13 +158,22 @@ public partial class LinksDialog : Window
     // ---------------------------------------------------------------- where the files go
 
     void SaveMode_Changed(object sender, RoutedEventArgs e) { if (IsLoaded) UpdateSavePaths(); }
-    void FolderBox_TextChanged(object sender, TextChangedEventArgs e) { if (IsLoaded && OneFolder.IsChecked == true) UpdateSavePaths(); }
+    void FolderBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        // Typing or browsing a folder means "put everything there": choose that option too. Before, a folder picked while
+        // another option was still ticked was silently ignored and the files went to the category folders instead.
+        if (FolderBox.IsKeyboardFocusWithin && OneFolder.IsChecked != true && !string.IsNullOrWhiteSpace(FolderBox.Text)) OneFolder.IsChecked = true;
+        if (OneFolder.IsChecked == true) UpdateSavePaths();
+    }
 
     void Browse_Click(object sender, RoutedEventArgs e)
     {
         using var dialog = new Forms.FolderBrowserDialog { Description = "Choose where to save all files", UseDescriptionForTitle = true, SelectedPath = FolderBox.Text };
         if (dialog.ShowDialog() != Forms.DialogResult.OK) return;
         FolderBox.Text = dialog.SelectedPath;
+        OneFolder.IsChecked = true;   // browsing for a folder chooses "All files to one folder"
+        UpdateSavePaths();
         OneFolder.IsChecked = true;
     }
 
@@ -205,7 +214,7 @@ public partial class LinksDialog : Window
 
     void Finish(DownloadChoice choice)
     {
-        if (Selected.Count == 0) { Dlg.Show(this, "Tick at least one link.", "Makan", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        if (Selected.Count == 0) { Dlg.Show(this, "Tick at least one link.", "Epsilon", MessageBoxButton.OK, MessageBoxImage.Information); return; }
         Choice = choice; DialogResult = true;
     }
     void Start_Click(object sender, RoutedEventArgs e) => Finish(DownloadChoice.Start);

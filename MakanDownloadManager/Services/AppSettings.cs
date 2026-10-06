@@ -48,6 +48,8 @@ public sealed class AppSettings
     public bool AskQueueOnLater { get => Flag("ask_queue_later", true); set => Put("ask_queue_later", value); }
     public bool AskQueueOnBatch { get => Flag("ask_queue_batch", true); set => Put("ask_queue_batch", value); }
     public bool IgnoreModifiedOnResume { get => Flag("ignore_modified", false); set => Put("ignore_modified", value); }
+    /// <summary>"ask" | "remove" | "file" | "complete". Completed files are always kept on disk.</summary>
+    public string DeleteAction { get => _store.Get("delete_action") is "remove" or "file" or "complete" ? _store.Get("delete_action")! : "ask"; set => _store.Set("delete_action", value is "remove" or "file" or "complete" ? value : "ask"); }
     /// <summary>"ask" | "suffix" | "overwrite" | "skip"</summary>
     public string DuplicateAction { get => Text("duplicate_action", "ask"); set => _store.Set("duplicate_action", value); }
     public string UserAgent { get => Text("user_agent", DefaultUserAgent); set => _store.Set("user_agent", value); }
@@ -89,7 +91,24 @@ public sealed class AppSettings
     /// <summary>"combined" shares the toolbar limit between all files; "per_file" gives every file the full limit.</summary>
     public string SpeedLimitScope { get => _store.Get("speed_limit_scope") == "per_file" ? "per_file" : "combined"; set => _store.Set("speed_limit_scope", value == "per_file" ? "per_file" : "combined"); }
     /// <summary>Multi-Network: spread one download over every connected network (Wi-Fi + Ethernet + tethering). Off by default.</summary>
+    /// <summary>Adapter names unticked in the Multi-Network panel, separated by "|".</summary>
+    public string MultiNetExcluded { get => _store.Get("multi_network_excluded") ?? ""; set => _store.Set("multi_network_excluded", value ?? ""); }
+    /// <summary>Multi-Network is only used for files at least this large (MB).</summary>
+    public int MultiNetMinMb { get => int.TryParse(_store.Get("multi_network_min_mb"), out var v) ? Math.Clamp(v, 1, 100000) : 32; set => _store.Set("multi_network_min_mb", Math.Clamp(value, 1, 100000).ToString()); }
+    /// <summary>False = every network gets the same number of connections; true (default) = the faster one gets more.</summary>
+    public bool MultiNetBalanceBySpeed { get => Flag("multi_network_by_speed", true); set => Put("multi_network_by_speed", value); }
+    public bool MultiNetAvoidMetered { get => Flag("multi_network_avoid_metered", true); set => Put("multi_network_avoid_metered", value); }
+    public int MultiNetDailyLimitMb { get => int.TryParse(_store.Get("multi_network_daily_limit_mb"), out var v) ? Math.Clamp(v, 0, 1_000_000) : 0; set => _store.Set("multi_network_daily_limit_mb", Math.Clamp(value, 0, 1_000_000).ToString()); }
+    public bool MultiNetKeepOneFree { get => Flag("multi_network_keep_one_free", false); set => Put("multi_network_keep_one_free", value); }
+    public int MultiNetRetryMinutes { get => int.TryParse(_store.Get("multi_network_retry_minutes"), out var v) ? Math.Clamp(v, 1, 1440) : 5; set => _store.Set("multi_network_retry_minutes", Math.Clamp(value, 1, 1440).ToString()); }
+    public bool MultiNetAskNewNetwork { get => Flag("multi_network_ask_new", false); set => Put("multi_network_ask_new", value); }
+    public string MultiNetKnown { get => _store.Get("multi_network_known") ?? ""; set => _store.Set("multi_network_known", value ?? ""); }
+    public string MultiNetColors { get => _store.Get("multi_network_colors") ?? ""; set => _store.Set("multi_network_colors", value ?? ""); }
+    public string MultiNetUsageDate { get => _store.Get("multi_network_usage_date") ?? ""; set => _store.Set("multi_network_usage_date", value ?? ""); }
+    public long MultiNetUsageBytes { get => long.TryParse(_store.Get("multi_network_usage_bytes"), out var v) ? Math.Max(0, v) : 0; set => _store.Set("multi_network_usage_bytes", Math.Max(0, value).ToString()); }
     public bool MultiNetwork { get => Flag("multi_network", false); set => Put("multi_network", value); }
+    /// <summary>Main list: hide the segment map and details line so more downloads fit on screen.</summary>
+    public bool CompactRows { get => Flag("compact_rows", false); set => Put("compact_rows", value); }
     public int Connections { get => int.TryParse(_store.Get("connections"), out var v) ? Math.Clamp(v, 1, 16) : 8; set => _store.Set("connections", Math.Clamp(value, 1, 16).ToString()); }
     public bool AutoResume { get => Flag("auto_resume", false); set => Put("auto_resume", value); }
     public bool KeepAwakeWhileDownloading { get => Flag("keep_awake_downloading", true); set => Put("keep_awake_downloading", value); }
@@ -102,8 +121,7 @@ public sealed class AppSettings
     public int TorrentPort { get => int.TryParse(_store.Get("torrent_port"), out var v) && v is 0 or (>= 1024 and <= 65535) ? v : 6881; set => _store.Set("torrent_port", (value is 0 or (>= 1024 and <= 65535) ? value : 6881).ToString()); }
     public bool TorrentDht { get => Flag("torrent_dht", true); set => Put("torrent_dht", value); }
     public bool TorrentPex { get => Flag("torrent_pex", true); set => Put("torrent_pex", value); }
-    /// <summary>Ask the router to forward the listening port automatically (UPnP, then NAT-PMP). No UI toggle yet;
-    /// on by default since it only helps peer connectivity and never blocks anything if the router doesn't answer.</summary>
+    /// <summary>Ask the router to forward the listening port automatically (UPnP, then NAT-PMP).</summary>
     public bool TorrentPortMapping { get => Flag("torrent_port_mapping", true); set => Put("torrent_port_mapping", value); }
     public int TorrentUploadSlots { get => int.TryParse(_store.Get("torrent_upload_slots"), out var v) ? Math.Clamp(v, 1, 50) : 4; set => _store.Set("torrent_upload_slots", Math.Clamp(value, 1, 50).ToString()); }
     public int TorrentMaxPeers { get => int.TryParse(_store.Get("torrent_max_peers"), out var v) ? Math.Clamp(v, 5, 500) : 60; set => _store.Set("torrent_max_peers", Math.Clamp(value, 5, 500).ToString()); }
@@ -111,6 +129,8 @@ public sealed class AppSettings
     /// <summary>Off by default: a finished torrent just stops (no upload) until the person deliberately shares it by choosing
     /// Resume in its details window. Turning this on restores the common torrent-client default of seeding automatically.</summary>
     public bool TorrentSeedAfterCompletion { get => Flag("torrent_seed_after", false); set => Put("torrent_seed_after", value); }
+    /// <summary>Torrent protocol encryption: "prefer" (default), "require" or "off".</summary>
+    public string TorrentEncryption { get => _store.Get("torrent_encryption") is "require" or "off" ? _store.Get("torrent_encryption")! : "prefer"; set => _store.Set("torrent_encryption", value is "require" or "off" ? value : "prefer"); }
     /// <summary>Stop sharing this many minutes after a torrent finished downloading; 0 = no time limit.</summary>
     public int TorrentSeedTimeMinutes { get => int.TryParse(_store.Get("torrent_seed_minutes"), out var v) ? Math.Clamp(v, 0, 525600) : 0; set => _store.Set("torrent_seed_minutes", Math.Clamp(value, 0, 525600).ToString()); }
     /// <summary>Stop sharing at this upload/download ratio; 0 = never stop on ratio.</summary>

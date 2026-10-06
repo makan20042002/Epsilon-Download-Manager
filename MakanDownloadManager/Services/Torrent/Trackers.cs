@@ -108,9 +108,9 @@ public static class TrackerClient
 
     static async Task<TrackerResponse> AnnounceUdpAsync(Uri uri, AnnounceRequest r, CancellationToken ct, TimeSpan timeout)
     {
-        using var udp = new UdpClient(AddressFamily.InterNetwork);
-        var address = (await Dns.GetHostAddressesAsync(uri.Host, ct).ConfigureAwait(false)).FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
+        var address = (await Dns.GetHostAddressesAsync(uri.Host, ct).ConfigureAwait(false)).FirstOrDefault(a => a.AddressFamily is AddressFamily.InterNetwork or AddressFamily.InterNetworkV6)
                       ?? throw new TrackerException("The tracker's address could not be found.");
+        using var udp = new UdpClient(address.AddressFamily);
         var endpoint = new IPEndPoint(address, uri.Port > 0 ? uri.Port : 80);
         var random = new Random();
 
@@ -157,7 +157,8 @@ public static class TrackerClient
         var reply = await Exchange(announce, 1, tx2).ConfigureAwait(false);
         if (reply.Length < 20) throw new TrackerException("The UDP tracker's answer is too short.");
         var interval = Math.Clamp(ReadInt(reply, 8), 1, 7200);
-        return new TrackerResponse(ParseCompact(reply.AsSpan(20).ToArray()).ToList(), interval, ReadInt(reply, 16), ReadInt(reply, 12), null);
+        var peers = address.AddressFamily == AddressFamily.InterNetworkV6 ? ParseCompact6(reply.AsSpan(20).ToArray()) : ParseCompact(reply.AsSpan(20).ToArray());
+        return new TrackerResponse(peers.ToList(), interval, ReadInt(reply, 16), ReadInt(reply, 12), null);
     }
 
     static int ReadInt(byte[] b, int o) => (b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3];

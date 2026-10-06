@@ -6,7 +6,7 @@ public sealed partial class TorrentSession
     public IReadOnlyList<PeerInfo> Peers()
     {
         lock (_sync)
-            return _peers.Select(p => new PeerInfo(p.EndPoint.ToString(), p.Client.Length > 0 ? p.Client : "?", p.Flags, p.Progress, p.Down.BytesPerSecond, p.Up.BytesPerSecond, p.Down.Total, p.Up.Total, p.Connection.Incoming))
+            return _peers.Select(p => new PeerInfo(p.EndPoint.ToString(), p.Client.Length > 0 ? p.Client : "?", p.Flags, p.Progress, p.Down.BytesPerSecond, p.Up.BytesPerSecond, p.Down.Total, p.Up.Total, p.Connection.Incoming, p.Connection.Encrypted))
                          .OrderByDescending(p => p.DownRate + p.UpRate).ThenBy(p => p.Address).ToList();
     }
 

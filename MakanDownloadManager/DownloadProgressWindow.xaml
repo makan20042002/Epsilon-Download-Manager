@@ -346,11 +346,12 @@
                   <!-- .eps-conn: grid template 34px 1fr 70px -->
                   <Grid Margin="0,4,16,4" ToolTip="{Binding Info}" Background="Transparent">
                     <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/>
+                      <ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="104"/><ColumnDefinition Width="70"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="{Binding Label}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#5E6B7E" VerticalAlignment="Center"/>
                     <ProgressBar x:Name="Bar" Grid.Column="1" Style="{StaticResource ConnBarStyle}" Value="{Binding Percent, Mode=OneWay}" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="Sp" Grid.Column="2" Text="{Binding SpeedText}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#5E6B7E" TextAlignment="Right" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Network}" FontFamily="{StaticResource Mono}" FontSize="9.5" Foreground="#7568DF" TextAlignment="Right" TextTrimming="CharacterEllipsis" ToolTip="{Binding Network}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Sp" Grid.Column="3" Text="{Binding SpeedText}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#5E6B7E" TextAlignment="Right" VerticalAlignment="Center"/>
                   </Grid>
                   <DataTemplate.Triggers>
                     <DataTrigger Binding="{Binding IsDone}" Value="True">

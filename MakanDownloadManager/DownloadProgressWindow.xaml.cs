@@ -23,7 +23,7 @@ public partial class DownloadProgressWindow : Window
     /// <summary>One connection row: a bar (how much of its fair share of the file it has fetched) and its live speed.</summary>
     public sealed class ConnectionView : INotifyPropertyChanged
     {
-        string _label = "", _speedText = "", _info = "";
+        string _label = "", _speedText = "", _info = "", _network = "";
         double _percent;
         bool _isDone;
 
@@ -32,6 +32,7 @@ public partial class DownloadProgressWindow : Window
         public double Percent { get => _percent; set => Set(ref _percent, value); }
         public string SpeedText { get => _speedText; set => Set(ref _speedText, value); }
         public string Info { get => _info; set => Set(ref _info, value); }
+        public string Network { get => _network; set => Set(ref _network, value); }
         public bool IsDone { get => _isDone; set => Set(ref _isDone, value); }
 
         // live speed bookkeeping (not shown directly)
@@ -234,6 +235,7 @@ public partial class DownloadProgressWindow : Window
 
             view.Label = "#" + row.Index.ToString("00", CultureInfo.InvariantCulture);
             view.Info = Loc.T(row.Info);
+            view.Network = row.Network;
 
             var done = row.Info == "Download complete." || _item.Status == nameof(DownloadStatus.Complete);
             var fraction = share > 0 ? row.Downloaded / share : row.Downloaded / (double)maxBytes;

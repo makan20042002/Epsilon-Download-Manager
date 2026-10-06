@@ -44,7 +44,9 @@ public partial class App : Application
         bool isFirst;
         try
         {
-            _singleInstance = new Mutex(true, @"Local\MakanDownloadManager.SingleInstance", out isFirst);
+            var instanceName = Environment.GetEnvironmentVariable("EPSILON_INSTANCE_NAME");
+            if (string.IsNullOrWhiteSpace(instanceName)) instanceName = "MakanDownloadManager.SingleInstance";
+            _singleInstance = new Mutex(true, @"Local\" + instanceName, out isFirst);
         }
         catch (System.Threading.AbandonedMutexException)
         {
@@ -142,6 +144,8 @@ public partial class App : Application
     }
 
     /// <summary>Built the first time a magnet link or .torrent file is used, so nobody who never touches torrents opens a network port.</summary>
+    static EncryptionMode TorrentEncryptionMode() => Settings.TorrentEncryption switch { "require" => EncryptionMode.Require, "off" => EncryptionMode.Off, _ => EncryptionMode.Prefer };
+
     static TorrentEngine CreateTorrentEngine()
     {
         var options = new TorrentEngineOptions
@@ -150,6 +154,7 @@ public partial class App : Application
             UploadSlots = Settings.TorrentUploadSlots, MaxPeersPerTorrent = Settings.TorrentMaxPeers,
             SeedAfterCompletion = Settings.TorrentSeedAfterCompletion, SeedRatioLimit = Settings.TorrentSeedRatioLimit,
             SeedTimeLimit = TimeSpan.FromMinutes(Settings.TorrentSeedTimeMinutes),
+            Encryption = TorrentEncryptionMode(),
             StateDirectory = Path.Combine(PortableModeService.DataDirectory, "torrents")
         };
         var engine = new TorrentEngine(options);
@@ -167,6 +172,19 @@ public partial class App : Application
         Manager.LimitScope = Settings.SpeedLimitScope == "per_file" ? SpeedLimitScope.PerDownload : SpeedLimitScope.Combined;
         Manager.GlobalLimitBytesPerSec = Settings.SpeedKbps * 1024;
         Manager.MultiNetworkEnabled = Settings.MultiNetwork;
+        Manager.MultiNetworkExcluded = new HashSet<string>(Settings.MultiNetExcluded.Split('|', StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
+        Manager.MultiNetworkMinBytes = Settings.MultiNetMinMb * 1024L * 1024L;
+        Manager.MultiNetworkBalanceBySpeed = Settings.MultiNetBalanceBySpeed;
+        Manager.MultiNetworkAvoidMetered = Settings.MultiNetAvoidMetered;
+        Manager.MultiNetworkKeepOneFree = Settings.MultiNetKeepOneFree;
+        Manager.MultiNetworkRetryMinutes = Settings.MultiNetRetryMinutes;
+        Manager.MultiNetworkAskNewNetwork = Settings.MultiNetAskNewNetwork;
+        Manager.MultiNetworkKnown = new HashSet<string>(Settings.MultiNetKnown.Split('|', StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
+        Manager.MultiNetworkColors = ParseNetworkColors(Settings.MultiNetColors);
+        Manager.MultiNetworkDailyLimitBytes = Settings.MultiNetDailyLimitMb * 1024L * 1024L;
+        var usageDay = DateOnly.TryParse(Settings.MultiNetUsageDate, out var savedUsageDay) ? savedUsageDay : DateOnly.FromDateTime(DateTime.Now);
+        Manager.RestoreMultiNetworkUsage(usageDay, Settings.MultiNetUsageBytes);
+        Manager.MultiNetworkUsageChanged = (day, bytes) => { Settings.MultiNetUsageDate = day.ToString("yyyy-MM-dd"); Settings.MultiNetUsageBytes = bytes; };
         Manager.TempDirectory = string.IsNullOrWhiteSpace(Settings.TempDirectory) ? null : Settings.TempDirectory;
         Manager.SetFileDateFromServer = Settings.SetFileDateFromServer;
         Manager.IgnoreModifiedOnResume = Settings.IgnoreModifiedOnResume;
@@ -181,6 +199,8 @@ public partial class App : Application
             torrents.Options.SeedAfterCompletion = Settings.TorrentSeedAfterCompletion;
             torrents.Options.SeedRatioLimit = Settings.TorrentSeedRatioLimit;
             torrents.Options.SeedTimeLimit = TimeSpan.FromMinutes(Settings.TorrentSeedTimeMinutes);
+            torrents.Options.Encryption = TorrentEncryptionMode();
+            torrents.Options.EnablePortMapping = Settings.TorrentPortMapping;
             torrents.Options.UploadSlots = Settings.TorrentUploadSlots;
             torrents.Options.MaxPeersPerTorrent = Settings.TorrentMaxPeers;
         }
@@ -201,6 +221,17 @@ public partial class App : Application
         Manager.ProxyPassword = Settings.ProxyPassword;
         SleepGuard?.Refresh();
         RefreshYtDlp();
+    }
+
+    static IReadOnlyDictionary<string, string> ParseNetworkColors(string text)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var part in text.Split('|', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var at = part.LastIndexOf('=');
+            if (at > 0 && at < part.Length - 1) result[part[..at]] = part[(at + 1)..];
+        }
+        return result;
     }
 
     /// <summary>Starts, stops, or leaves the remote status server alone; a changed port needs a restart of the

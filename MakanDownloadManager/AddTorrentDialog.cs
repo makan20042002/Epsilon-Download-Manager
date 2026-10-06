@@ -21,30 +21,40 @@ public sealed class AddTorrentDialog : Window
     {
         Owner = owner;
         Title = Loc.T("Add torrent");
-        Width = 460; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
+        Width = 560; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         if (TryFindResource("AppWindow") is Style windowStyle) Style = windowStyle;
 
-        var root = new StackPanel { Margin = new Thickness(16) };
-        root.Children.Add(new TextBlock { Text = Loc.T("Paste a magnet link:"), Margin = new Thickness(0, 0, 0, 6) });
-        root.Children.Add(_box);
-        root.Children.Add(_error);
+        var root = new StackPanel();
+        var header = new StackPanel { Margin = new Thickness(22, 18, 22, 14) };
+        header.Children.Add(new TextBlock { Text = Loc.T("Add torrent"), FontSize = 22, FontWeight = FontWeights.SemiBold });
+        header.Children.Add(new TextBlock { Text = Loc.T("Paste a magnet address or choose a .torrent file."), Margin = new Thickness(0, 3, 0, 0) }.Tap(t => t.SetResourceReference(TextBlock.ForegroundProperty, "Muted")));
+        root.Children.Add(header);
+        var body = new StackPanel { Margin = new Thickness(18) };
+        var card = new Border { Padding = new Thickness(18), Margin = new Thickness(22, 0, 22, 0), Child = body };
+        if (TryFindResource("CardBorder") is Style cardStyle) card.Style = cardStyle;
+        root.Children.Add(card);
+        body.Children.Add(new TextBlock { Text = Loc.T("Magnet link"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
+        body.Children.Add(_box);
+        body.Children.Add(_error);
         _error.SetResourceReference(TextBlock.ForegroundProperty, "Danger");
 
         var orRow = new TextBlock { Text = Loc.T("or"), Margin = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Center };
         orRow.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
-        root.Children.Add(orRow);
+        body.Children.Add(orRow);
 
         var browse = new Button { Content = Loc.T("Browse for a .torrent file…"), Padding = new Thickness(12, 6, 12, 6), HorizontalAlignment = HorizontalAlignment.Left };
         browse.Click += Browse_Click;
-        root.Children.Add(browse);
+        body.Children.Add(browse);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 18, 0, 0) };
         var cancel = new Button { Content = Loc.T("Cancel"), Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
         var ok = new Button { Content = Loc.T("Add"), Padding = new Thickness(14, 6, 14, 6), Style = TryFindResource("PrimaryButton") as Style, IsDefault = true };
         ok.Click += Ok_Click;
         buttons.Children.Add(cancel); buttons.Children.Add(ok);
-        root.Children.Add(buttons);
+        var footer = new Border { Padding = new Thickness(22, 14, 22, 14), Margin = new Thickness(0, 14, 0, 0), Child = buttons };
+        footer.SetResourceReference(Border.BackgroundProperty, "HeaderBg"); footer.SetResourceReference(Border.BorderBrushProperty, "Border"); footer.BorderThickness = new Thickness(0, 1, 0, 0);
+        root.Children.Add(footer);
 
         Content = root;
         Loaded += (_, _) => _box.Focus();

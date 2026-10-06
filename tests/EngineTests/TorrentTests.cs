@@ -56,7 +56,8 @@ static class TorrentTests
         var options = new TorrentEngineOptions
         {
             ListenPort = 0, EnableDht = dht, StateDirectory = state ?? Sub(), MinAnnounceInterval = TimeSpan.FromSeconds(1),
-            UdpTrackerTimeout = TimeSpan.FromSeconds(1), SeedRatioLimit = 0, MaxPeersPerTorrent = 30
+            UdpTrackerTimeout = TimeSpan.FromSeconds(1), SeedRatioLimit = 0, MaxPeersPerTorrent = 30,
+            Encryption = EncryptionMode.Off   // the mock swarm speaks plain BitTorrent; the encryption test turns it on itself
         };
         tweak?.Invoke(options);
         var engine = new TorrentEngine(options) { AllowLocalPeers = true };
@@ -109,6 +110,7 @@ static class TorrentTests
         await Run("Torrent: dead trackers do not delay the start; the seed-time limit stops sharing and survives a restart", FastStartAndSeedTime);
         await Run("Torrent: download and upload speed limits (global and per torrent)", Limits);
         await Run("Torrent: seeding uploads to another client", Seeding);
+        await Run("Torrent: protocol encryption (MSE) between two engines, required on both sides; fallback to plain peers", Encryption);
         await Run("Torrent: trackerless magnet through the DHT", DhtLookup);
         await Run("Torrent: remove with and without deleting the files", Removal);
         await Run("Torrent: items in the download list (start, pause, resume, .torrent file, remove)", InDownloadList);
@@ -179,6 +181,9 @@ static class TorrentTests
         T.Check("single file: name, size, pieces, last piece is shorter", meta is { Name: "file.bin", TotalLength: 20000, PieceCount: 2, IsMultiFile: false } && meta.PieceSize(0) == 16384 && meta.PieceSize(1) == 3616);
         T.Check("tracker tiers keep udp/http and drop unknown protocols", meta.TrackerTiers.Count == 1 && meta.TrackerTiers[0].SequenceEqual(new[] { "udp://a.example:80", "http://b.example/announce" }));
         T.Check("BEP 19 web seeds keep HTTP(S), reject other schemes, and survive rebuilding", meta.WebSeeds.SequenceEqual(new[] { "https://cdn.example/file.bin" }) && MetaInfo.Parse(meta.ToTorrentFile()).WebSeeds.SequenceEqual(meta.WebSeeds));
+        var compact6 = IPAddress.Parse("2001:db8::25").GetAddressBytes().Concat(new byte[] { 0x1A, 0xE1 }).ToArray();
+        var ipv6Tracker = TrackerClient.ParseHttp(Bencode.Encode(new Dictionary<string, object> { ["interval"] = 900L, ["peers"] = Array.Empty<byte>(), ["peers6"] = compact6 }));
+        T.Check("HTTP trackers can return compact IPv6 peers", ipv6Tracker.Peers.Single().Address.Equals(IPAddress.Parse("2001:db8::25")) && ipv6Tracker.Peers.Single().Port == 6881);
         T.Check("the info hash is the SHA-1 of the info bytes", meta.InfoHash.Length == 20 && meta.InfoHashHex.Length == 40 && MetaInfo.FromInfo(meta.RawInfo).InfoHashHex == meta.InfoHashHex);
         T.Check("a torrent file can be rebuilt from its info (magnet metadata is kept as .torrent)", MetaInfo.Parse(meta.ToTorrentFile()).InfoHashHex == meta.InfoHashHex);
 
@@ -218,7 +223,7 @@ static class TorrentTests
     {
         using var swarm = new Swarm(Script(), "--seeders", "2");
         var hash = Convert.FromHexString(swarm.InfoHash);
-        var request = new AnnounceRequest(hash, Encoding.ASCII.GetBytes("-MK0170-abcdefghijkl"), 6881, 0, 0, 1000, "started");
+        var request = new AnnounceRequest(hash, Encoding.ASCII.GetBytes("-MK0171-abcdefghijkl"), 6881, 0, 0, 1000, "started");
         var http = await TrackerClient.AnnounceAsync(swarm.Info.GetProperty("http_tracker").GetString()!, request, CancellationToken.None);
         T.Check("HTTP tracker: both seeders come back (compact peers)", http.Peers.Select(p => p.Port).OrderBy(x => x).SequenceEqual(swarm.SeederPorts.OrderBy(x => x)) && http.IntervalSeconds >= 1 && http.Seeders == 2);
         var udp = await TrackerClient.AnnounceAsync(swarm.UdpTracker, request, CancellationToken.None, TimeSpan.FromSeconds(2));
@@ -435,6 +440,44 @@ static class TorrentTests
             session.Start();
             T.Check("after a restart the limit still counts from the original completion, so sharing does not start over", await Until(() => session.State == TorrentState.Finished, 8), session.State.ToString());
         }
+    }
+
+    static async Task Encryption()
+    {
+        using var swarm = new Swarm(Script(), "--files", "e.bin:900000", "--piece", "32768");
+        var meta = MetaInfo.Parse(File.ReadAllBytes(swarm.TorrentPath));
+        var seedDir = Sub();
+        // a seeder that only accepts encrypted peers, fed from the plain mock swarm first
+        using var seeder = NewEngine(tweak: o => o.Encryption = EncryptionMode.Prefer);
+        var seed = seeder.AddTorrent(meta, seedDir);
+        seed.Start();
+        T.Check("with encryption preferred, plain peers are still used (fallback)", await Done(seed, 40), seed.Error + " / " + seed.State);
+        T.Check("...over plain connections", seed.Peers().All(p => !p.Encrypted));
+        await Until(() => seed.State == TorrentState.Seeding, 10);
+        seeder.Options.Encryption = EncryptionMode.Require;
+
+        // a leecher that requires encryption and knows only the seeder: every byte arrives over RC4
+        var none = MetaInfo.Parse(Bencode.Encode(Strip((Dictionary<string, object>)Bencode.Parse(File.ReadAllBytes(swarm.TorrentPath)))));
+        var leechDir = Sub();
+        using var leecher = NewEngine(tweak: o => o.Encryption = EncryptionMode.Require);
+        var leech = leecher.AddTorrent(none, leechDir);
+        leech.Start();
+        leech.AddCandidate(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, seeder.ListenPort));
+        T.Check("two engines that both require encryption connect", await Until(() => leech.PeerCount > 0, 15), leech.State.ToString());
+        T.Check("the connection is encrypted on both ends", leech.Peers().Any(p => p.Encrypted) && seed.Peers().Any(p => p.Encrypted));
+        T.Check("the whole torrent downloads over the encrypted connection", await Done(leech, 40), leech.Error + " / " + leech.State);
+        T.Check("and is byte-exact", Directory.GetFiles(leechDir, "*", SearchOption.AllDirectories).Where(f => new FileInfo(f).Length == swarm.Total).Any(f => T.Sha(f) == T.Sha(swarm.Payload)));
+
+        // a plain-only client is refused by the encryption-only seeder
+        var plainDir = Sub();
+        using var plain = NewEngine(tweak: o => o.Encryption = EncryptionMode.Off);
+        var p2 = plain.AddTorrent(none, plainDir);
+        p2.Start();
+        p2.AddCandidate(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, seeder.ListenPort));
+        await Task.Delay(3000);
+        T.Check("a peer that cannot encrypt gets nothing from a seeder that requires encryption", p2.PeerCount == 0 && p2.Progress < 1, p2.PeerCount + " / " + p2.Progress);
+
+        static Dictionary<string, object> Strip(Dictionary<string, object> top) { top.Remove("announce"); top.Remove("announce-list"); return top; }
     }
 
     static async Task Seeding()

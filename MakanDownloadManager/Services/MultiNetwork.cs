@@ -7,10 +7,12 @@ using MakanDownloadManager.Models;
 namespace MakanDownloadManager.Services;
 
 /// <summary>One internet connection of this computer that can carry downloads on its own (Wi-Fi, Ethernet, a tethered phone...).</summary>
-public sealed record NetworkLink(string Name, string Kind, IPAddress Address)
+public sealed record NetworkLink(string Name, string Kind, IPAddress Address, long SpeedBps = 0, bool IsMetered = false, string Color = "#7568DF", int InterfaceIndex = 0)
 {
     public override string ToString() => $"{Kind} \"{Name}\" ({Address})";
 }
+
+public sealed record NetworkProbeResult(NetworkLink Link, bool Success, long BytesPerSecond, string PublicAddress, string Error);
 
 /// <summary>
 /// Finds the network connections that currently have their own route to the internet. Multi-Network (off by default)
@@ -35,7 +37,11 @@ public static class NetworkLinks
                 var address = properties.UnicastAddresses.Select(u => u.Address)
                     .FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a) && !IsLinkLocal(a));
                 if (address == null) continue;
-                links.Add(new NetworkLink(nic.Name, KindOf(nic), address));
+                long speed; try { speed = Math.Max(0, nic.Speed); } catch (Exception) { speed = 0; }
+                var kind = KindOf(nic);
+                var metered = kind is "Mobile" or "USB tethering";
+                int interfaceIndex; try { interfaceIndex = properties.GetIPv4Properties()?.Index ?? 0; } catch (Exception) { interfaceIndex = 0; }
+                links.Add(new NetworkLink(nic.Name, kind, address, speed, metered, "#7568DF", interfaceIndex));
             }
         }
         catch (Exception) { /* the list of adapters could not be read: behave as if there is one ordinary connection */ }
@@ -66,6 +72,106 @@ public sealed partial class DownloadManager
     /// <summary>Multi-Network: when on, a segmented download spreads its connections over every network that is connected
     /// (Wi-Fi + Ethernet + tethered phone...). Off by default; has no effect while only one network is connected.</summary>
     public bool MultiNetworkEnabled { get; set; }
+
+    /// <summary>Adapters (by name) the user unticked in the Multi-Network panel: never used for Multi-Network.</summary>
+    public IReadOnlySet<string> MultiNetworkExcluded { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Files smaller than this are not worth spreading over several networks.</summary>
+    public long MultiNetworkMinBytes { get; set; } = 32L * 1024 * 1024;
+    /// <summary>True: the faster adapter gets more of the connections. False: every adapter gets the same number.</summary>
+    public bool MultiNetworkBalanceBySpeed { get; set; } = true;
+    public bool MultiNetworkAvoidMetered { get; set; } = true;
+    public bool MultiNetworkKeepOneFree { get; set; }
+    public bool MultiNetworkAskNewNetwork { get; set; }
+    public IReadOnlySet<string> MultiNetworkKnown { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, string> MultiNetworkColors { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    public int MultiNetworkRetryMinutes { get; set; } = 5;
+    public long MultiNetworkDailyLimitBytes { get; set; }
+    public long MultiNetworkTodayBytes => Interlocked.Read(ref _multiNetworkTodayBytes);
+    public Action<DateOnly, long>? MultiNetworkUsageChanged { get; set; }
+    long _multiNetworkTodayBytes;
+    DateOnly _multiNetworkUsageDay = DateOnly.FromDateTime(DateTime.Now);
+    long _lastPersistedMultiNetworkBytes;
+
+    public void RestoreMultiNetworkUsage(DateOnly day, long bytes)
+    {
+        _multiNetworkUsageDay = day;
+        Interlocked.Exchange(ref _multiNetworkTodayBytes, day == DateOnly.FromDateTime(DateTime.Now) ? Math.Max(0, bytes) : 0);
+    }
+
+    void ResetUsageDayIfNeeded()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        if (today == _multiNetworkUsageDay) return;
+        _multiNetworkUsageDay = today;
+        Interlocked.Exchange(ref _multiNetworkTodayBytes, 0);
+        Interlocked.Exchange(ref _lastPersistedMultiNetworkBytes, 0);
+        MultiNetworkUsageChanged?.Invoke(today, 0);
+    }
+
+    void RecordMultiNetworkBytes(long bytes)
+    {
+        if (bytes <= 0) return;
+        ResetUsageDayIfNeeded();
+        var total = Interlocked.Add(ref _multiNetworkTodayBytes, bytes);
+        var previous = Interlocked.Read(ref _lastPersistedMultiNetworkBytes);
+        if (total - previous < 4L * 1024 * 1024 || Interlocked.CompareExchange(ref _lastPersistedMultiNetworkBytes, total, previous) != previous) return;
+        MultiNetworkUsageChanged?.Invoke(_multiNetworkUsageDay, total);
+    }
+
+    bool MultiNetworkBudgetAvailable()
+    {
+        ResetUsageDayIfNeeded();
+        return MultiNetworkDailyLimitBytes <= 0 || MultiNetworkTodayBytes < MultiNetworkDailyLimitBytes;
+    }
+
+    /// <summary>The networks Multi-Network would use right now: connected and not unticked by the user.</summary>
+    public IReadOnlyList<NetworkLink> UsableLinks()
+    {
+        if (!MultiNetworkBudgetAvailable()) return Array.Empty<NetworkLink>();
+        var links = CurrentLinks().Where(l => !MultiNetworkExcluded.Contains(l.Name));
+        if (MultiNetworkAvoidMetered) links = links.Where(l => !l.IsMetered);
+        if (MultiNetworkAskNewNetwork) links = links.Where(l => MultiNetworkKnown.Contains(l.Name));
+        var list = links.Select(l => l with { Color = MultiNetworkColors.TryGetValue(l.Name, out var color) ? color : l.Color }).ToList();
+        if (MultiNetworkKeepOneFree && list.Count > 1)
+        {
+            var keep = list.OrderByDescending(l => l.SpeedBps).First();
+            list.Remove(keep);
+        }
+        return list;
+    }
+
+    /// <summary>Which network each connection of a download uses. Every network gets at least one connection; with
+    /// "balance by speed" the rest are shared in proportion to the adapters' link speeds.</summary>
+    internal static int[] AssignWorkers(IReadOnlyList<NetworkLink> links, int workers, bool bySpeed)
+    {
+        var map = new int[Math.Max(1, workers)];
+        if (links.Count == 0) return map;
+        var total = links.Sum(l => (double)Math.Max(0, l.SpeedBps));
+        if (!bySpeed || total <= 0 || links.Any(l => l.SpeedBps <= 0) || map.Length <= links.Count)
+        {
+            for (var i = 0; i < map.Length; i++) map[i] = i % links.Count;
+            return map;
+        }
+        var counts = new int[links.Count];
+        for (var i = 0; i < counts.Length; i++) counts[i] = 1;
+        for (var left = map.Length - links.Count; left > 0; left--)
+        {
+            // give the next connection to the network that is furthest below its fair share
+            var best = 0; var bestGap = double.MinValue;
+            for (var i = 0; i < counts.Length; i++)
+            {
+                var gap = links[i].SpeedBps / total - counts[i] / (double)map.Length;
+                if (gap > bestGap) { bestGap = gap; best = i; }
+            }
+            counts[best]++;
+        }
+        // interleave, so that when throttling retires the highest-numbered connections every network keeps some
+        var k = 0;
+        while (k < map.Length)
+            for (var i = 0; i < counts.Length && k < map.Length; i++)
+                if (counts[i] > 0) { counts[i]--; map[k++] = i; }
+        return map;
+    }
 
     /// <summary>Replaces the adapter scan (tests).</summary>
     public Func<IReadOnlyList<NetworkLink>>? LinkProbe { get; set; }
@@ -100,12 +206,43 @@ public sealed partial class DownloadManager
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         ConnectTimeout = TimeSpan.FromSeconds(20),
         UseProxy = true, Proxy = new LiveProxy(this),
-        ConnectCallback = (context, ct) => ConnectFromAsync(link.Address, context.DnsEndPoint, ct)
+        ConnectCallback = (context, ct) => ConnectFromAsync(link, context.DnsEndPoint, ct)
     }), disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan });
 
-    /// <summary>Opens a TCP connection whose local end is bound to one adapter's address, which is what makes Windows send it out through that adapter.</summary>
-    static async ValueTask<Stream> ConnectFromAsync(IPAddress local, DnsEndPoint target, CancellationToken ct)
+    /// <summary>Performs a small real transfer through every selected adapter. This verifies the route binding rather
+    /// than merely reporting that Windows lists the adapter as connected.</summary>
+    public async Task<IReadOnlyList<NetworkProbeResult>> ProbeNetworkLinksAsync(CancellationToken ct)
     {
+        var links = CurrentLinks().Where(l => !MultiNetworkExcluded.Contains(l.Name)).ToList();
+        var tasks = links.Select(async link =>
+        {
+            try
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeout.CancelAfter(TimeSpan.FromSeconds(20));
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                using var request = new HttpRequestMessage(HttpMethod.Get, "https://speed.cloudflare.com/__down?bytes=1048576") { Version = HttpVersion.Version11, VersionPolicy = HttpVersionPolicy.RequestVersionOrLower };
+                using var response = await ClientFor(link).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
+                var buffer = new byte[64 * 1024]; long bytes = 0;
+                while (bytes < 1024 * 1024) { var read = await stream.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, 1024 * 1024 - bytes)), timeout.Token).ConfigureAwait(false); if (read == 0) break; bytes += read; }
+                clock.Stop();
+                var rate = clock.Elapsed.TotalSeconds > 0 ? (long)(bytes / clock.Elapsed.TotalSeconds) : 0;
+                return new NetworkProbeResult(link, bytes > 0, rate, "", bytes > 0 ? "" : "No data was received.");
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or SocketException or OperationCanceledException)
+            {
+                return new NetworkProbeResult(link, false, 0, "", ex is OperationCanceledException ? "Timed out." : ex.Message);
+            }
+        });
+        return await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
+
+    /// <summary>Opens a TCP connection whose local end is bound to one adapter's address, which is what makes Windows send it out through that adapter.</summary>
+    static async ValueTask<Stream> ConnectFromAsync(NetworkLink link, DnsEndPoint target, CancellationToken ct)
+    {
+        var local = link.Address;
         var addresses = IPAddress.TryParse(target.Host, out var literal)
             ? new[] { literal }
             : await Dns.GetHostAddressesAsync(target.Host, local.AddressFamily, ct).ConfigureAwait(false);
@@ -115,6 +252,15 @@ public sealed partial class DownloadManager
             var socket = new Socket(local.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
             try
             {
+                // Binding selects the source address; IP_UNICAST_IF also forces Windows to use this interface when
+                // several default routes/VPNs exist. Without both, Windows may silently send every worker over the
+                // lowest-metric route even though two adapters were displayed in the UI.
+                if (link.InterfaceIndex > 0)
+                {
+                    var index = local.AddressFamily == AddressFamily.InterNetwork ? IPAddress.HostToNetworkOrder(link.InterfaceIndex) : link.InterfaceIndex;
+                    const int IpUnicastIf = 31; // Windows IP_UNICAST_IF / IPV6_UNICAST_IF
+                    socket.SetSocketOption(local.AddressFamily == AddressFamily.InterNetwork ? SocketOptionLevel.IP : SocketOptionLevel.IPv6, (SocketOptionName)IpUnicastIf, index);
+                }
                 socket.Bind(new IPEndPoint(local, 0));
                 await socket.ConnectAsync(new IPEndPoint(address, target.Port), ct).ConfigureAwait(false);
                 return new NetworkStream(socket, ownsSocket: true);

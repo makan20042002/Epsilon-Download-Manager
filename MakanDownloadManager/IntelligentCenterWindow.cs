@@ -34,6 +34,7 @@ public sealed class IntelligentCenterWindow : Window
         Width = 1080; Height = 740; MinWidth = 860; MinHeight = 560;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         if (TryFindResource("AppWindow") is Style windowStyle) Style = windowStyle;
+        if (TryFindResource("SideTabs") is Style sideTabs) _tabs.Style = sideTabs;
 
         Content = BuildRoot();
         RefreshAll();
@@ -146,12 +147,12 @@ public sealed class IntelligentCenterWindow : Window
 
     UIElement BuildHeader()
     {
-        var grid = new Grid { Margin = new Thickness(0, 0, 0, 14) };
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 14), Height = 68 };
         grid.ColumnDefinitions.Add(new ColumnDefinition());
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var title = new StackPanel();
-        title.Children.Add(Label("INTELLIGENT CENTER", 24, true));
+        title.Children.Add(Label("INTELLIGENT CENTER", 24, true, "Accent"));
         title.Children.Add(Label("Server learning · bandwidth profiles · health · recovery · backup", 12, false, "Muted", 3, 0));
         grid.Children.Add(title);
 
@@ -175,7 +176,7 @@ public sealed class IntelligentCenterWindow : Window
         panel.Children.Add(metrics);
 
         var cards = new WrapPanel();
-        InfoCard(cards, "Server learning", "Makan remembers which servers throttle you and starts them with fewer connections next time. Nothing leaves your computer.");
+        InfoCard(cards, "Server learning", "Epsilon remembers which servers throttle you and starts them with fewer connections next time. Nothing leaves your computer.");
         InfoCard(cards, "Bandwidth profiles", "Switch the global speed limit in one click, for example while gaming or during a call.");
         InfoCard(cards, "Health and recovery", "Checks the database, disk space, browser link and tools, and lists downloads that were interrupted.");
         InfoCard(cards, "Private by design", "Browser cookies are stored encrypted for your Windows account; diagnostic reports hide cookies and tokens.");
@@ -209,7 +210,7 @@ public sealed class IntelligentCenterWindow : Window
     UIElement BuildPlanner()
     {
         var panel = Column();
-        Section(panel, "Smart download planner", "Paste an address to preview where Makan would save it and how many connections it would use. Nothing is downloaded.");
+        Section(panel, "Smart download planner", "Paste an address to preview where Epsilon would save it and how many connections it would use. Nothing is downloaded.");
         _plannerUrl.Padding = new Thickness(8);
         _plannerUrl.MinWidth = 600;
         _plannerUrl.HorizontalAlignment = HorizontalAlignment.Left;
@@ -256,7 +257,7 @@ public sealed class IntelligentCenterWindow : Window
     UIElement BuildSecurity()
     {
         var panel = Column();
-        Section(panel, "Security and backup", "Your download list lives in a local SQLite database. Makan keeps a backup copy that is refreshed every time it starts.");
+        Section(panel, "Security and backup", "Your download list lives in a local SQLite database. Epsilon keeps a backup copy that is refreshed every time it starts.");
         _securityText.TextWrapping = TextWrapping.Wrap;
         _securityText.SetResourceReference(TextBlock.ForegroundProperty, "Text");
         panel.Children.Add(_securityText);
@@ -265,7 +266,7 @@ public sealed class IntelligentCenterWindow : Window
         actions.Children.Add(MakeButton("Create backup…", (_, _) => BackupDatabase(), true));
         actions.Children.Add(MakeButton("Open data folder", (_, _) => OpenDataFolder()));
         panel.Children.Add(actions);
-        panel.Children.Add(Label("If the database is ever damaged, Makan restores its automatic backup copy by itself the next time it starts.", 11, false, "Muted", 12, 0, true));
+        panel.Children.Add(Label("If the database is ever damaged, Epsilon restores its automatic backup copy by itself the next time it starts.", 11, false, "Muted", 12, 0, true));
         return panel;
     }
 
@@ -307,11 +308,11 @@ public sealed class IntelligentCenterWindow : Window
     void RefreshServers()
     {
         _servers.Children.Clear();
-        Section(_servers, "Server intelligence", "What Makan has learned from your finished downloads. A server that keeps refusing connections gets a lower limit.");
+        Section(_servers, "Server intelligence", "What Epsilon has learned from your finished downloads. A server that keeps refusing connections gets a lower limit.");
         var servers = App.Intelligence.Servers();
         if (servers.Count == 0)
         {
-            EmptyState(_servers, "Nothing learned yet", "Finish a few downloads and Makan builds a history for each server.");
+            EmptyState(_servers, "Nothing learned yet", "Finish a few downloads and Epsilon builds a history for each server.");
             return;
         }
         foreach (var server in servers)
@@ -395,7 +396,7 @@ public sealed class IntelligentCenterWindow : Window
     void RefreshRecovery()
     {
         _recovery.Children.Clear();
-        Section(_recovery, "Crash recovery", "Unfinished downloads that Makan found state files for. They continue from the saved position when you resume them.");
+        Section(_recovery, "Crash recovery", "Unfinished downloads that Epsilon found state files for. They continue from the saved position when you resume them.");
         var interrupted = V15RecoveryService.Scan(App.Manager.Items);
         if (interrupted.Count == 0)
         {
@@ -510,7 +511,7 @@ public sealed class IntelligentCenterWindow : Window
     void CheckDatabase()
     {
         var ok = App.Db.IntegrityCheck();
-        Dlg.Show(this, ok ? "The database passed SQLite's integrity check." : "SQLite reports a problem in the database. Create a backup now and restart Makan.", "Database", MessageBoxButton.OK, ok ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        Dlg.Show(this, ok ? "The database passed SQLite's integrity check." : "SQLite reports a problem in the database. Create a backup now and restart Epsilon.", "Database", MessageBoxButton.OK, ok ? MessageBoxImage.Information : MessageBoxImage.Warning);
     }
 
     void BackupDatabase()

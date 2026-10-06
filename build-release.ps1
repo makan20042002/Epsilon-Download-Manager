@@ -46,8 +46,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Secure updater. It verifies HTTPS + SHA-256 and performs staged replacement with rollback.
+# Keep its JSON model untrimmed: the updater deserializes a signed manifest and trimming can
+# remove members that are only reached by System.Text.Json at runtime.
 dotnet publish $updater -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true -p:PublishTrimmed=true -p:EnableCompressionInSingleFile=true -o $publish
+  -p:PublishSingleFile=true -p:PublishTrimmed=false -p:EnableCompressionInSingleFile=true -o $publish
 if ($LASTEXITCODE -ne 0) { throw 'Publishing MakanUpdater failed.' }
 
 # Browser extensions + installers travel with the app.

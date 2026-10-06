@@ -46,6 +46,7 @@ public partial class SettingsWindow : Window
         AskBefore.IsChecked = s.AskBeforeDownload; OnlyQueue.IsChecked = s.OnlyAddToQueue; OnlyQueue.IsEnabled = s.AskBeforeDownload;
         ShowProgress.IsChecked = s.ShowProgressWindow; ShowWindowOnCapture.IsChecked = s.ShowWindowOnCapture; ShowComplete.IsChecked = s.ShowCompleteDialog; AskQueueLater.IsChecked = s.AskQueueOnLater; AskQueueBatch.IsChecked = s.AskQueueOnBatch;
         IgnoreModified.IsChecked = s.IgnoreModifiedOnResume;
+        DeleteActionBox.SelectedIndex = s.DeleteAction switch { "remove" => 1, "file" => 2, "complete" => 3, _ => 0 };
         DuplicateBox.SelectedIndex = s.DuplicateAction switch { "suffix" => 1, "overwrite" => 2, "skip" => 3, _ => 0 };
         UserAgentBox.Text = s.UserAgent;
         AvOn.IsChecked = s.AntivirusEnabled; AvProgramBox.Text = s.AntivirusProgram; AvArgsBox.Text = s.AntivirusArguments;
@@ -53,6 +54,8 @@ public partial class SettingsWindow : Window
         // Connection
         Slots.Value = s.MaxActive; SpeedLimitOn.IsChecked = s.SpeedKbps > 0; Speed.Text = (s.SpeedKbps > 0 ? s.SpeedKbps : 1024).ToString(CultureInfo.InvariantCulture);
         MultiNetOn.IsChecked = s.MultiNetwork; MultiNetStatus.Text = DescribeNetworks();
+        MultiNetAvoidMetered.IsChecked = s.MultiNetAvoidMetered; MultiNetKeepOneFree.IsChecked = s.MultiNetKeepOneFree; MultiNetAskNew.IsChecked = s.MultiNetAskNewNetwork;
+        MultiNetDailyLimitBox.Text = s.MultiNetDailyLimitMb.ToString(CultureInfo.InvariantCulture); MultiNetRetryBox.Text = s.MultiNetRetryMinutes.ToString(CultureInfo.InvariantCulture);
         SpeedScope.SelectedIndex = s.SpeedLimitScope == "per_file" ? 1 : 0; Connections.Value = s.Connections;
         AutoResume.IsChecked = s.AutoResume; KeepAwake.IsChecked = s.KeepAwakeWhileDownloading; Ffmpeg.Text = s.FfmpegPath;
         SmartConnections.IsChecked = s.AdaptiveConnections && s.SmartDownloads;
@@ -60,7 +63,8 @@ public partial class SettingsWindow : Window
 
         // BitTorrent
         TorrentPortBox.Text = s.TorrentPort.ToString(CultureInfo.InvariantCulture);
-        TorrentDht.IsChecked = s.TorrentDht; TorrentPex.IsChecked = s.TorrentPex;
+        TorrentDht.IsChecked = s.TorrentDht; TorrentPex.IsChecked = s.TorrentPex; TorrentPortMapping.IsChecked = s.TorrentPortMapping;
+        TorrentEncryptionBox.SelectedIndex = s.TorrentEncryption switch { "require" => 1, "off" => 2, _ => 0 };
         TorrentDownloadBox.Text = s.TorrentDownloadKbps.ToString(CultureInfo.InvariantCulture);
         TorrentUploadBox.Text = s.TorrentUploadKbps.ToString(CultureInfo.InvariantCulture);
         TorrentSlots.Value = s.TorrentUploadSlots; TorrentMaxPeersBox.Text = s.TorrentMaxPeers.ToString(CultureInfo.InvariantCulture);
@@ -123,7 +127,7 @@ public partial class SettingsWindow : Window
     void Repair_Click(object sender, RoutedEventArgs e)
     {
         var script = Path.Combine(AppContext.BaseDirectory, "install-browser-integration.ps1");
-        if (!File.Exists(script)) { Dlg.Show(this, "The installer script (install-browser-integration.ps1) was not found next to Makan. Run it from the publish folder.", "Options"); return; }
+        if (!File.Exists(script)) { Dlg.Show(this, "The installer script (install-browser-integration.ps1) was not found next to Epsilon. Run it from the publish folder.", "Options"); return; }
         try { Process.Start(new ProcessStartInfo("powershell.exe", $"-NoExit -ExecutionPolicy Bypass -File \"{script}\"") { UseShellExecute = true }); }
         catch (Exception ex) { Dlg.Show(this, ex.Message, "Options"); }
     }
@@ -259,6 +263,23 @@ public partial class SettingsWindow : Window
         s.FileTypes = FileTypesBox.Text.Trim(); s.ExcludedSites = SitesBox.Text.Trim(); s.ExcludedAddresses = AddressesBox.Text.Trim();
 
         // Save to
+        // The main folder changed: categories that kept a folder of their own would silently go on saving to the old
+        // place (this is how "I chose drive D but files still land on C:" happened). Folders inside the old main folder
+        // simply follow the new one; for the others the user decides.
+        var oldBase = s.DefaultFolder;
+        if (!string.Equals(Path.TrimEndingDirectorySeparator(oldBase), Path.TrimEndingDirectorySeparator(baseFolder), StringComparison.OrdinalIgnoreCase))
+        {
+            static bool Inside(string folder, string root) =>
+                (Path.TrimEndingDirectorySeparator(folder) + Path.DirectorySeparatorChar).StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            foreach (var c in _cats.Where(c => !string.IsNullOrWhiteSpace(c.Folder) && Inside(c.Folder!, oldBase))) c.Folder = null;
+            var elsewhere = _cats.Where(c => !string.IsNullOrWhiteSpace(c.Folder) && !Inside(c.Folder!, baseFolder)).ToList();
+            if (elsewhere.Count > 0)
+            {
+                var list = string.Join("\n", elsewhere.Select(c => "  " + Loc.T(c.Name) + "  →  " + c.Folder));
+                var answer = Dlg.Show(this, Loc.F("These categories still save to their own folders, not to the new main folder:\n\n{0}\n\nMake them follow the new main folder too?", list), "Epsilon Download Manager", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (answer == MessageBoxResult.Yes) foreach (var c in elsewhere) c.Folder = null;
+            }
+        }
         s.DefaultFolder = baseFolder; s.TempDirectory = tempFolder; s.SetFileDateFromServer = SetFileDate.IsChecked == true; s.TorrentFolder = torrentFolder;
         s.ChangeFolderOnLastSelected = ChangeFolderLast.IsChecked == true;
         foreach (var c in _cats.Where(c => !string.IsNullOrWhiteSpace(c.Folder))) if (!TryFolder(c.Folder!, "category")) return;
@@ -268,6 +289,7 @@ public partial class SettingsWindow : Window
         // Downloads
         s.AskBeforeDownload = AskBefore.IsChecked == true; s.OnlyAddToQueue = OnlyQueue.IsChecked == true; s.ShowCompleteDialog = ShowComplete.IsChecked == true; s.ShowProgressWindow = ShowProgress.IsChecked == true; s.ShowWindowOnCapture = ShowWindowOnCapture.IsChecked == true;
         s.AskQueueOnLater = AskQueueLater.IsChecked == true; s.AskQueueOnBatch = AskQueueBatch.IsChecked == true; s.IgnoreModifiedOnResume = IgnoreModified.IsChecked == true;
+        s.DeleteAction = DeleteActionBox.SelectedIndex switch { 1 => "remove", 2 => "file", 3 => "complete", _ => "ask" };
         s.DuplicateAction = DuplicateBox.SelectedIndex switch { 1 => "suffix", 2 => "overwrite", 3 => "skip", _ => "ask" };
         s.UserAgent = UserAgentBox.Text.Trim();
         s.AntivirusEnabled = AvOn.IsChecked == true; s.AntivirusProgram = AvProgramBox.Text.Trim(); s.AntivirusArguments = AvArgsBox.Text.Trim();
@@ -278,13 +300,17 @@ public partial class SettingsWindow : Window
 
         // Connection
         s.MultiNetwork = MultiNetOn.IsChecked == true;
+        s.MultiNetAvoidMetered = MultiNetAvoidMetered.IsChecked == true; s.MultiNetKeepOneFree = MultiNetKeepOneFree.IsChecked == true; s.MultiNetAskNewNetwork = MultiNetAskNew.IsChecked == true;
+        s.MultiNetDailyLimitMb = int.TryParse(MultiNetDailyLimitBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var dailyMb) ? Math.Max(0, dailyMb) : 0;
+        s.MultiNetRetryMinutes = int.TryParse(MultiNetRetryBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var retryMinutes) ? Math.Max(1, retryMinutes) : 5;
         s.MaxActive = (int)Slots.Value; s.SpeedKbps = kb; s.SpeedLimitScope = SpeedScope.SelectedIndex == 1 ? "per_file" : "combined"; s.Connections = (int)Connections.Value; s.AutoResume = AutoResume.IsChecked == true; s.KeepAwakeWhileDownloading = KeepAwake.IsChecked == true; s.FfmpegPath = Ffmpeg.Text.Trim();
         s.AdaptiveConnections = SmartConnections.IsChecked == true; s.SmartDownloads = SmartConnections.IsChecked == true;
         s.BoostDownloadSpeed = BoostSpeed.IsChecked == true;
 
         // BitTorrent
         s.TorrentPort = int.TryParse(TorrentPortBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var port) ? port : 6881;
-        s.TorrentDht = TorrentDht.IsChecked == true; s.TorrentPex = TorrentPex.IsChecked == true;
+        s.TorrentDht = TorrentDht.IsChecked == true; s.TorrentPex = TorrentPex.IsChecked == true; s.TorrentPortMapping = TorrentPortMapping.IsChecked == true;
+        s.TorrentEncryption = TorrentEncryptionBox.SelectedIndex switch { 1 => "require", 2 => "off", _ => "prefer" };
         s.TorrentDownloadKbps = long.TryParse(TorrentDownloadBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var downKbps) ? Math.Max(0, downKbps) : 0;
         s.TorrentUploadKbps = long.TryParse(TorrentUploadBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var upKbps) ? Math.Max(0, upKbps) : 0;
         s.TorrentUploadSlots = (int)TorrentSlots.Value;
@@ -312,7 +338,7 @@ public partial class SettingsWindow : Window
         App.RaiseSettingsChanged();
         DialogResult = true;
 
-        if (languageChanged && Dlg.Show(Owner, "Makan must restart to change the language. Restart now?", "Options", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        if (languageChanged && Dlg.Show(Owner, "Epsilon must restart to change the language. Restart now?", "Options", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             App.Restart();
     }
 

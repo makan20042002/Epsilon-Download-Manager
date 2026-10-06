@@ -1,16 +1,18 @@
 <Window x:Class="MakanDownloadManager.SettingsWindow" Style="{StaticResource AppWindow}" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Options" Width="800" Height="760" MinWidth="720" MinHeight="600" WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-      <Button Content="OK" Click="Ok_Click" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="100"/>
-      <Button Content="Cancel" Click="Cancel_Click" IsCancel="True" MinWidth="100"/>
-    </StackPanel>
+        Title="Options" Width="920" Height="700" MinWidth="780" MinHeight="560" WindowStartupLocation="CenterOwner">
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="14,8">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button Content="Cancel" Click="Cancel_Click" IsCancel="True" MinWidth="100"/>
+        <Button Content="OK" Click="Ok_Click" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="100"/>
+      </StackPanel>
+    </Border>
 
-    <TabControl x:Name="MainTabs">
+    <TabControl x:Name="MainTabs" Style="{StaticResource SideTabs}">
       <!-- General -->
       <TabItem Header="General">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="18,14">
+          <StackPanel Margin="24,18">
             <TextBlock Text="Browser integration" FontWeight="SemiBold" Margin="0,0,0,6"/>
             <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="12,8">
               <StackPanel>
@@ -22,7 +24,7 @@
               </StackPanel>
             </Border>
 
-            <CheckBox x:Name="LaunchStartup" Content="Start Makan (in the tray) when Windows starts" Margin="0,16,0,6"/>
+            <CheckBox x:Name="LaunchStartup" Content="Start Epsilon (in the tray) when Windows starts" Margin="0,16,0,6"/>
             <CheckBox x:Name="ClipboardWatch" Content="Offer to download links that I copy to the clipboard" Margin="0,0,0,16"/>
 
             <TextBlock Text="Take over downloads from these browsers" FontWeight="SemiBold" Margin="0,0,0,6"/>
@@ -34,7 +36,7 @@
                 <CheckBox x:Name="BrOpera" Content="Opera" Margin="0,2"/>
                 <CheckBox x:Name="BrVivaldi" Content="Vivaldi" Margin="0,2"/>
                 <CheckBox x:Name="BrOther" Content="Other browsers" Margin="0,2"/>
-                <TextBlock Text="Hold Alt while clicking a download link to let the browser download it instead of Makan." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                <TextBlock Text="Hold Alt while clicking a download link to let the browser download it instead of Epsilon." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
               </StackPanel>
             </Border>
 
@@ -43,7 +45,7 @@
               <ComboBoxItem Content="English"/>
               <ComboBoxItem Content="فارسی (Persian)"/>
             </ComboBox>
-            <TextBlock Text="The language changes when Makan is restarted." Foreground="{DynamicResource Muted}" Margin="0,6,0,0"/>
+            <TextBlock Text="The language changes when Epsilon is restarted." Foreground="{DynamicResource Muted}" Margin="0,6,0,0"/>
 
             <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,16,0,6"/>
             <ComboBox x:Name="ThemeBox" Width="220" HorizontalAlignment="Left">
@@ -69,7 +71,7 @@
       <!-- File types -->
       <TabItem Header="File types">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="18,14">
+          <StackPanel Margin="24,18">
             <TextBlock Text="Take over downloads of these file types (separate with spaces; R0* matches .r00, .r01 …). Leave empty to take over every type." TextWrapping="Wrap" Margin="0,0,0,6"/>
             <TextBox x:Name="FileTypesBox" Height="120" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top"/>
             <Button Content="Default" Click="DefaultFileTypes_Click" HorizontalAlignment="Right"/>
@@ -87,7 +89,7 @@
       <!-- Save to -->
       <TabItem Header="Save to">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="18,14">
+          <StackPanel Margin="24,18">
             <TextBlock Text="Category" FontWeight="SemiBold" Margin="0,0,0,6"/>
             <DockPanel>
               <Button DockPanel.Dock="Right" x:Name="DeleteCategoryButton" Content="Delete" Click="DeleteCategory_Click"/>
@@ -121,11 +123,11 @@
       <!-- Downloads -->
       <TabItem Header="Downloads">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="18,14">
+          <StackPanel Margin="24,18">
             <CheckBox x:Name="AskBefore" Content="Show the 'Download File Info' window before a download starts" Checked="AskBefore_Changed" Unchecked="AskBefore_Changed"/>
             <CheckBox x:Name="OnlyQueue" Content="Do not start downloading, only add files to the queue" Margin="26,6,0,0"/>
             <CheckBox x:Name="ShowProgress" Content="Show the download progress window when a download starts" Margin="0,10,0,0"/>
-            <CheckBox x:Name="ShowWindowOnCapture" Content="Bring Makan's window to the front when a new download arrives (from the browser, a magnet link, etc.)" Margin="0,10,0,0"/>
+            <CheckBox x:Name="ShowWindowOnCapture" Content="Bring Epsilon's window to the front when a new download arrives (from the browser, a magnet link, etc.)" Margin="0,10,0,0"/>
             <CheckBox x:Name="ShowComplete" Content="Show a 'download complete' window" Margin="0,10,0,0"/>
             <TextBlock Text="The 'download complete' window is not shown for files started by a queue." Foreground="{DynamicResource Muted}" Margin="26,4,0,0"/>
 
@@ -133,6 +135,15 @@
             <CheckBox x:Name="AskQueueLater" Content="Show the queue chooser when I press Download Later"/>
             <CheckBox x:Name="AskQueueBatch" Content="Show the queue chooser in the Download All Links window" Margin="0,8,0,0"/>
             <CheckBox x:Name="IgnoreModified" Content="Ignore file modification time changes when resuming a download" Margin="0,8,0,0"/>
+
+            <TextBlock Text="When I delete a download:" Margin="0,16,0,6"/>
+            <ComboBox x:Name="DeleteActionBox">
+              <ComboBoxItem Content="Ask every time"/>
+              <ComboBoxItem Content="Remove from the list only (keep files)"/>
+              <ComboBoxItem Content="Delete unfinished data but keep the entry"/>
+              <ComboBoxItem Content="Delete unfinished data and remove the entry"/>
+            </ComboBox>
+            <TextBlock Text="For safety, a completed download is never erased from disk by these actions." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,5,0,0"/>
 
             <TextBlock Text="If a download link is added twice:" Margin="0,16,0,6"/>
             <ComboBox x:Name="DuplicateBox">
@@ -158,8 +169,8 @@
       <!-- YouTube and other sites (yt-dlp) -->
       <TabItem Header="YouTube &amp; other sites">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="18,14">
-            <TextBlock TextWrapping="Wrap" Text="YouTube and many other video sites protect their videos. Makan reads them with the free program yt-dlp, runs the sites' player code with Deno, and joins video and sound with FFmpeg."/>
+          <StackPanel Margin="24,18">
+            <TextBlock TextWrapping="Wrap" Text="YouTube and many other video sites protect their videos. Epsilon reads them with the free program yt-dlp, runs the sites' player code with Deno, and joins video and sound with FFmpeg."/>
             <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,12,0,0">
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -175,10 +186,10 @@
               <TextBlock x:Name="InstallStatus" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
             </StackPanel>
             <ProgressBar x:Name="InstallBar" IsIndeterminate="True" Height="5" Margin="0,8,0,0" Visibility="Collapsed" Foreground="{DynamicResource Accent}" Background="{DynamicResource Track}" BorderThickness="0"/>
-            <TextBlock Text="The tools are stored in Makan's own folder. yt-dlp keeps itself up to date, because YouTube changes often." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            <TextBlock Text="The tools are stored in Epsilon's own folder. yt-dlp keeps itself up to date, because YouTube changes often." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
 
             <Separator Margin="0,16"/>
-            <TextBlock Text="Path of yt-dlp (leave empty to use Makan's copy)" Margin="0,0,0,4"/>
+            <TextBlock Text="Path of yt-dlp (leave empty to use Epsilon's copy)" Margin="0,0,0,4"/>
             <DockPanel><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseYt_Click"/><TextBox x:Name="YtPathBox" TextChanged="YtPath_Changed"/></DockPanel>
             <TextBlock Text="Use the login of my browser (for private or age-restricted videos)" Margin="0,14,0,4"/>
             <ComboBox x:Name="CookiesBox" Width="220" HorizontalAlignment="Left">
@@ -196,7 +207,7 @@
       <!-- Connection -->
       <TabItem Header="Connection">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="18,14">
+          <StackPanel Margin="24,18">
             <TextBlock Text="Maximum simultaneous downloads (files that are not started by a queue)"/>
             <Slider x:Name="Slots" Minimum="1" Maximum="16" Value="4" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,6,0,0"/>
             <TextBlock Text="{Binding ElementName=Slots, Path=Value, StringFormat={}{0:0}}" FontWeight="SemiBold"/>
@@ -226,38 +237,53 @@
             <TextBlock x:Name="MultiNetStatus" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="26,6,0,0"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="26,4,0,0"
                        Text="Mobile data used through a tethered phone may cost money. Torrents and video streams are not affected."/>
+            <CheckBox x:Name="MultiNetAvoidMetered" Content="Never use metered/mobile networks" Margin="26,10,0,0"/>
+            <CheckBox x:Name="MultiNetKeepOneFree" Content="Keep the fastest network free for other apps" Margin="26,8,0,0"/>
+            <CheckBox x:Name="MultiNetAskNew" Content="Do not use a newly detected network until I approve it" Margin="26,8,0,0"/>
+            <Grid Margin="26,10,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock Text="Daily Multi-Network data limit" VerticalAlignment="Center"/>
+              <TextBox x:Name="MultiNetDailyLimitBox" Grid.Column="1" Text="0" TextAlignment="Right"/>
+              <TextBlock Grid.Column="2" Text="MB (0 = unlimited)" Foreground="{DynamicResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid Margin="26,8,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock Text="Retry a dropped network after" VerticalAlignment="Center"/>
+              <TextBox x:Name="MultiNetRetryBox" Grid.Column="1" Text="5" TextAlignment="Right"/>
+              <TextBlock Grid.Column="2" Text="minutes" Foreground="{DynamicResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
 
             <TextBlock Text="Default connections per download" Margin="0,16,0,0"/>
             <Slider x:Name="Connections" Minimum="1" Maximum="16" Value="8" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,6,0,0"/>
             <TextBlock Text="{Binding ElementName=Connections, Path=Value, StringFormat={}{0:0}}" FontWeight="SemiBold"/>
 
-            <CheckBox x:Name="AutoResume" Content="Resume unfinished downloads by themselves when Makan starts" Margin="0,18,0,0"/>
+            <CheckBox x:Name="AutoResume" Content="Resume unfinished downloads by themselves when Epsilon starts" Margin="0,18,0,0"/>
             <CheckBox x:Name="KeepAwake" Content="Keep the computer awake while files are downloading" Margin="0,10,0,0"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="26,4,0,0"
                        Text="Prevents automatic sleep while a transfer is active. The display may still turn off normally."/>
             <CheckBox x:Name="SmartConnections" Content="Smart connections: use fewer connections for servers that throttle me" Margin="0,10,0,0"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="26,4,0,0"
-                       Text="Makan always starts with the number above. Only a server that answers 'too many requests' gets fewer connections next time (see the Intelligent Center)."/>
+                       Text="Epsilon always starts with the number above. Only a server that answers 'too many requests' gets fewer connections next time (see the Intelligent Center)."/>
 
             <TextBlock Text="FFmpeg (optional)" Margin="0,18,0,6"/>
             <DockPanel><Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseFfmpeg_Click"/><TextBox x:Name="Ffmpeg"/></DockPanel>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
-                       Text="Videos are always saved as .ts without it. FFmpeg is only needed to convert them to .mp4 or to merge a separate audio track. Leave empty to search PATH / the Makan folder."/>
+                       Text="Videos are always saved as .ts without it. FFmpeg is only needed to convert them to .mp4 or to merge a separate audio track. Leave empty to search PATH / the Epsilon folder."/>
 
             <TextBlock Text="Speed boost" FontWeight="SemiBold" Margin="0,20,0,0"/>
             <CheckBox x:Name="BoostSpeed" Content="Pause Windows Update and similar background traffic while a download is running" Margin="0,8,0,0"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="26,4,0,0"
-                       Text="Off by default. Needs administrator rights, which Makan does not request on its own - without them this does nothing and says so, rather than failing silently. It only pauses a short list of Windows services (Windows Update, BITS, Delivery Optimization); it cannot stop other programs that are already mid-transfer, and everything paused resumes as soon as nothing is downloading, or Makan closes."/>
+                       Text="Off by default. Needs administrator rights, which Epsilon does not request on its own - without them this does nothing and says so, rather than failing silently. It only pauses a short list of Windows services (Windows Update, BITS, Delivery Optimization); it cannot stop other programs that are already mid-transfer, and everything paused resumes as soon as nothing is downloading, or Epsilon closes."/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
 
       <TabItem Header="BitTorrent">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="18,14">
+          <StackPanel Margin="24,18">
             <TextBlock Text="Connection" FontWeight="SemiBold"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,2,0,8"
-                       Text="Changing the port, DHT or peer exchange needs Makan to restart before it takes effect."/>
+                       Text="Changing the port, DHT or peer exchange needs Epsilon to restart before it takes effect."/>
             <DockPanel Margin="0,0,0,10">
               <Button DockPanel.Dock="Right" Content="Random port" Click="RandomTorrentPort_Click" Margin="8,0,0,0"/>
               <TextBlock Text="Port used for incoming connections:" VerticalAlignment="Center"/>
@@ -265,6 +291,15 @@
             </DockPanel>
             <CheckBox x:Name="TorrentDht" Content="Enable DHT (find peers for a magnet link even without a working tracker)" Margin="0,4,0,0"/>
             <CheckBox x:Name="TorrentPex" Content="Enable peer exchange (learn about more peers from the ones already connected)" Margin="0,8,0,0"/>
+            <CheckBox x:Name="TorrentPortMapping" Content="Automatically open the listening port with UPnP or NAT-PMP" Margin="0,8,0,0"/>
+            <TextBlock Text="Protocol encryption" Margin="0,14,0,6"/>
+            <ComboBox x:Name="TorrentEncryptionBox" Width="360" HorizontalAlignment="Left">
+              <ComboBoxItem Content="Prefer encrypted connections (recommended)"/>
+              <ComboBoxItem Content="Require encryption (fewer peers)"/>
+              <ComboBoxItem Content="Off (plain connections only)"/>
+            </ComboBox>
+            <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,6,0,4"
+                       Text="Encryption lets Epsilon reach peers that only accept encrypted connections and makes torrent traffic harder for a provider to slow down. It does not hide your address from other peers. Applies to new connections at once."/>
 
             <TextBlock Text="Bandwidth" FontWeight="SemiBold" Margin="0,20,0,0"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,8"
@@ -287,7 +322,7 @@
             <CheckBox x:Name="TorrentSeedAfter" Content="Keep sharing a torrent after it finishes downloading" Margin="0,8,0,0"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="26,4,0,0"
                        Text="Off by default: a finished torrent just stops. To share one anyway, open its details window and choose Resume - nothing uploads until you say so."/>
-            <CheckBox x:Name="TorrentSeedOnStart" Content="Resume sharing already-finished torrents when Makan starts" Margin="0,10,0,0"/>
+            <CheckBox x:Name="TorrentSeedOnStart" Content="Resume sharing already-finished torrents when Epsilon starts" Margin="0,10,0,0"/>
             <TextBlock Text="Stop sharing once this much has been uploaded (%), 0 = never stop on ratio" Margin="0,16,0,6"/>
             <TextBox x:Name="TorrentRatioBox" Text="100" Width="100" HorizontalAlignment="Left"/>
             <TextBlock Text="Stop sharing this many minutes after a torrent finishes, 0 = no time limit" Margin="0,14,0,6"/>
@@ -317,7 +352,7 @@
       </TabItem>
 
       <TabItem Header="Proxy / Socks">
-        <StackPanel Margin="18,14">
+        <StackPanel Margin="24,18">
           <TextBlock Text="Route regular downloads through a proxy server (like IDM's Proxy/Socks tab). This applies to ordinary HTTP/HTTPS downloads only - not torrents or YouTube-style downloads, which have their own separate connections." TextWrapping="Wrap" Margin="0,0,0,14"/>
           <RadioButton x:Name="ProxyNone" Content="No proxy" GroupName="ProxyMode" Margin="0,0,0,8"/>
           <RadioButton x:Name="ProxySystem" Content="Use system settings" GroupName="ProxyMode" Margin="0,0,0,8"/>
@@ -357,7 +392,7 @@
       </TabItem>
 
       <TabItem Header="Remote">
-        <StackPanel Margin="18,14">
+        <StackPanel Margin="24,18">
           <TextBlock Text="View your downloads and add new ones from a phone's browser, on the same Wi-Fi/network - without a separate app." TextWrapping="Wrap" Margin="0,0,0,4"/>
           <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,14"
                      Text="Plain, unencrypted HTTP, meant for a home network only - never forward this port through a router to the internet. Anyone with the address below can see and add downloads, so only share it with people you trust on your own network."/>

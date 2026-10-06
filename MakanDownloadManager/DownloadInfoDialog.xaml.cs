@@ -20,6 +20,7 @@ public partial class DownloadInfoDialog : Window
     public bool NameFromServer { get; private set; }
     /// <summary>The queue "Download Later" puts the download in.</summary>
     public int QueueId => (QueueBox.SelectedItem as DownloadQueue)?.Id ?? App.Queues.Main.Id;
+    public string? ExpectedSha256 => string.IsNullOrWhiteSpace(HashBox.Text) ? null : HashBox.Text.Replace(" ", "", StringComparison.Ordinal).Trim().ToUpperInvariant();
 
     /// <param name="batch">Several links: the name box is hidden, names come from the servers.</param>
     public DownloadInfoDialog(string title, string address, string fileName, string folder, string info, bool batch = false)
@@ -36,7 +37,7 @@ public partial class DownloadInfoDialog : Window
         UrlBox.Text = address;
         FolderBox.Text = folder;
         InfoText.Text = info;
-        if (batch) { NameLabel.Visibility = Visibility.Collapsed; NameBox.Visibility = Visibility.Collapsed; }
+        if (batch) { NameLabel.Visibility = Visibility.Collapsed; NameBox.Visibility = Visibility.Collapsed; HashLabel.Visibility = Visibility.Collapsed; HashBox.Visibility = Visibility.Collapsed; }
         else
         {
             SetName(fileName);
@@ -85,8 +86,9 @@ public partial class DownloadInfoDialog : Window
 
     bool Valid()
     {
-        if (NameBox.Visibility == Visibility.Visible && FileName.Length == 0) { Dlg.Show(this, "Enter a file name.", "Makan", MessageBoxButton.OK, MessageBoxImage.Warning); return false; }
-        if (Folder.Length == 0) { Dlg.Show(this, "Choose a folder.", "Makan", MessageBoxButton.OK, MessageBoxImage.Warning); return false; }
+        if (NameBox.Visibility == Visibility.Visible && FileName.Length == 0) { Dlg.Show(this, "Enter a file name.", "Epsilon", MessageBoxButton.OK, MessageBoxImage.Warning); return false; }
+        if (Folder.Length == 0) { Dlg.Show(this, "Choose a folder.", "Epsilon", MessageBoxButton.OK, MessageBoxImage.Warning); return false; }
+        if (ExpectedSha256 is { } hash && (hash.Length != 64 || hash.Any(c => !Uri.IsHexDigit(c)))) { Dlg.Show(this, "SHA-256 must contain exactly 64 hexadecimal characters.", "Epsilon", MessageBoxButton.OK, MessageBoxImage.Warning); HashBox.Focus(); return false; }
         return true;
     }
 

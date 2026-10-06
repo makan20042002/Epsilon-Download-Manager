@@ -5,7 +5,7 @@ using System.Text;
 namespace MakanDownloadManager.Services.Torrent;
 
 /// <summary>One TCP connection speaking the BitTorrent peer wire protocol (BEP 3) with the extension protocol (BEP 10).</summary>
-public sealed class PeerConnection : IDisposable
+public sealed partial class PeerConnection : IDisposable
 {
     public const byte Choke = 0, Unchoke = 1, Interested = 2, NotInterested = 3, Have = 4, BitfieldId = 5, Request = 6, Piece = 7, Cancel = 8, Port = 9, Extended = 20;
     const int MaxMessage = 2 * 1024 * 1024;
@@ -90,17 +90,29 @@ public sealed class PeerConnection : IDisposable
     async Task WriteAsync(byte[] packet, CancellationToken ct)
     {
         await _send.WaitAsync(ct).ConfigureAwait(false);
-        try { await _stream.WriteAsync(packet, ct).ConfigureAwait(false); }
+        try
+        {
+            _encrypt?.Process(packet);   // under the send lock, so the cipher stream stays in the order the bytes go out
+            await _stream.WriteAsync(packet, ct).ConfigureAwait(false);
+        }
         finally { _send.Release(); }
     }
 
     async Task ReadExactlyAsync(byte[] buffer, CancellationToken ct)
     {
         var read = 0;
+        if (_prefixPosition < _prefix.Length)
+        {
+            // bytes that arrived during the encryption handshake (already decrypted)
+            read = Math.Min(buffer.Length, _prefix.Length - _prefixPosition);
+            Buffer.BlockCopy(_prefix, _prefixPosition, buffer, 0, read);
+            _prefixPosition += read;
+        }
         while (read < buffer.Length)
         {
             var n = await _stream.ReadAsync(buffer.AsMemory(read), ct).ConfigureAwait(false);
             if (n == 0) throw new EndOfStreamException("The peer closed the connection.");
+            _decrypt?.Process(buffer.AsSpan(read, n));
             read += n;
         }
     }
@@ -157,7 +169,7 @@ public sealed class PeerState
     public PeerState(PeerConnection connection) => Connection = connection;
     public bool IsSeed => Have is { IsComplete: true };
     public double Progress => Have is null || Have.Length == 0 ? 0 : 100.0 * Have.Count / Have.Length;
-    public string Flags => (PeerChoking ? "" : "D") + (AmInterested ? "d" : "") + (AmChoking ? "" : "U") + (PeerInterested ? "u" : "") + (Connection.Incoming ? "I" : "O");
+    public string Flags => (PeerChoking ? "" : "D") + (AmInterested ? "d" : "") + (AmChoking ? "" : "U") + (PeerInterested ? "u" : "") + (Connection.Incoming ? "I" : "O") + (Connection.Encrypted ? "E" : "");
 
     /// <summary>"-UT3550-" style ids: the client's name and version, when it says so.</summary>
     public static string ClientFromPeerId(byte[] id)
@@ -166,7 +178,7 @@ public sealed class PeerState
         {
             var code = Encoding.ASCII.GetString(id, 1, 2);
             var version = Encoding.ASCII.GetString(id, 3, 4).TrimStart('0');
-            var name = code switch { "UT" => "µTorrent", "BT" => "BitTorrent", "qB" => "qBittorrent", "TR" => "Transmission", "LT" => "libtorrent", "lt" => "libTorrent", "DE" => "Deluge", "AZ" => "Vuze", "MK" => "Makan", "FS" => "Test seeder", "FL" => "Test leecher", "WW" => "WebTorrent", "KT" => "KTorrent", _ => code };
+            var name = code switch { "UT" => "µTorrent", "BT" => "BitTorrent", "qB" => "qBittorrent", "TR" => "Transmission", "LT" => "libtorrent", "lt" => "libTorrent", "DE" => "Deluge", "AZ" => "Vuze", "MK" => "Epsilon", "FS" => "Test seeder", "FL" => "Test leecher", "WW" => "WebTorrent", "KT" => "KTorrent", _ => code };
             return name + " " + version;
         }
         return "";

@@ -16,9 +16,24 @@
       <Setter Property="Background" Value="{DynamicResource Input}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
     </Style>
-    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Style TargetType="ListBoxItem">
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="10,8" Margin="0,0,0,2">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Selected}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style TargetType="ListViewItem" BasedOn="{StaticResource {x:Type ListViewItem}}">
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
@@ -30,12 +45,12 @@
 
     <!-- queues -->
     <DockPanel Grid.Column="0">
-      <TextBlock DockPanel.Dock="Top" Text="Queues" FontWeight="SemiBold" Margin="0,0,0,6" HorizontalAlignment="Center"/>
+      <TextBlock DockPanel.Dock="Top" Text="Queues" FontWeight="SemiBold" Margin="2,0,0,8"/>
       <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
         <Button Content="New queue" Click="NewQueue_Click" MinWidth="90"/>
         <Button x:Name="DeleteQueueButton" Content="Delete" Click="DeleteQueue_Click" MinWidth="70"/>
       </StackPanel>
-      <ListBox x:Name="QueueList" SelectionChanged="QueueList_SelectionChanged" Background="{DynamicResource Surface}"/>
+      <ListBox x:Name="QueueList" SelectionChanged="QueueList_SelectionChanged" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="6"/>
     </DockPanel>
 
     <!-- selected queue -->
@@ -51,7 +66,7 @@
         <TabItem Header="Schedule">
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12,10,12,6">
-              <CheckBox x:Name="StartOnStartup" Content="Start download when Makan starts" Margin="0,0,0,10"/>
+              <CheckBox x:Name="StartOnStartup" Content="Start download when Epsilon starts" Margin="0,0,0,10"/>
 
               <CheckBox x:Name="UseGlobalParallel" Content="Use the simultaneous-download limit from Options" Margin="0,0,0,6" Checked="UseGlobalParallel_Changed" Unchecked="UseGlobalParallel_Changed"/>
               <StackPanel x:Name="ParallelPanel" Orientation="Horizontal" Margin="26,0,0,12">
@@ -103,7 +118,7 @@
                 <Button DockPanel.Dock="Right" Content="…" Click="BrowseOpen_Click" MinWidth="34"/>
                 <TextBox x:Name="OpenPath" Padding="4"/>
               </DockPanel>
-              <CheckBox x:Name="ExitOn" Content="Exit Makan" Margin="0,0,0,10"/>
+              <CheckBox x:Name="ExitOn" Content="Exit Epsilon" Margin="0,0,0,10"/>
               <StackPanel Orientation="Horizontal">
                 <CheckBox x:Name="PowerOn" Content="Turn off the computer:" VerticalAlignment="Center"/>
                 <ComboBox x:Name="PowerBox" Width="130" Margin="10,0,0,0">
@@ -138,7 +153,7 @@
       </TabControl>
 
       <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-        <Button x:Name="StartNowButton" Content="Start now" Click="StartNow_Click" MinWidth="90" Background="{DynamicResource AccentDark}" Foreground="{DynamicResource OnAccent}"/>
+        <Button x:Name="StartNowButton" Content="Start now" Click="StartNow_Click" MinWidth="90" Style="{StaticResource PrimaryButton}"/>
         <Button x:Name="StopButton" Content="Stop" Click="Stop_Click" MinWidth="90"/>
         <Button Content="Apply" Click="Apply_Click" MinWidth="90"/>
         <Button Content="Close" Click="Close_Click" MinWidth="90" IsCancel="True"/>

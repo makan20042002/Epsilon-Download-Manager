@@ -1,57 +1,41 @@
-# Makan Download Manager 15.1.0 — Production Release Checklist
+# Epsilon Download Manager 1.7.1 — Release Checklist
 
-## Source / engine
-- [x] V13.1 segmented/resumable engine retained
-- [x] Retry/backoff and bandwidth controls retained
-- [x] Persistent adaptive server learning retained
-- [x] HLS/DASH/FFmpeg/yt-dlp integrations retained
-- [x] Crash-safe download state retained
+## Source and automated verification
 
-## Product / UI
-- [x] Header with live status (smart engine, browser connection)
-- [x] Makan A.D. attribution
-- [x] makanlab.tech attribution/link
-- [x] Intelligent Center (one window) in light and dark theme
+- [x] Version synchronized across app, installer, updater, native bridge, torrent peer ID, and both extensions
+- [x] Release build succeeds on Windows with zero application warnings and errors
+- [x] Source, XAML, native-messaging identity, and package validation
+- [x] Segmented download, pause/resume, restart recovery, checksum, HLS/DASH, queue, scheduler, database, updater, and bridge tests
+- [x] Multi-Network simulated two-route, failed-route, metered, approval, daily-budget, and keep-one-free tests
+- [x] Torrent MSE/PE, IPv4/IPv6 tracker parsing, DHT persistence, UPnP, and NAT-PMP tests
+- [x] English/Persian localization scan and theme contrast checks
 
-## Browser
-- [x] Chrome/Edge extension version aligned
-- [x] Firefox extension version aligned
-- [x] Firefox extension on Manifest V3 with background scripts and its toolbar popup
-- [x] Stable native messaging identity retained
-- [ ] Install/test Chrome on clean Windows machine
-- [ ] Install/test Edge on clean Windows machine
-- [ ] Install/test Firefox on clean Windows machine
+## Windows visual QA
 
-## Installer / updater
-- [x] Inno Setup definition included
-- [x] Secure staged updater included
-- [x] Updater verifies and stages the package before stopping the installed app
-- [x] HTTPS-only update metadata/package enforcement (redirects checked hop by hop)
-- [x] SHA-256 package verification
-- [x] Rollback on failed update
-- [ ] Build installer with Inno Setup on Windows (`build-installer.ps1`)
-- [ ] Authenticode-sign installer and executables
-- [ ] Test upgrade from previous release
-- [ ] Test clean uninstall/reinstall
+- [x] Main window checked in English, Persian RTL, Platinum Blue, and Makan Lab dark theme
+- [x] Theme gallery and Multi-Network popup checked in light and dark themes
+- [x] Options checked in dark theme
+- [x] Persian filter/count labels corrected after visual inspection
+- [ ] Recheck every secondary window on Windows 10
+- [ ] Recheck every secondary window on Windows 11
 
-## Windows verification
-- [x] Automated source/package checks prepared
-- [x] Windows production test script included
-- [ ] Windows 10 x64 runtime test
-- [ ] Windows 11 x64 runtime test
-- [ ] Sleep/wake recovery test
-- [ ] Network interruption/recovery test
-- [ ] Disk-full failure test
-- [ ] Large-file segmented download test
-- [ ] Browser interception/fallback test
-- [ ] Update/rollback test
+## Real hardware and network gates
 
-**Release rule:** V15 is not a final public release until the unchecked Windows gates are executed on a real Windows build machine.
+- [ ] Run “Test selected networks now” with two physical Internet connections active and confirm both adapters transfer bytes
+- [ ] Download one large range-capable file with Wi-Fi + Ethernet and confirm both network names appear in Download Details
+- [ ] Compare the same legal public torrent in Epsilon and a reference client under the same network conditions
+- [ ] Sleep/wake, network interruption/recovery, and disk-full tests
 
-## Things only a Windows machine can confirm (please tick after trying)
-- [ ] `build-release.ps1` finishes; `MakanDownloadManager.exe` starts, the main window looks right in **light and dark** theme
-- [ ] Every window once in dark theme: Options, progress window, Scheduler, Links, Intelligent Center (combo boxes, tabs, menus, scroll bars)
-- [ ] Toolbar > Intelligent Center: all nine tabs open; *Apply profile* changes the limit in Options > Connection; *Create backup…* writes a file
-- [ ] A queued download started by hand from the progress window really starts
-- [ ] Exit from the tray returns immediately with a download running, and the download continues after the next start
-- [ ] One YouTube video after Options > YouTube & other sites > Download / update tools
+## Installer, extensions, and release
+
+- [x] Build self-contained 1.7.1 application and Inno Setup installer
+- [ ] Verify upgrade from 1.7.0 preserves settings, history, queues, and partial downloads
+- [ ] Verify clean install and uninstall on Windows 10/11
+- [ ] Verify Chrome/Edge extension package on a clean profile
+- [ ] Verify Firefox extension package on a clean profile
+- [ ] Authenticode-sign application binaries and installer when a SignPath or commercial certificate is available
+- [ ] Verify signatures with `Get-AuthenticodeSignature`
+- [ ] Publish installer, portable zip, source archive, and both extension packages
+- [x] Update README SHA-256 to match the final installer
+
+**Release rule:** publish only after every applicable unchecked gate is completed or is explicitly documented as an external/manual limitation.

@@ -77,7 +77,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
     string _peers = "";
     int _activeConnections;
 
-    public string FilePath { get => _filePath; set { _filePath = value; Changed(); Changed(nameof(FileName)); Changed(nameof(CategoryName)); Changed(nameof(TypeLabel)); Changed(nameof(Glyph)); } }
+    public string FilePath { get => _filePath; set { _filePath = value; Changed(); Changed(nameof(FileName)); Changed(nameof(CategoryName)); Changed(nameof(TypeLabel)); Changed(nameof(TypeBadge)); Changed(nameof(TypeKind)); Changed(nameof(Glyph)); } }
     public string FileName => Path.GetFileName(_filePath);
     public string Category { get => _category; set { _category = value; Changed(); } }
     public string? LastError { get => _lastError; set { _lastError = value; Changed(); Changed(nameof(Description)); } }
@@ -98,6 +98,9 @@ public sealed class DownloadItem : INotifyPropertyChanged
 
     // ---- IDM-style list columns (read-only, derived) -------------------------------------------------------------
     public string CategoryName => CategoryService.For(FileName);
+    /// <summary>The row badge (FILE / VIDEO / TORRENT) and a language-independent kind for its colour.</summary>
+    public string TypeBadge => TypeLabel.ToUpperInvariant();
+    public string TypeKind => DownloadManager.IsTorrentUrl(Url) ? "torrent" : CategoryName == "Video" ? "video" : "file";
     public string TypeLabel => DownloadManager.IsTorrentUrl(Url) ? Loc.T("Torrent") : CategoryName == "Video" ? Loc.T("Video") : Loc.T("File");
     public string Glyph => CategoryName switch { "Video" => "🎞", "Music" => "🎵", "Documents" => "📄", "Programs" => "💿", "Compressed" => "🗜", "General" => "📁", _ => "📂" };
     string? _queueName;

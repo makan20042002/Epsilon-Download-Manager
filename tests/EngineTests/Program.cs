@@ -35,6 +35,7 @@ public static class Program
 
     static async Task<int> Main(string[] args)
     {
+        Environment.SetEnvironmentVariable("EPSILON_NATIVE_PIPE", "com.makan.downloadmanager.tests." + Environment.ProcessId);
         if (args.Length > 0) Base = args[0];
         Dir = Path.Combine(Path.GetTempPath(), "makan-tests-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(Dir);

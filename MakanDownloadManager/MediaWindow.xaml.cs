@@ -44,7 +44,7 @@ public partial class MediaWindow : Window
         {
             var urls = await new SiteGrabber().ExtractAsync(Url.Text.Trim());
             Status.Text = $"Found {urls.Count} HTTP/HTTPS assets.";
-            Dlg.Show(string.Join(Environment.NewLine, urls.Take(100)), "Makan Site Grabber");
+            Dlg.Show(string.Join(Environment.NewLine, urls.Take(100)), "Epsilon Site Grabber");
         }
         catch (Exception ex) { Status.Text = ex.Message; }
     }

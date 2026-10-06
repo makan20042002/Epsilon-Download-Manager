@@ -16,6 +16,8 @@ public sealed class TorrentEngineOptions
     /// <summary>Ask the router to forward the listening port automatically (UPnP, then NAT-PMP). Torrents work
     /// without this - it only affects how many peers can connect in rather than only out.</summary>
     public bool EnablePortMapping { get; set; } = true;
+    /// <summary>Protocol encryption (MSE/PE): prefer encrypted peers and fall back to plain ones by default.</summary>
+    public EncryptionMode Encryption { get; set; } = EncryptionMode.Prefer;
     public int MaxPeersPerTorrent { get; set; } = 60;
     public int MaxConnections { get; set; } = 200;
     public int UploadSlots { get; set; } = 4;
@@ -33,8 +35,8 @@ public sealed class TorrentEngineOptions
 
 /// <summary>
 /// The BitTorrent client: one listening port, an optional DHT node, global speed limits and all torrents. Written from the protocol
-/// specifications (BEP 3, 5, 9, 10, 11, 12, 15, 19, 23), including single-file HTTP web seeds.
-/// Protocol encryption and uTP remain separate transports and are not implemented here.
+/// specifications (BEP 3, 5, 9, 10, 11, 12, 15, 19, 23), including single-file HTTP web seeds,
+/// IPv4/IPv6 peers and MSE/PE protocol encryption. uTP remains a separate transport.
 /// </summary>
 public sealed class TorrentEngine : IDisposable
 {
@@ -62,7 +64,7 @@ public sealed class TorrentEngine : IDisposable
     static byte[] MakePeerId()
     {
         var id = new byte[20];
-        Encoding.ASCII.GetBytes("-MK0170-").CopyTo(id, 0);
+        Encoding.ASCII.GetBytes("-MK0171-").CopyTo(id, 0);
         const string alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
         for (var i = 8; i < 20; i++) id[i] = (byte)alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
         return id;
@@ -78,7 +80,16 @@ public sealed class TorrentEngine : IDisposable
             var port = first == 0 ? 0 : first + attempt;
             try
             {
-                var listener = new TcpListener(IPAddress.Any, port);
+                TcpListener listener;
+                try
+                {
+                    listener = new TcpListener(IPAddress.IPv6Any, port);
+                    listener.Server.DualMode = true;
+                }
+                catch (Exception ex) when (ex is SocketException or PlatformNotSupportedException)
+                {
+                    listener = new TcpListener(IPAddress.Any, port);
+                }
                 listener.Start(64);
                 _listener = listener;
                 ListenPort = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -120,6 +131,7 @@ public sealed class TorrentEngine : IDisposable
             using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
                 timeout.CancelAfter(TimeSpan.FromSeconds(10));
+                await conn.BeginIncomingAsync(Options.Encryption, (block, shared) => _sessions.Values.Select(s => s.InfoHash).FirstOrDefault(hash => PeerConnection.MatchesTorrent(block, shared, hash)), timeout.Token).ConfigureAwait(false);
                 hs = await conn.ReadHandshakeAsync(timeout.Token).ConfigureAwait(false);
             }
             if (!_sessions.TryGetValue(Convert.ToHexString(hs.InfoHash).ToLowerInvariant(), out var session)) { conn.Dispose(); return; }

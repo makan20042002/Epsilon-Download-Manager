@@ -10,6 +10,7 @@ public static class Program
 {
     // Must match NativeBridge.PipeName in the desktop app.
     public const string PipeName = "com.makan.downloadmanager";
+    static string EffectivePipeName => Environment.GetEnvironmentVariable("EPSILON_NATIVE_PIPE") is { Length: > 0 } value ? value : PipeName;
     const int MaxMessageBytes = 8 * 1024 * 1024;
     static readonly TimeSpan ReplyTimeout = TimeSpan.FromSeconds(25);
 
@@ -67,7 +68,7 @@ public static class Program
         {
             var task = Task.Run(() =>
             {
-                using var pipe = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.None);
+                using var pipe = new NamedPipeClientStream(".", EffectivePipeName, PipeDirection.InOut, PipeOptions.None);
                 pipe.Connect(connectMs);
                 var bytes = new UTF8Encoding(false).GetBytes(line + "\n");
                 pipe.Write(bytes, 0, bytes.Length);

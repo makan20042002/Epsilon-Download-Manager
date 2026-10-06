@@ -276,6 +276,6 @@ public sealed partial class DownloadManager
     IReadOnlyList<ConnectionInfo>? TorrentConnections(DownloadItem item)
     {
         if (!_torrentSessions.TryGetValue(item.Id, out var s)) return null;
-        return s.Peers().Take(16).Select((p, i) => new ConnectionInfo(i + 1, p.Downloaded, $"{p.Address}  {p.Client}  ↓ {Format(p.DownRate)}/s  ↑ {Format(p.UpRate)}/s")).ToList();
+        return s.Peers().Take(16).Select((p, i) => new ConnectionInfo(i + 1, p.Downloaded, $"{p.Address}  {p.Client}  ↓ {Format(p.DownRate)}/s  ↑ {Format(p.UpRate)}/s", p.Address.Contains(':') ? "IPv6 peer" : "IPv4 peer")).ToList();
     }
 }

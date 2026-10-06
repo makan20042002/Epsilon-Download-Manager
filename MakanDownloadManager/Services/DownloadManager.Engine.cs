@@ -333,7 +333,7 @@ public sealed partial class DownloadManager
         workers = Math.Clamp(workers, 1, MaxConnectionsPerDownload);
 
         // Multi-Network (optional): spread the connections over every connected network so their speeds add up.
-        var links = MultiNetworkEnabled ? CurrentLinks() : Array.Empty<NetworkLink>();
+        var links = MultiNetworkEnabled && total >= MultiNetworkMinBytes ? UsableLinks() : Array.Empty<NetworkLink>();
         if (links.Count < 2) links = Array.Empty<NetworkLink>();
         if (links.Count > 0) workers = Math.Clamp(Math.Max(workers, links.Count), 1, MaxConnectionsPerDownload);
         // Parallel ranges only add speed when each one has its own TCP connection. Over HTTP/2 they would all share a
@@ -350,7 +350,9 @@ public sealed partial class DownloadManager
         var map = loaded;
         item.DiskLoadedBytes = map.Done.Sum();
         var live = Live(item); live.Map = map; live.Workers = workers;
-        live.LinkBytes = new long[links.Count]; live.LinkFailures = new int[links.Count]; live.Links = links.Count > 0 ? links : null;
+        var workerLink = AssignWorkers(links, workers, MultiNetworkBalanceBySpeed);
+        live.LinkBytes = new long[links.Count]; live.LinkFailures = new int[links.Count]; live.LinkRetryAt = new long[links.Count]; live.Links = links.Count > 0 ? links : null;
+        live.WorkerNetworks = Enumerable.Range(0, workers).Select(i => links.Count > 0 ? links[workerLink[i % workerLink.Length]].Name : "Windows route").ToArray();
         for (var w = 0; w < workers; w++) live.Info[w] = "Send GET...";
 
         // Preallocating up front reserves the disk space (failing early if the disk is full) and avoids fragmentation.
@@ -457,8 +459,17 @@ public sealed partial class DownloadManager
             if (Volatile.Read(ref map.Done[chunk]) >= length) return;
 
             // Which network carries this request: each worker keeps to one network until that network has failed too often.
-            var link = links.Count > 0 ? workerIndex % links.Count : -1;
-            if (link >= 0 && Volatile.Read(ref live.LinkFailures[link]) >= LinkFailureLimit) link = -1;
+            var link = links.Count > 0 ? workerLink[workerIndex % workerLink.Length] : -1;
+            if (link >= 0 && Volatile.Read(ref live.LinkFailures[link]) >= LinkFailureLimit)
+            {
+                var retryAt = Volatile.Read(ref live.LinkRetryAt[link]);
+                if (retryAt > 0 && DateTime.UtcNow.Ticks >= retryAt)
+                {
+                    Volatile.Write(ref live.LinkFailures[link], 0);
+                    Volatile.Write(ref live.LinkRetryAt[link], 0);
+                }
+                else link = -1;
+            }
             try { await FetchAsync(link >= 0 ? ClientFor(links[link]) : _http); }
             catch (Exception ex) when (link >= 0 && !work.IsCancellationRequested)
             {
@@ -466,7 +477,10 @@ public sealed partial class DownloadManager
                 // from the address it was created for) must not fail the download: after a few failures this
                 // download simply stops using that network.
                 if (Interlocked.Increment(ref live.LinkFailures[link]) == LinkFailureLimit)
+                {
+                    Volatile.Write(ref live.LinkRetryAt[link], DateTime.UtcNow.AddMinutes(Math.Max(1, MultiNetworkRetryMinutes)).Ticks);
                     _diagnostics.Error($"Multi-Network: download #{item.Id} stopped using {links[link].Kind} after repeated errors", ex);
+                }
                 throw new LinkFailedException(ex.Message, ex);
             }
 
@@ -513,7 +527,7 @@ public sealed partial class DownloadManager
                 Volatile.Write(ref map.Done[chunk], written + read); // one worker owns a chunk at a time
                 tracker.Add(read);
                 Interlocked.Add(ref live.Bytes[workerIndex], read);
-                if (link >= 0) Interlocked.Add(ref live.LinkBytes[link], read);
+                if (link >= 0) { Interlocked.Add(ref live.LinkBytes[link], read); RecordMultiNetworkBytes(read); }
                 remaining -= read;
             }
             }
@@ -605,6 +619,8 @@ public sealed partial class DownloadManager
         public volatile IReadOnlyList<NetworkLink>? Links;
         public long[] LinkBytes = Array.Empty<long>();
         public int[] LinkFailures = Array.Empty<int>();
+        public long[] LinkRetryAt = Array.Empty<long>();
+        public string[] WorkerNetworks = Array.Empty<string>();
         public LiveState() { for (var i = 0; i < Info.Length; i++) Info[i] = ""; }
     }
 
@@ -616,7 +632,7 @@ public sealed partial class DownloadManager
         if (TorrentConnections(item) is { } torrentRows) return torrentRows;
         if (!_live.TryGetValue(item.Id, out var live)) return Array.Empty<ConnectionInfo>();
         var rows = new List<ConnectionInfo>();
-        for (var i = 0; i < Math.Min(live.Workers, live.Bytes.Length); i++) rows.Add(new ConnectionInfo(i + 1, Interlocked.Read(ref live.Bytes[i]), live.Info[i]));
+        for (var i = 0; i < Math.Min(live.Workers, live.Bytes.Length); i++) rows.Add(new ConnectionInfo(i + 1, Interlocked.Read(ref live.Bytes[i]), live.Info[i], i < live.WorkerNetworks.Length ? live.WorkerNetworks[i] : "Windows route"));
         return rows;
     }
 

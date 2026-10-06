@@ -71,7 +71,7 @@ static class Extra
 
     static async Task<JsonElement> Ask(string json)
     {
-        using var pipe = new NamedPipeClientStream(".", NativeBridge.PipeName, PipeDirection.InOut, PipeOptions.CurrentUserOnly);
+        using var pipe = new NamedPipeClientStream(".", NativeBridge.EffectivePipeName, PipeDirection.InOut, PipeOptions.CurrentUserOnly);
         await pipe.ConnectAsync(5000);
         var bytes = new UTF8Encoding(false).GetBytes(json + "\n");
         await pipe.WriteAsync(bytes);
@@ -312,6 +312,38 @@ static class Extra
             T.Check("...the file is still byte-exact", File.Exists(item.FilePath) && T.Sha(item.FilePath) == await ShaOf("/big.bin"));
             T.Check("the dead network is dropped and carried nothing", usage.Count == 2 && !usage[1].Active && usage[1].Bytes == 0 && usage[0].Active && usage[0].Bytes > 0);
             T.Check("no retry was counted against the download for it", item.RetryCount == 0, item.RetryCount.ToString());
+        }
+
+        // options: an unticked network is not used; small files do not use Multi-Network; connections follow adapter speed
+        using (var m = new DownloadManager(new MemoryStore()) { MultiNetworkEnabled = true, LinkProbe = () => new[] { a, b }, MultiNetworkExcluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "TEST-B" } })
+        {
+            T.Check("an unticked network is left out (and with one network left, Multi-Network does nothing)", m.UsableLinks().Count == 1 && m.UsableLinks()[0].Name == "test-a");
+        }
+        using (var m = new DownloadManager(new MemoryStore()) { MultiNetworkEnabled = true, LinkProbe = () => new[] { a, b }, MultiNetworkMinBytes = 1L << 40 })
+        {
+            var item = new DownloadItem { Url = Base + "/big.bin", FilePath = Path.Combine(dir, "small-rule.bin"), Connections = 4 };
+            m.Enqueue(item);
+            var usage = await WatchLinks(m, item);
+            T.Check("a file below the minimum size downloads normally, without Multi-Network", await Program_WaitStatus(item, DownloadStatus.Complete) && usage.Count == 0, item.LastError);
+        }
+        var fast = new NetworkLink("fast", "Ethernet", System.Net.IPAddress.Loopback, 900_000_000); var slow = new NetworkLink("slow", "Wi-Fi", System.Net.IPAddress.Loopback, 100_000_000);
+        var bySpeed = DownloadManager.AssignWorkers(new[] { fast, slow }, 8, bySpeed: true);
+        T.Check("by speed: the faster network gets most connections, the slower one still gets some", bySpeed.Count(x => x == 0) >= 6 && bySpeed.Count(x => x == 1) >= 1 && bySpeed.Length == 8, string.Join("", bySpeed));
+        var equal = DownloadManager.AssignWorkers(new[] { fast, slow }, 8, bySpeed: false);
+        T.Check("equal: both networks get the same number", equal.Count(x => x == 0) == 4 && equal.Count(x => x == 1) == 4, string.Join("", equal));
+        T.Check("unknown adapter speeds fall back to an equal share", DownloadManager.AssignWorkers(new[] { a, b }, 4, bySpeed: true).Count(x => x == 0) == 2);
+
+        var metered = new NetworkLink("phone", "Mobile", System.Net.IPAddress.Parse("127.0.0.3"), IsMetered: true);
+        using (var m = new DownloadManager(new MemoryStore()) { LinkProbe = () => new[] { a, b, metered }, MultiNetworkAvoidMetered = true })
+            T.Check("metered networks can be excluded before workers are assigned", m.UsableLinks().Count == 2 && m.UsableLinks().All(x => !x.IsMetered));
+        using (var m = new DownloadManager(new MemoryStore()) { LinkProbe = () => new[] { fast, slow }, MultiNetworkKeepOneFree = true })
+            T.Check("keep one network free reserves the fastest adapter", m.UsableLinks().Count == 1 && m.UsableLinks()[0].Name == "slow");
+        using (var m = new DownloadManager(new MemoryStore()) { LinkProbe = () => new[] { a, b }, MultiNetworkAskNewNetwork = true, MultiNetworkKnown = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "test-a" } })
+            T.Check("a newly detected network is not used until approved", m.UsableLinks().Count == 1 && m.UsableLinks()[0].Name == "test-a");
+        using (var m = new DownloadManager(new MemoryStore()) { LinkProbe = () => new[] { a, b }, MultiNetworkDailyLimitBytes = 100 })
+        {
+            m.RestoreMultiNetworkUsage(DateOnly.FromDateTime(DateTime.Now), 100);
+            T.Check("reaching the daily Multi-Network budget leaves normal downloading available but assigns no Multi-Net links", m.UsableLinks().Count == 0);
         }
 
         using (var m = new DownloadManager(new MemoryStore()) { MultiNetworkEnabled = true, LinkProbe = () => new[] { a } })

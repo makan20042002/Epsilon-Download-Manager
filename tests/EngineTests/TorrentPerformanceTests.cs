@@ -223,7 +223,7 @@ public static class TorrentPerformanceTests
                 var hs = await conn.ReadHandshakeAsync(ct).ConfigureAwait(false);
 
                 // Send back handshake
-                var seederPeerId = Encoding.ASCII.GetBytes("-MK0170-SEEKTEST0001");
+                var seederPeerId = Encoding.ASCII.GetBytes("-MK0171-SEEKTEST0001");
                 await conn.SendHandshakeAsync(infoHash, seederPeerId, ct).ConfigureAwait(false);
 
                 // Send full bitfield
