@@ -66,6 +66,7 @@ public partial class SettingsWindow : Window
         TorrentSlots.Value = s.TorrentUploadSlots; TorrentMaxPeersBox.Text = s.TorrentMaxPeers.ToString(CultureInfo.InvariantCulture);
         TorrentSeedAfter.IsChecked = s.TorrentSeedAfterCompletion; TorrentSeedOnStart.IsChecked = s.TorrentSeedOnStart;
         TorrentRatioBox.Text = (s.TorrentSeedRatioLimit * 100).ToString("0.#", CultureInfo.InvariantCulture);
+        TorrentSeedMinutesBox.Text = s.TorrentSeedTimeMinutes.ToString(CultureInfo.InvariantCulture);
         TorrentDlScheduleOn.IsChecked = s.TorrentDownloadScheduleEnabled; TorrentDlStart.Text = s.TorrentDownloadStartTime; TorrentDlStop.Text = s.TorrentDownloadStopTime;
         TorrentSeedScheduleOn.IsChecked = s.TorrentSeedScheduleEnabled; TorrentSeedStart.Text = s.TorrentSeedStartTime; TorrentSeedStop.Text = s.TorrentSeedStopTime;
 
@@ -289,6 +290,7 @@ public partial class SettingsWindow : Window
         s.TorrentUploadSlots = (int)TorrentSlots.Value;
         s.TorrentMaxPeers = int.TryParse(TorrentMaxPeersBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxPeers) ? maxPeers : 60;
         s.TorrentSeedAfterCompletion = TorrentSeedAfter.IsChecked == true; s.TorrentSeedOnStart = TorrentSeedOnStart.IsChecked == true;
+        s.TorrentSeedTimeMinutes = int.TryParse(TorrentSeedMinutesBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var seedMinutes) ? Math.Max(0, seedMinutes) : 0;
         s.TorrentSeedRatioLimit = double.TryParse(TorrentRatioBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var ratioPct) ? Math.Max(0, ratioPct) / 100.0 : 1.0;
         s.TorrentDownloadScheduleEnabled = TorrentDlScheduleOn.IsChecked == true;
         s.TorrentDownloadStartTime = TryTime(TorrentDlStart.Text, out var dlStart) ? dlStart : s.TorrentDownloadStartTime;

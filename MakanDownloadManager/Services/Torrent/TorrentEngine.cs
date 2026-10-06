@@ -33,7 +33,8 @@ public sealed class TorrentEngineOptions
 
 /// <summary>
 /// The BitTorrent client: one listening port, an optional DHT node, global speed limits and all torrents. Written from the protocol
-/// specifications (BEP 3, 5, 9, 10, 11, 12, 15, 23); it does not implement protocol encryption, uTP or web seeds.
+/// specifications (BEP 3, 5, 9, 10, 11, 12, 15, 19, 23), including single-file HTTP web seeds.
+/// Protocol encryption and uTP remain separate transports and are not implemented here.
 /// </summary>
 public sealed class TorrentEngine : IDisposable
 {
@@ -61,7 +62,7 @@ public sealed class TorrentEngine : IDisposable
     static byte[] MakePeerId()
     {
         var id = new byte[20];
-        Encoding.ASCII.GetBytes("-MK0160-").CopyTo(id, 0);
+        Encoding.ASCII.GetBytes("-MK0170-").CopyTo(id, 0);
         const string alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
         for (var i = 8; i < 20; i++) id[i] = (byte)alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
         return id;
@@ -87,7 +88,11 @@ public sealed class TorrentEngine : IDisposable
         }
         if (_listener == null) throw new IOException("No port is free for incoming BitTorrent connections.");
         Directory.CreateDirectory(Options.StateDirectory);
-        if (Options.EnableDht) Dht = new DhtNode(ListenPort);
+        if (Options.EnableDht)
+        {
+            Dht = new DhtNode(ListenPort);
+            foreach (var endpoint in LoadDhtBootstrap()) Dht.Bootstrap.Add(endpoint);
+        }
         if (Options.EnablePortMapping) { _portMapper = new PortMapper(); _portMapper.Start(ListenPort); }   // best-effort; torrents work fine while it's still trying, or if it never succeeds
         _ = Task.Run(() => AcceptLoopAsync(_cts.Token));
     }
@@ -167,6 +172,35 @@ public sealed class TorrentEngine : IDisposable
 
     string ResumePath(string hash) => Path.Combine(Options.StateDirectory, hash + ".resume.json");
     string TorrentPath(string hash) => Path.Combine(Options.StateDirectory, hash + ".torrent");
+    string DhtPath => Path.Combine(Options.StateDirectory, "dht-nodes.json");
+
+    sealed record SavedEndpoint(string Address, int Port);
+
+    IReadOnlyList<IPEndPoint> LoadDhtBootstrap()
+    {
+        try
+        {
+            if (!File.Exists(DhtPath)) return Array.Empty<IPEndPoint>();
+            return (JsonSerializer.Deserialize<List<SavedEndpoint>>(File.ReadAllText(DhtPath)) ?? new())
+                .Where(x => x.Port is > 0 and < 65536 && IPAddress.TryParse(x.Address, out _))
+                .Select(x => new IPEndPoint(IPAddress.Parse(x.Address), x.Port)).Distinct().Take(200).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return Array.Empty<IPEndPoint>(); }
+    }
+
+    void SaveDhtBootstrap()
+    {
+        try
+        {
+            if (Dht == null) return;
+            Directory.CreateDirectory(Options.StateDirectory);
+            var contacts = Dht.BootstrapSnapshot().Select(x => new SavedEndpoint(x.Address.ToString(), x.Port)).ToList();
+            var temp = DhtPath + ".tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(contacts));
+            File.Move(temp, DhtPath, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
 
     internal TorrentResume? LoadResume(string hash)
     {
@@ -215,6 +249,7 @@ public sealed class TorrentEngine : IDisposable
         _cts.Cancel();
         try { _listener?.Stop(); } catch (Exception) { }
         foreach (var session in _sessions.Values) session.DiskPipeline.Dispose();
+        SaveDhtBootstrap();
         Dht?.Dispose();
         if (_portMapper != null) _ = _portMapper.DisposeAsync().AsTask();   // best-effort, fire-and-forget: Dispose() itself cannot await
     }

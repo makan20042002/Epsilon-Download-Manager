@@ -28,6 +28,11 @@ public sealed class DhtNode : IDisposable
     /// <summary>Contact this node before anything else (tests use it to point at a local node).</summary>
     public List<IPEndPoint> Bootstrap { get; } = new();
 
+    /// <summary>A bounded snapshot suitable for the next process start. IDs are intentionally not persisted: an
+    /// endpoint is queried as a bootstrap contact and its current node ID is learned from the reply.</summary>
+    public IReadOnlyList<IPEndPoint> BootstrapSnapshot() => _nodes.Values
+        .Select(c => c.EndPoint).Concat(Bootstrap).Distinct().Take(200).ToList();
+
     public DhtNode(int port)
     {
         try { _udp = new UdpClient(new IPEndPoint(IPAddress.Any, port)); }

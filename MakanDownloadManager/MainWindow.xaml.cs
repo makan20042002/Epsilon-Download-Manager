@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     Point _marqueeStart;
     Point _marqueeCurrent;
     List<DownloadItem> _pendingDelete = new();
+    string _activeFilterTag = "all";
 
     static bool AskFirst => App.Db.Get("ask_before_download") != "0";
 
@@ -175,6 +176,7 @@ public partial class MainWindow : Window
     void FilterTab_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: string tag }) return;
+        _activeFilterTag = tag;
         var node = Tree.Items.OfType<TreeViewItem>().FirstOrDefault(x => string.Equals(x.Tag as string, tag, StringComparison.Ordinal));
         if (node != null) node.IsSelected = true;
         _view?.Refresh();
@@ -191,6 +193,11 @@ public partial class MainWindow : Window
         Set("torrents", _items.Count(x => DownloadManager.IsTorrentUrl(x.Url)));
         Set("queues", _items.Count(x => x.QueueName != null));
         foreach (var q in App.Queues.Queues) Set("queue:" + q.Id, q.ItemIds.Count);
+        FilterAll.Content = Loc.F("All  {0}", _items.Count);
+        FilterFiles.Content = Loc.F("Files  {0}", _items.Count(x => !DownloadManager.IsTorrentUrl(x.Url)));
+        FilterTorrents.Content = Loc.F("Torrents  {0}", _items.Count(x => DownloadManager.IsTorrentUrl(x.Url)));
+        FilterActive.Content = Loc.F("Active  {0}", _items.Count(x => x.Status != nameof(DownloadStatus.Complete)));
+        FilterFinished.Content = Loc.F("Finished  {0}", _items.Count(x => x.Status == nameof(DownloadStatus.Complete)));
     }
 
     void ToggleCategories_Click(object sender, RoutedEventArgs e)
@@ -215,6 +222,31 @@ public partial class MainWindow : Window
                 _view.SortDescriptions.Add(new SortDescription(nameof(DownloadItem.Id), ListSortDirection.Descending));
         }
         Footer.Text = Loc.T("Downloads sorted") + ": " + Loc.T((string)((MenuItem)sender).Header);
+    }
+
+    void SortButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string property } button) return;
+        var current = _view.SortDescriptions.FirstOrDefault();
+        var direction = current.PropertyName == property
+            ? (current.Direction == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending)
+            : property == nameof(DownloadItem.FileName) ? ListSortDirection.Ascending : ListSortDirection.Descending;
+        using (_view.DeferRefresh())
+        {
+            _view.SortDescriptions.Clear();
+            _view.SortDescriptions.Add(new SortDescription(property, direction));
+            if (property != nameof(DownloadItem.Id)) _view.SortDescriptions.Add(new SortDescription(nameof(DownloadItem.Id), ListSortDirection.Descending));
+        }
+        var label = property switch
+        {
+            nameof(DownloadItem.FileName) => Loc.T("Name"),
+            nameof(DownloadItem.TotalBytes) => Loc.T("Size"),
+            nameof(DownloadItem.Status) => Loc.T("Status"),
+            nameof(DownloadItem.SpeedBytesPerSec) => Loc.T("Speed"),
+            _ => Loc.T("Date added")
+        };
+        button.Content = label + (direction == ListSortDirection.Ascending ? " ↑" : " ↓");
+        Footer.Text = Loc.T("Downloads sorted") + ": " + label;
     }
 
     // ---------------------------------------------------------------- tray / lifetime
@@ -717,11 +749,20 @@ public partial class MainWindow : Window
 
     void MainWindow_PreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        if (DeleteActionPopup.IsOpen)
+        {
+            if (e.Key == Key.Escape) { CloseDeleteBar(); e.Handled = true; }
+            else if (e.Key == Key.R) { _ = ApplyDeleteChoiceAsync("remove"); e.Handled = true; }
+            else if (e.Key == Key.F) { _ = ApplyDeleteChoiceAsync("file"); e.Handled = true; }
+            else if (e.Key == Key.D) { _ = ApplyDeleteChoiceAsync("complete"); e.Handled = true; }
+            if (e.Handled) return;
+        }
         var typing = Keyboard.FocusedElement is TextBox;
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         if (e.Key == Key.N && ctrl) { Add_Click(this, new RoutedEventArgs()); e.Handled = true; return; }
         if (typing) return;
-        if (e.Key == Key.V && ctrl && Clipboard.ContainsText())
+        if (e.Key == Key.A && ctrl) { Downloads.SelectAll(); e.Handled = true; }
+        else if (e.Key == Key.V && ctrl && Clipboard.ContainsText())
         {
             var urls = ExtractUrls(Clipboard.GetText());
             if (urls.Count > 0) { AddUrls(urls); e.Handled = true; }
@@ -990,7 +1031,7 @@ public partial class MainWindow : Window
     {
         var kbps = App.Settings.SpeedKbps;
         SpeedLimiterCaption.Text = kbps <= 0
-            ? Loc.T("Unlimited")
+            ? Loc.T("Off")
             : FormatSpeedLimit(kbps, App.Settings.SpeedLimitScope == "per_file");
     }
 
@@ -1002,10 +1043,17 @@ public partial class MainWindow : Window
 
     // ---- Multi-Network --------------------------------------------------------------------------------------------------
 
-    /// <summary>Turns Multi-Network on or off. It applies to downloads that start (or resume) from now on.</summary>
     void MultiNet_Click(object? sender, RoutedEventArgs? e)
     {
-        var on = !App.Settings.MultiNetwork;
+        UpdateMultiNetButton();
+        MultiNetPopup.IsOpen = true;
+    }
+
+    void MultiNetOn_Click(object? sender, RoutedEventArgs? e) => SetMultiNetwork(true);
+    void MultiNetOff_Click(object? sender, RoutedEventArgs? e) => SetMultiNetwork(false);
+
+    void SetMultiNetwork(bool on)
+    {
         App.Settings.MultiNetwork = on;
         App.Manager.MultiNetworkEnabled = on;
         UpdateMultiNetButton();
@@ -1015,13 +1063,23 @@ public partial class MainWindow : Window
             : links.Count >= 2
                 ? Loc.F("Multi-Network is on: new downloads will use {0}.", string.Join(" + ", links.Select(l => Loc.T(l.Kind))))
                 : Loc.T("Multi-Network is on, but only one network is connected. Connect a second one (Ethernet, Wi-Fi or a tethered phone) to gain speed.");
+        MultiNetStatusText.Text = Footer.Text;
     }
 
     void UpdateMultiNetButton()
     {
         var on = App.Settings.MultiNetwork;
-        MultiNetCaption.Text = Loc.T(on ? "Multi-Net: On" : "Multi-Net: Off");
+        MultiNetCaption.Text = Loc.T("Multi-Net");
+        var links = on ? App.Manager.CurrentLinks().Count : 0;
+        MultiNetState.Text = on ? Loc.F("On · {0} networks", Math.Max(1, links)) : Loc.T("Off");
         MultiNetGlyph.SetResourceReference(TextBlock.ForegroundProperty, on ? "Success" : "IconGrey");
+        MultiNetOnButton.SetResourceReference(Control.BackgroundProperty, on ? "Accent" : "Surface");
+        MultiNetOnButton.SetResourceReference(Control.ForegroundProperty, on ? "OnAccent" : "Text");
+        MultiNetOffButton.SetResourceReference(Control.BackgroundProperty, on ? "Surface" : "Accent");
+        MultiNetOffButton.SetResourceReference(Control.ForegroundProperty, on ? "Text" : "OnAccent");
+        MultiNetStatusText.Text = on
+            ? Loc.F("Enabled · {0} connected network path(s)", Math.Max(1, links))
+            : Loc.T("Off · downloads use the normal Windows route");
     }
 
     void Center_Click(object? sender, RoutedEventArgs? e)
@@ -1041,6 +1099,7 @@ public partial class MainWindow : Window
             SmartDot.SetResourceReference(Border.BackgroundProperty, smart ? "Success" : "Faint");
             var browser = WindowsIntegration.Browsers().Any(b => b.Registered);
             BrowserText.Text = Loc.T(browser ? "BROWSER CONNECTED" : "BROWSER NOT CONNECTED");
+            FooterBrowser.Text = Loc.T(browser ? "Connected" : "Not connected");
             BrowserDot.SetResourceReference(Border.BackgroundProperty, browser ? "Success" : "Warning");
         }
         catch (Exception) { /* cosmetic */ }
@@ -1100,13 +1159,19 @@ public partial class MainWindow : Window
             };
             parent.Items.Add(entry);
         }
-        if (SelectedItems().Any(x => x.QueueName != null))
+        parent.Items.Add(new Separator());
+        var remove = new MenuItem { Header = Loc.T("No queue (start now)") };
+        remove.Click += (_, _) => { foreach (var item in SelectedItems().ToList()) App.Queues.RemoveItem(item); };
+        parent.Items.Add(remove);
+        var create = new MenuItem { Header = Loc.T("New queue…") };
+        create.Click += (_, _) =>
         {
-            parent.Items.Add(new Separator());
-            var remove = new MenuItem { Header = Loc.T("Remove from queue") };
-            remove.Click += (_, _) => { foreach (var item in SelectedItems()) App.Queues.RemoveItem(item); };
-            parent.Items.Add(remove);
-        }
+            var ask = new TextPromptDialog("New schedule queue", "Queue name:", "New queue") { Owner = this };
+            if (ask.ShowDialog() != true || string.IsNullOrWhiteSpace(ask.Value)) return;
+            var queue = App.Queues.AddQueue(ask.Value.Trim());
+            foreach (var item in SelectedItems().Where(x => x.Status != nameof(DownloadStatus.Complete)).ToList()) App.Queues.AddItem(queue.Id, item);
+        };
+        parent.Items.Add(create);
     }
 
     void Retry_Click(object? sender, RoutedEventArgs? e) { foreach (var item in SelectedItems()) App.Manager.Retry(item); }
@@ -1123,38 +1188,65 @@ public partial class MainWindow : Window
     {
         _pendingDelete = SelectedItems().ToList();
         if (_pendingDelete.Count == 0) return;
+        var remembered = App.Db.Get("delete_choice");
+        if (remembered is "remove" or "file" or "complete")
+        {
+            _ = ApplyDeleteChoiceAsync(remembered);
+            return;
+        }
         MorePopup.IsOpen = false;
-        DeleteBarTitle.Text = Loc.F("Remove {0} selected download(s)?", _pendingDelete.Count);
-        DeleteUnfinishedDataButton.IsEnabled = _pendingDelete.Any(x => x.Status != nameof(DownloadStatus.Complete));
+        DeleteBarTitle.Text = _pendingDelete.Count == 1
+            ? Loc.T("Delete selected download?")
+            : Loc.F("Delete {0} selected downloads?", _pendingDelete.Count);
+        DeleteBarHelp.Text = _pendingDelete.Any(x => x.Status == nameof(DownloadStatus.Complete))
+            ? Loc.T("Completed files are always kept on disk. The disk choices apply only to unfinished downloads.")
+            : Loc.T("Choose exactly what Epsilon should remove.");
+        DeleteTorrentNote.Visibility = _pendingDelete.Any(x => DownloadManager.IsTorrentUrl(x.Url) && x.Status == nameof(DownloadStatus.Complete))
+            ? Visibility.Visible : Visibility.Collapsed;
+        DeleteFileOnlyButton.IsEnabled = true;
+        DeleteUnfinishedDataButton.IsEnabled = true;
+        RememberDeleteChoice.IsChecked = false;
         Downloads.ScrollIntoView(_pendingDelete[0]);
         Downloads.UpdateLayout();
         DeleteActionPopup.PlacementTarget = Downloads.ItemContainerGenerator.ContainerFromItem(_pendingDelete[0]) as UIElement ?? Downloads;
-        DeleteActionPopup.HorizontalOffset = Math.Max(0, (Downloads.ActualWidth - 760) / 2);
+        DeleteActionPopup.HorizontalOffset = Math.Max(0, (Downloads.ActualWidth - 540) / 2);
         DeleteActionPopup.IsOpen = true;
     }
 
-    async void DeleteBarRemove_Click(object? sender, RoutedEventArgs? e) => await ApplyDeleteChoiceAsync(false);
-    async void DeleteBarDisk_Click(object? sender, RoutedEventArgs? e) => await ApplyDeleteChoiceAsync(true);
+    async void DeleteBarRemove_Click(object? sender, RoutedEventArgs? e) => await ApplyDeleteChoiceAsync("remove");
+    async void DeleteBarFileOnly_Click(object? sender, RoutedEventArgs? e) => await ApplyDeleteChoiceAsync("file");
+    async void DeleteBarDisk_Click(object? sender, RoutedEventArgs? e) => await ApplyDeleteChoiceAsync("complete");
     void DeleteBarCancel_Click(object? sender, RoutedEventArgs? e) => CloseDeleteBar();
 
-    async Task ApplyDeleteChoiceAsync(bool deleteUnfinishedData)
+    async Task ApplyDeleteChoiceAsync(string choice)
     {
         var pending = _pendingDelete.ToList();
+        if (RememberDeleteChoice.IsChecked == true) App.Db.Set("delete_choice", choice);
         CloseDeleteBar();
         foreach (var item in pending)
         {
-            var unfinished = item.Status != nameof(DownloadStatus.Complete);
-            await App.Manager.RemoveAsync(item, deleteUnfinishedData && unfinished, preservePartialData: unfinished && !deleteUnfinishedData);
+            if (item.Status == nameof(DownloadStatus.Complete)) await App.Manager.RemoveAsync(item, deleteFile: false);
+            else if (choice == "file") await App.Manager.DeleteDataKeepEntryAsync(item);
+            else await App.Manager.RemoveAsync(item, deleteFile: choice == "complete", preservePartialData: choice == "remove");
         }
-        Footer.Text = deleteUnfinishedData
-            ? Loc.T("Selected entries and unfinished data were deleted. Completed files were kept.")
-            : Loc.T("Selected entries were removed. Files on disk were kept.");
+        Footer.Text = choice switch
+        {
+            "file" => Loc.T("Files were deleted. Their entries remain available for downloading again."),
+            "complete" => Loc.T("Selected entries and their files were deleted completely."),
+            _ => Loc.T("Selected entries were removed. Files on disk were kept.")
+        };
     }
 
     void CloseDeleteBar()
     {
         DeleteActionPopup.IsOpen = false;
         _pendingDelete.Clear();
+    }
+
+    void ResetDeleteChoice_Click(object? sender, RoutedEventArgs? e)
+    {
+        App.Db.Set("delete_choice", "");
+        Footer.Text = Loc.T("Epsilon will ask what to delete next time.");
     }
 
     async void DeleteCompleted_Click(object? sender, RoutedEventArgs? e)
@@ -1238,17 +1330,20 @@ public partial class MainWindow : Window
         try { Clipboard.SetText(text); _lastClipboard = text; } catch (Exception) { /* clipboard busy */ }
     }
     void Media_Click(object sender, RoutedEventArgs e) => new MediaWindow { Owner = this }.ShowDialog();
+    void Themes_Click(object? sender, RoutedEventArgs? e) => ThemePopup.IsOpen = true;
     /// <summary>Applies a built-in theme selected from the More menu.</summary>
     void SetTheme_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string theme }) return;
         App.Settings.Theme = theme;
         ThemeManager.Apply(App.Settings.Theme);
+        ThemePopup.IsOpen = false;
         UpdateThemeGlyph();
     }
 
     void UpdateThemeGlyph()
     {
+        CurrentThemeText.Text = Loc.F("Current: {0} · all 12 palettes", ThemeManager.Current.Replace('-', ' '));
         ThemeObsidianGoldCheck.Visibility = ThemeManager.Current == "obsidian-gold" ? Visibility.Visible : Visibility.Collapsed;
         ThemePlatinumBlueCheck.Visibility = ThemeManager.Current == "platinum-blue" ? Visibility.Visible : Visibility.Collapsed;
         ThemeRoyalAmethystCheck.Visibility = ThemeManager.Current == "royal-amethyst" ? Visibility.Visible : Visibility.Collapsed;
@@ -1422,6 +1517,42 @@ public partial class MainWindow : Window
 
     void Downloads_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateToolbar();
 
+    void SelectAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox { IsChecked: true }) Downloads.SelectAll();
+        else Downloads.UnselectAll();
+    }
+
+    void MoveSelectedQueue_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement target || !SelectedItems().Any()) return;
+        var menu = new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom };
+        foreach (var queue in App.Queues.Queues)
+        {
+            var id = queue.Id;
+            var entry = new MenuItem { Header = Loc.F("{0}  ({1} files)", queue.Name, queue.ItemIds.Count) };
+            entry.Click += (_, _) =>
+            {
+                foreach (var item in SelectedItems().Where(x => x.Status != nameof(DownloadStatus.Complete)).ToList()) App.Queues.AddItem(id, item);
+            };
+            menu.Items.Add(entry);
+        }
+        menu.Items.Add(new Separator());
+        var none = new MenuItem { Header = Loc.T("No queue (start now)") };
+        none.Click += (_, _) => { foreach (var item in SelectedItems().ToList()) App.Queues.RemoveItem(item); };
+        menu.Items.Add(none);
+        var create = new MenuItem { Header = Loc.T("New queue…") };
+        create.Click += (_, _) =>
+        {
+            var ask = new TextPromptDialog("New schedule queue", "Queue name:", "New queue") { Owner = this };
+            if (ask.ShowDialog() != true || string.IsNullOrWhiteSpace(ask.Value)) return;
+            var queue = App.Queues.AddQueue(ask.Value.Trim());
+            foreach (var item in SelectedItems().Where(x => x.Status != nameof(DownloadStatus.Complete)).ToList()) App.Queues.AddItem(queue.Id, item);
+        };
+        menu.Items.Add(create);
+        menu.IsOpen = true;
+    }
+
     void UpdateToolbar()
     {
         var selected = SelectedItems().ToList();
@@ -1432,6 +1563,8 @@ public partial class MainWindow : Window
         BtnStopAllTop.IsEnabled = _items.Any(IsRunning);
         BtnStartAllTop.IsEnabled = _items.Any(CanResume) || App.Queues.Queues.Any(q => !App.Queues.IsRunning(q.Id) && q.ItemIds.Count > 0);
         BtnDeleteCompleted.IsEnabled = _items.Any(x => x.Status == nameof(DownloadStatus.Complete));
+        SelectionActions.Visibility = selected.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        SelectedCountText.Text = Loc.F("{0} selected", selected.Count);
     }
 
     // ---------------------------------------------------------------- filtering
@@ -1448,10 +1581,13 @@ public partial class MainWindow : Window
             !x.CategoryName.Contains(q, StringComparison.OrdinalIgnoreCase) &&
             !x.StatusText.Contains(q, StringComparison.OrdinalIgnoreCase) &&
             !(x.QueueName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)) return false;
-        var tag = (Tree?.SelectedItem as TreeViewItem)?.Tag as string ?? "all";
+        var tag = CategoryPanel.Visibility == Visibility.Visible
+            ? (Tree?.SelectedItem as TreeViewItem)?.Tag as string ?? _activeFilterTag
+            : _activeFilterTag;
         return tag switch
         {
             "all" => true,
+            "files" => !DownloadManager.IsTorrentUrl(x.Url),
             "unfinished" => x.Status != nameof(DownloadStatus.Complete),
             "finished" => x.Status == nameof(DownloadStatus.Complete),
             "torrents" => DownloadManager.IsTorrentUrl(x.Url),
@@ -1475,12 +1611,23 @@ public partial class MainWindow : Window
         // Statuses change on background threads; re-evaluate the filter and buttons only when something actually changed.
         if (signature != _statusSignature) { _statusSignature = signature; _view.Refresh(); UpdateToolbar(); UpdateCounts(); }
 
-        TotalSpeed.Text = $"{Format(total)}/s";
-        ActiveText.Text = Loc.F("{0} active · {1} files", active, _items.Count);
-        CanvasSummary.Text = Loc.F("{0} active · {1} total", active, _items.Count);
-
         long upload = 0;
         foreach (var item in _items) if (App.Manager.SessionOf(item) is { } session) upload += session.UploadRate;
+        TotalSpeed.Text = $"↓ {Format(total)}/s  ↑ {Format(upload)}/s";
+        ActiveText.Text = Loc.F("{0} active · {1} files", active, _items.Count);
+        CanvasSummary.Text = Loc.F("{0} active · {1} total", active, _items.Count);
+        HeaderDownloadSpeed.Text = $"{Format(total)}/s";
+        HeaderUploadSpeed.Text = $"{Format(upload)}/s";
+        HeaderActiveCount.Text = Loc.F("{0} items", active);
+        FooterMultiNet.Text = App.Settings.MultiNetwork ? Loc.F("On · {0}", Math.Max(1, App.Manager.CurrentLinks().Count)) : Loc.T("Off");
+        FooterLimiter.Text = App.Settings.SpeedKbps > 0 ? FormatSpeedLimit(App.Settings.SpeedKbps, App.Settings.SpeedLimitScope == "per_file") : Loc.T("Off");
+        try
+        {
+            var path = _items.FirstOrDefault()?.FilePath ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var root = Path.GetPathRoot(Path.GetFullPath(path));
+            if (!string.IsNullOrEmpty(root)) FooterDisk.Text = DownloadItem.FormatBytes(new DriveInfo(root).AvailableFreeSpace);
+        }
+        catch (Exception) { FooterDisk.Text = "—"; }
         UpdateTrayIcon(total, upload);
     }
 

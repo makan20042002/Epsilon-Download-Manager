@@ -26,6 +26,8 @@ public sealed class MetaInfo
     public bool IsPrivate { get; private init; }
     public IReadOnlyList<TorrentFile> Files { get; private init; } = Array.Empty<TorrentFile>();
     public IReadOnlyList<IReadOnlyList<string>> TrackerTiers { get; init; } = Array.Empty<IReadOnlyList<string>>();
+    /// <summary>HTTP(S) sources from BEP 19 url-list (and the older httpseeds key).</summary>
+    public IReadOnlyList<string> WebSeeds { get; init; } = Array.Empty<string>();
     public string InfoHashHex => Convert.ToHexString(InfoHash).ToLowerInvariant();
     public int PieceCount => PieceHashes.Length / 20;
 
@@ -45,11 +47,11 @@ public sealed class MetaInfo
         catch (FormatException ex) { throw new InvalidDataException("This is not a valid .torrent file: " + ex.Message, ex); }
         if (span is null || root is not Dictionary<string, object> top) throw new InvalidDataException("This .torrent file has no content description (info).");
         var raw = torrentFile.AsSpan(span.Value.Start, span.Value.Length).ToArray();
-        return FromInfo(raw, ReadTrackers(top));
+        return FromInfo(raw, ReadTrackers(top), ReadWebSeeds(top));
     }
 
     /// <summary>Builds the description from the raw info dictionary (what a magnet link's metadata exchange delivers).</summary>
-    public static MetaInfo FromInfo(byte[] rawInfo, IReadOnlyList<IReadOnlyList<string>>? trackers = null)
+    public static MetaInfo FromInfo(byte[] rawInfo, IReadOnlyList<IReadOnlyList<string>>? trackers = null, IReadOnlyList<string>? webSeeds = null)
     {
         object parsed;
         try { parsed = Bencode.Parse(rawInfo); }
@@ -94,8 +96,22 @@ public sealed class MetaInfo
         {
             InfoHash = sha.ComputeHash(rawInfo), RawInfo = rawInfo, Name = name, PieceLength = (int)pieceLength, PieceHashes = pieces,
             TotalLength = offset, IsMultiFile = multi, IsPrivate = (Bencode.Long(info, "private") ?? 0) == 1, Files = files,
-            TrackerTiers = trackers ?? Array.Empty<IReadOnlyList<string>>()
+            TrackerTiers = trackers ?? Array.Empty<IReadOnlyList<string>>(), WebSeeds = webSeeds ?? Array.Empty<string>()
         };
+    }
+
+    static IReadOnlyList<string> ReadWebSeeds(Dictionary<string, object> top)
+    {
+        var result = new List<string>();
+        void Add(string? value)
+        {
+            if (value != null && Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https") result.Add(value);
+        }
+        Add(Bencode.Text(top, "url-list"));
+        if (Bencode.List(top, "url-list") is { } urls) foreach (var value in urls.OfType<byte[]>()) Add(Encoding.UTF8.GetString(value));
+        Add(Bencode.Text(top, "httpseeds"));
+        if (Bencode.List(top, "httpseeds") is { } old) foreach (var value in old.OfType<byte[]>()) Add(Encoding.UTF8.GetString(value));
+        return result.Distinct(StringComparer.OrdinalIgnoreCase).Take(32).ToList();
     }
 
     static IReadOnlyList<IReadOnlyList<string>> ReadTrackers(Dictionary<string, object> top)
@@ -120,6 +136,8 @@ public sealed class MetaInfo
         var parsed = (Dictionary<string, object>)Bencode.Parse(RawInfo);
         var root = new Dictionary<string, object> { ["info"] = parsed };
         if (TrackerTiers.Count > 0) root["announce-list"] = TrackerTiers.Select(t => (object)t.Select(u => (object)u).ToList()).ToList();
+        if (WebSeeds.Count == 1) root["url-list"] = WebSeeds[0];
+        else if (WebSeeds.Count > 1) root["url-list"] = WebSeeds.Select(u => (object)u).ToList();
         return Bencode.Encode(root);
     }
 

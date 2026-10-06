@@ -842,6 +842,8 @@ public static class LocFa
         ("Choose the queue that will contain this download.", "صفی را انتخاب کنید که این دانلود در آن قرار می‌گیرد."),
         ("Use the simultaneous-download limit from Options", "استفاده از محدودیت دانلود هم‌زمان در تنظیمات"),
         ("files at the same time in this queue", "فایل هم‌زمان در این صف"),
+        ("Stop sharing this many minutes after a torrent finishes, 0 = no time limit", "توقف اشتراک‌گذاری این تعداد دقیقه پس از پایان تورنت، ۰ = بدون محدودیت زمانی"),
+        ("Sharing stops at whichever limit is reached first. These limits and the upload speed limit apply immediately, without restarting.", "اشتراک‌گذاری با رسیدن به هر کدام از محدودیت‌ها که زودتر برسد متوقف می‌شود. این محدودیت‌ها و محدودیت سرعت آپلود بلافاصله و بدون راه‌اندازی مجدد اعمال می‌شوند."),
         ("Speed limiter", "محدودکنندهٔ سرعت"),
         ("All", "همه"),
         ("All commands", "همهٔ فرمان‌ها"),

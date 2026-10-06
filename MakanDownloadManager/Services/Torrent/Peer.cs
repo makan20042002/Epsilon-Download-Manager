@@ -133,6 +133,10 @@ public sealed class PeerState
     public Bitfield? Have { get; set; }
     /// <summary>A bitfield that arrived before the torrent's metadata (magnet links): applied when the piece count is known.</summary>
     public byte[]? RawBitfield { get; set; }
+    /// <summary>Upload requests from this peer that are being served or waiting for the upload limit.</summary>
+    public int PendingUploads;
+    public readonly object UploadGate = new();
+    public Task UploadTail = Task.CompletedTask;
     public bool AmChoking { get; set; } = true;
     public bool AmInterested { get; set; }
     public bool PeerChoking { get; set; } = true;

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -22,6 +23,8 @@ public sealed class TorrentResume
     /// <summary>When each file was last written (UTC ticks): a file changed behind our back is checked again instead of trusted.</summary>
     public long[] FileTimes { get; set; } = Array.Empty<long>();
     public DateTime SavedUtc { get; set; }
+    /// <summary>When the wanted files were first complete (UTC); the seed-time limit counts from here, across restarts.</summary>
+    public DateTime? CompletedUtc { get; set; }
 }
 
 /// <summary>One torrent: finds peers (trackers, DHT, peer exchange, magnet hints), fetches metadata for magnet links, downloads and verifies pieces, uploads to others.</summary>
@@ -57,7 +60,19 @@ public sealed partial class TorrentSession
     sealed class TrackerEntry { public string Url = ""; public string Status = "Not contacted yet"; public int? Seeders, Leechers; public DateTime? Last; public int Tier; }
 
     public const int BlockSize = 16 * 1024;
+    /// <summary>Connection attempts in flight at once. Most addresses a tracker or the DHT returns are dead, so a small
+    /// number here is what makes a torrent take minutes to find its first working peers.</summary>
+    const int MaxHalfOpen = 40;
+    static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
+    /// <summary>Upload requests one peer may have waiting (for the upload limit) before further ones are ignored.</summary>
+    const int MaxPendingUploadsPerPeer = 64;
     const int OurUtMetadata = 2, OurUtPex = 1;
+    static readonly HttpClient WebSeedClient = new(new SocketsHttpHandler
+    {
+        AutomaticDecompression = System.Net.DecompressionMethods.None,
+        ConnectTimeout = TimeSpan.FromSeconds(8),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+    }) { Timeout = TimeSpan.FromSeconds(30) };
 
     readonly TorrentEngine _engine;
     readonly object _sync = new();
@@ -247,7 +262,14 @@ public sealed partial class TorrentSession
             if (_meta == null || index < 0 || index >= _priorities.Length) return;
             _priorities[index] = priority;
             RecomputeWanted();
-            if (_state == TorrentState.Seeding && !WantedComplete()) { _state = TorrentState.Downloading; _announcedCompleted = false; }
+            if (!WantedComplete())
+            {
+                // More to download again (a skipped file was chosen after the rest had finished): completion had
+                // switched the files to read-only for sharing, so they must be writable again or nothing can be saved.
+                _storage?.MarkWritable();
+                _completedAt = default;
+                if (_state == TorrentState.Seeding) { _state = TorrentState.Downloading; _announcedCompleted = false; }
+            }
         }
         KickRequests();
     }
@@ -280,6 +302,10 @@ public sealed partial class TorrentSession
             if (_meta == null) await _metadataReady.Task.WaitAsync(ct).ConfigureAwait(false);
             await PrepareContentAsync(ct).ConfigureAwait(false);
             loops.Add(Task.Run(() => RechokeLoopAsync(ct)));
+            // A single-file BEP 19 source maps directly to the torrent byte stream. Multi-file sources need a
+            // separate range request for every file a piece crosses, so leave those to peers rather than risk bad data.
+            if (!_meta!.IsMultiFile)
+                for (var i = 0; i < Math.Min(2, _meta.WebSeeds.Count); i++) loops.Add(Task.Run(() => WebSeedLoopAsync(ct)));
             KickRequests();
             await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
         }
@@ -319,9 +345,10 @@ public sealed partial class TorrentSession
         {
             _have = have!;
             if (resume != null) { Interlocked.Exchange(ref _downloadedTotal, resume.Downloaded); Interlocked.Exchange(ref _uploadedTotal, resume.Uploaded); }
+            if (resume?.CompletedUtc is { } completedUtc && _completedAt == default) _completedAt = completedUtc;
             RecomputeWanted();
             foreach (var p in _peers) ApplyRawBitfield(p);
-            if (WantedComplete()) EnterSeedingLocked(); else _state = TorrentState.Downloading;
+            if (WantedComplete()) EnterSeedingLocked(); else { _state = TorrentState.Downloading; _completedAt = default; _storage.MarkWritable(); }
         }
         // everybody we already talk to may now be interesting
         foreach (var p in SnapshotPeers()) _ = UpdateInterestAsync(p, ct);
@@ -378,7 +405,8 @@ public sealed partial class TorrentSession
                 resume = new TorrentResume
                 {
                     Bitfield = Convert.ToBase64String(_have.ToBytes()), Downloaded = DownloadedTotal, Uploaded = UploadedTotal, SavedUtc = DateTime.UtcNow,
-                    Priorities = _priorities.Select(p => (int)p).ToArray(), FileSizes = _meta.Files.Select(f => f.Length).ToArray()
+                    Priorities = _priorities.Select(p => (int)p).ToArray(), FileSizes = _meta.Files.Select(f => f.Length).ToArray(),
+                    CompletedUtc = _completedAt == default ? null : _completedAt
                 };
                 resume.FileTimes = _meta.Files.Select(f => { try { var p = _storage?.FilePath(f); return p != null && File.Exists(p) ? File.GetLastWriteTimeUtc(p).Ticks : 0L; } catch (IOException) { return 0L; } }).ToArray();
             }
@@ -412,6 +440,72 @@ public sealed partial class TorrentSession
         return true;
     }
 
+    // ---------------------------------------------------------------- HTTP web seeds (BEP 19)
+
+    async Task WebSeedLoopAsync(CancellationToken ct)
+    {
+        var seedOffset = Random.Shared.Next(Math.Max(1, _meta!.WebSeeds.Count));
+        while (!ct.IsCancellationRequested)
+        {
+            ActivePiece? piece = null;
+            lock (_sync)
+            {
+                if (_state != TorrentState.Downloading) return;
+                for (var i = 0; i < _wanted.Length; i++)
+                {
+                    if (!_wanted[i] || _have[i] || _active.ContainsKey(i) || _verifying.Contains(i)) continue;
+                    piece = new ActivePiece(i, _meta!.PieceSize(i));
+                    _active[i] = piece;
+                    break;
+                }
+            }
+            if (piece == null) { await Task.Delay(500, ct).ConfigureAwait(false); continue; }
+
+            var downloaded = false;
+            for (var n = 0; n < _meta!.WebSeeds.Count && !downloaded; n++)
+            {
+                try
+                {
+                    var url = WebSeedUrl(_meta.WebSeeds[(seedOffset + n) % _meta.WebSeeds.Count], _meta);
+                    var start = _meta.PieceOffset(piece.Index);
+                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    request.Headers.Range = new RangeHeaderValue(start, start + piece.Size - 1);
+                    using var response = await WebSeedClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                    if (response.StatusCode != System.Net.HttpStatusCode.PartialContent && !(start == 0 && response.IsSuccessStatusCode)) continue;
+                    await using var input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                    var read = 0;
+                    while (read < piece.Size)
+                    {
+                        var count = await input.ReadAsync(piece.Buffer.AsMemory(read, Math.Min(64 * 1024, piece.Size - read)), ct).ConfigureAwait(false);
+                        if (count == 0) break;
+                        await TokenBucket.WaitAllAsync(count, ct, _engine.DownloadLimit, DownloadLimit).ConfigureAwait(false);
+                        read += count; _down.Add(count); Interlocked.Add(ref _downloadedTotal, count);
+                    }
+                    downloaded = read == piece.Size;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException) { }
+            }
+
+            lock (_sync)
+            {
+                _active.Remove(piece.Index);
+                if (downloaded) _verifying.Add(piece.Index);
+            }
+            if (downloaded) await FinishPieceAsync(piece, ct).ConfigureAwait(false);
+            else await Task.Delay(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+        }
+    }
+
+    static string WebSeedUrl(string seed, MetaInfo meta)
+    {
+        if (!meta.IsMultiFile && !seed.EndsWith('/')) return seed;
+        var parts = new List<string>();
+        if (meta.IsMultiFile) parts.Add(meta.Name);
+        if (!meta.IsMultiFile) parts.Add(meta.Files[0].Path);
+        var suffix = string.Join('/', parts.SelectMany(p => p.Split('/')).Select(Uri.EscapeDataString));
+        return seed.TrimEnd('/') + "/" + suffix;
+    }
+
     // ---------------------------------------------------------------- peers: finding and connecting
 
     public void AddCandidate(IPEndPoint ep) => AddCandidate(ep, PeerSource.Manual);
@@ -437,7 +531,7 @@ public sealed partial class TorrentSession
             {
                 var retry = _nextTry.Where(kv => kv.Value <= DateTime.UtcNow).Select(kv => kv.Key).ToList();
                 foreach (var key in retry) { _nextTry.Remove(key); var parts = key.Split('|'); if (TryParseEndpoint(parts[0], out var ep)) _candidates.Enqueue(ep); }
-                while (_candidates.Count > 0 && _peers.Count + _connecting.Count + toTry.Count < _engine.Options.MaxPeersPerTorrent && _connecting.Count + toTry.Count < 12)
+                while (_candidates.Count > 0 && _peers.Count + _connecting.Count + toTry.Count < _engine.Options.MaxPeersPerTorrent && _connecting.Count + toTry.Count < MaxHalfOpen)
                 {
                     var ep = _candidates.Dequeue();
                     if (_peers.Any(p => p.EndPoint.Equals(ep)) || _connecting.Contains(ep.ToString()) || !_engine.TryReserveConnection()) continue;
@@ -454,7 +548,7 @@ public sealed partial class TorrentSession
         var connected = false;
         try
         {
-            var conn = await PeerConnection.ConnectAsync(ep, TimeSpan.FromSeconds(8), ct).ConfigureAwait(false);
+            var conn = await PeerConnection.ConnectAsync(ep, ConnectTimeout, ct).ConfigureAwait(false);
             connected = true;
             await RunPeerAsync(conn, null, ct).ConfigureAwait(false);
         }
@@ -586,7 +680,7 @@ public sealed partial class TorrentSession
                 await UpdateInterestAsync(peer, ct).ConfigureAwait(false);
                 await RequestMoreAsync(peer, ct).ConfigureAwait(false);
                 break;
-            case PeerConnection.Request: await HandleRequestAsync(peer, payload, ct).ConfigureAwait(false); break;
+            case PeerConnection.Request: QueueUpload(peer, payload, ct); break;
             case PeerConnection.Piece: await HandlePieceAsync(peer, payload, ct).ConfigureAwait(false); break;
             case PeerConnection.Port:
                 if (payload.Length == 2 && _engine.Dht != null && !IsPrivate && _engine.Dht.Bootstrap.Count < 32) _engine.Dht.Bootstrap.Add(new IPEndPoint(peer.EndPoint.Address, (payload[0] << 8) | payload[1]));
@@ -842,6 +936,28 @@ public sealed partial class TorrentSession
 
     // ---------------------------------------------------------------- uploading and choking
 
+    /// <summary>
+    /// Serves an upload request on its own task. It used to run inside the peer's read loop, so whenever the upload
+    /// limit made an upload wait, nothing could be received from that peer either - a tight upload limit throttled the
+    /// download as well.
+    /// </summary>
+    void QueueUpload(PeerState peer, byte[] payload, CancellationToken ct)
+    {
+        if (Interlocked.Increment(ref peer.PendingUploads) > MaxPendingUploadsPerPeer) { Interlocked.Decrement(ref peer.PendingUploads); return; }
+        payload = payload.ToArray();   // the read loop may reuse its buffer for the next message before this one is served
+        // One peer's requests are still answered in the order they arrived; they just no longer hold up its read loop.
+        lock (peer.UploadGate) peer.UploadTail = ServeAfterAsync(peer.UploadTail, peer, payload, ct);
+    }
+
+    async Task ServeAfterAsync(Task previous, PeerState peer, byte[] payload, CancellationToken ct)
+    {
+        await previous.ConfigureAwait(false);   // never faults: every failure is handled below
+        try { await Task.Run(() => HandleRequestAsync(peer, payload, ct), CancellationToken.None).ConfigureAwait(false); }
+        catch (OperationCanceledException) { }
+        catch (Exception) { peer.Connection.Dispose(); }   // a bad request or a broken connection ends this peer, as before
+        finally { Interlocked.Decrement(ref peer.PendingUploads); }
+    }
+
     async Task HandleRequestAsync(PeerState peer, byte[] payload, CancellationToken ct)
     {
         if (payload.Length != 12) throw new IOException("Bad request message.");
@@ -854,6 +970,7 @@ public sealed partial class TorrentSession
             start = _meta.PieceOffset(piece) + offset;
         }
         await TokenBucket.WaitAllAsync(length, ct, _engine.UploadLimit, UploadLimit).ConfigureAwait(false);
+        lock (_sync) { if (peer.AmChoking) return; }   // choked while it waited for the upload limit
         var message = new byte[8 + length];
         PeerConnection.U32(piece).CopyTo(message, 0); PeerConnection.U32(offset).CopyTo(message, 4);
         bool read;
@@ -955,29 +1072,39 @@ public sealed partial class TorrentSession
         {
             var interval = 60; var any = false;
             if (_announcedCompleted && eventName == "") eventName = "completed";
-            foreach (var tier in Tiers())
+            // Every tier is asked at the same time. Asking them one after another meant each dead tracker cost a full
+            // time-out before the next was even tried, which is most of why a torrent was slow to find its first peers.
+            var announceEvent = eventName;
+            foreach (var seconds in await Task.WhenAll(Tiers().Select(tier => AnnounceTierAsync(tier, announceEvent, ct))).ConfigureAwait(false))
             {
-                foreach (var entry in tier.ToList())
-                {
-                    try
-                    {
-                        var response = await TrackerClient.AnnounceAsync(entry.Url, MakeAnnounce(eventName), ct, _engine.Options.UdpTrackerTimeout).ConfigureAwait(false);
-                        lock (_sync) { entry.Status = response.Warning is { } w ? "Working (" + w + ")" : "Working"; entry.Seeders = response.Seeders; entry.Leechers = response.Leechers; entry.Last = DateTime.UtcNow; }
-                        foreach (var ep in response.Peers) AddCandidate(ep);
-                        interval = any ? Math.Min(interval, response.IntervalSeconds) : response.IntervalSeconds;
-                        any = true;
-                        lock (_sync) { tier.Remove(entry); tier.Insert(0, entry); }
-                        break;                        // one working tracker per tier is enough (BEP 12)
-                    }
-                    catch (TrackerException ex) { lock (_sync) { entry.Status = ex.Message; entry.Last = DateTime.UtcNow; } }
-                    catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                    catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or InvalidOperationException) { lock (_sync) entry.Status = ex.Message; }
-                }
+                if (seconds is not { } s) continue;
+                interval = any ? Math.Min(interval, s) : s;
+                any = true;
             }
             if (any && eventName is "started" or "completed") eventName = "";
             var wait = any ? TimeSpan.FromSeconds(Math.Max(interval, _engine.Options.MinAnnounceInterval.TotalSeconds)) : TimeSpan.FromSeconds(30);
             try { await _announceKick.WaitAsync(wait, ct).ConfigureAwait(false); } catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         }
+    }
+
+    /// <summary>Announces to one tier: its trackers in order until one answers (BEP 12). Returns that tracker's interval, or null.</summary>
+    async Task<int?> AnnounceTierAsync(List<TrackerEntry> tier, string eventName, CancellationToken ct)
+    {
+        foreach (var entry in tier.ToList())
+        {
+            try
+            {
+                var response = await TrackerClient.AnnounceAsync(entry.Url, MakeAnnounce(eventName), ct, _engine.Options.UdpTrackerTimeout).ConfigureAwait(false);
+                lock (_sync) { entry.Status = response.Warning is { } w ? "Working (" + w + ")" : "Working"; entry.Seeders = response.Seeders; entry.Leechers = response.Leechers; entry.Last = DateTime.UtcNow; }
+                foreach (var ep in response.Peers) AddCandidate(ep);
+                lock (_sync) { tier.Remove(entry); tier.Insert(0, entry); }
+                return response.IntervalSeconds;
+            }
+            catch (TrackerException ex) { lock (_sync) { entry.Status = ex.Message; entry.Last = DateTime.UtcNow; } }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or InvalidOperationException or OperationCanceledException) { lock (_sync) entry.Status = ex.Message; }
+        }
+        return null;
     }
 
     async Task AnnounceStoppedAsync()

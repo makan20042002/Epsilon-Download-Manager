@@ -77,15 +77,15 @@ public sealed class DownloadItem : INotifyPropertyChanged
     string _peers = "";
     int _activeConnections;
 
-    public string FilePath { get => _filePath; set { _filePath = value; Changed(); Changed(nameof(FileName)); Changed(nameof(CategoryName)); Changed(nameof(Glyph)); } }
+    public string FilePath { get => _filePath; set { _filePath = value; Changed(); Changed(nameof(FileName)); Changed(nameof(CategoryName)); Changed(nameof(TypeLabel)); Changed(nameof(Glyph)); } }
     public string FileName => Path.GetFileName(_filePath);
     public string Category { get => _category; set { _category = value; Changed(); } }
     public string? LastError { get => _lastError; set { _lastError = value; Changed(); Changed(nameof(Description)); } }
     /// <summary>Connections actually in use right now (0 when idle).</summary>
     public int ActiveConnections { get => _activeConnections; set { _activeConnections = value; Changed(); } }
 
-    public double Progress { get => _progress; set { _progress = Math.Clamp(value, 0, 100); Changed(); Changed(nameof(StatusText)); } }
-    public string Status { get => _status; set { _status = value; Changed(); Changed(nameof(StatusText)); Changed(nameof(TimeLeft)); Changed(nameof(Rate)); } }
+    public double Progress { get => _progress; set { _progress = Math.Clamp(value, 0, 100); Changed(); Changed(nameof(StatusText)); Changed(nameof(RowStatusText)); } }
+    public string Status { get => _status; set { _status = value; Changed(); Changed(nameof(StatusText)); Changed(nameof(RowStatusText)); Changed(nameof(TimeLeft)); Changed(nameof(Rate)); } }
     public string SpeedText { get => _speed; set { _speed = value; Changed(); Changed(nameof(Rate)); } }
     public string SizeText { get => _size; set { _size = value; Changed(); Changed(nameof(SizeDisplay)); } }
     public string EtaText { get => _eta; set { _eta = value; Changed(); Changed(nameof(TimeLeft)); } }
@@ -98,6 +98,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
 
     // ---- IDM-style list columns (read-only, derived) -------------------------------------------------------------
     public string CategoryName => CategoryService.For(FileName);
+    public string TypeLabel => DownloadManager.IsTorrentUrl(Url) ? Loc.T("Torrent") : CategoryName == "Video" ? Loc.T("Video") : Loc.T("File");
     public string Glyph => CategoryName switch { "Video" => "🎞", "Music" => "🎵", "Documents" => "📄", "Programs" => "💿", "Compressed" => "🗜", "General" => "📁", _ => "📂" };
     string? _queueName;
     /// <summary>Name of the queue (scheduler) this download belongs to, if any. Set by <see cref="Services.QueueService"/>.</summary>
@@ -105,7 +106,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public string QueueMark => QueueName ?? "";
     string? _note;
     /// <summary>A line of live information shown in the Description column while there is no error (torrents: speeds, peers, ratio).</summary>
-    public string? Note { get => _note; set { _note = value; Changed(); Changed(nameof(Description)); } }
+    public string? Note { get => _note; set { _note = value; Changed(); Changed(nameof(Description)); Changed(nameof(RowStatusText)); } }
     public string Description => LastError is { Length: > 0 } ? Loc.T(LastError) : Note ?? "";
     public string TimeLeft => Status == nameof(DownloadStatus.Downloading) && EtaText != "—" ? EtaText : "";
     public string Rate => Status == nameof(DownloadStatus.Downloading) ? SpeedText : "";
@@ -126,6 +127,18 @@ public sealed class DownloadItem : INotifyPropertyChanged
                 nameof(DownloadStatus.Cancelled) => Loc.T("Cancelled"),
                 _ => Status
             };
+        }
+    }
+    public string RowStatusText
+    {
+        get
+        {
+            if (Note?.StartsWith("Seeding", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var ratio = Note.IndexOf("ratio ", StringComparison.OrdinalIgnoreCase);
+                return ratio >= 0 ? Loc.T("Seeding") + " · " + Note[(ratio + 6)..] : Loc.T("Seeding");
+            }
+            return StatusText;
         }
     }
 

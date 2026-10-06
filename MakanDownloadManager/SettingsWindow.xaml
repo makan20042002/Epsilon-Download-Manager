@@ -290,6 +290,10 @@
             <CheckBox x:Name="TorrentSeedOnStart" Content="Resume sharing already-finished torrents when Makan starts" Margin="0,10,0,0"/>
             <TextBlock Text="Stop sharing once this much has been uploaded (%), 0 = never stop on ratio" Margin="0,16,0,6"/>
             <TextBox x:Name="TorrentRatioBox" Text="100" Width="100" HorizontalAlignment="Left"/>
+            <TextBlock Text="Stop sharing this many minutes after a torrent finishes, 0 = no time limit" Margin="0,14,0,6"/>
+            <TextBox x:Name="TorrentSeedMinutesBox" Text="0" Width="100" HorizontalAlignment="Left"/>
+            <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
+                       Text="Sharing stops at whichever limit is reached first. These limits and the upload speed limit apply immediately, without restarting."/>
 
             <TextBlock Text="Schedule" FontWeight="SemiBold" Margin="0,20,0,0"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,2,0,10"

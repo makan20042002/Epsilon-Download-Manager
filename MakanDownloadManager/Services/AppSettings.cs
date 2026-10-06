@@ -111,6 +111,8 @@ public sealed class AppSettings
     /// <summary>Off by default: a finished torrent just stops (no upload) until the person deliberately shares it by choosing
     /// Resume in its details window. Turning this on restores the common torrent-client default of seeding automatically.</summary>
     public bool TorrentSeedAfterCompletion { get => Flag("torrent_seed_after", false); set => Put("torrent_seed_after", value); }
+    /// <summary>Stop sharing this many minutes after a torrent finished downloading; 0 = no time limit.</summary>
+    public int TorrentSeedTimeMinutes { get => int.TryParse(_store.Get("torrent_seed_minutes"), out var v) ? Math.Clamp(v, 0, 525600) : 0; set => _store.Set("torrent_seed_minutes", Math.Clamp(value, 0, 525600).ToString()); }
     /// <summary>Stop sharing at this upload/download ratio; 0 = never stop on ratio.</summary>
     public double TorrentSeedRatioLimit { get => double.TryParse(_store.Get("torrent_seed_ratio"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) && v >= 0 ? v : 1.0; set => _store.Set("torrent_seed_ratio", Math.Max(0, value).ToString(System.Globalization.CultureInfo.InvariantCulture)); }
     /// <summary>Torrent download speed limit in KB/s; 0 = unlimited. Separate from the toolbar's Speed Limiter, which only

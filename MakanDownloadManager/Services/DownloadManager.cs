@@ -313,6 +313,39 @@ public sealed partial class DownloadManager : IDisposable
         ItemRemoved?.Invoke(item);
     }
 
+    /// <summary>Deletes the downloaded/partial payload but keeps the library entry so it can be downloaded again.</summary>
+    public async Task DeleteDataKeepEntryAsync(DownloadItem item)
+    {
+        Task? running = null;
+        lock (_stateGate)
+        {
+            if (_jobs.TryGetValue(item.Id, out var job))
+            {
+                job.Intent = Intent.Cancel;
+                job.Cts.Cancel();
+                running = job.Task;
+            }
+        }
+        if (running != null)
+        {
+            try { await running.WaitAsync(TimeSpan.FromSeconds(10)); } catch { }
+        }
+        if (IsTorrentUrl(item.Url)) await RemoveTorrentAsync(item, true).ConfigureAwait(false);
+        else
+        {
+            DeletePartialFiles(item);
+            TryDelete(item.FilePath);
+        }
+        DownloadStateManifest.Delete(item);
+        item.DoneBytes = 0;
+        item.DiskLoadedBytes = 0;
+        item.Progress = 0;
+        item.FinishedAt = null;
+        item.LastError = null;
+        Set(item, DownloadStatus.Paused);
+        _store.Save(item);
+    }
+
     void SafeTick()
     {
         try { Tick(); RefreshTorrentNotes(); CheckTorrentSchedule(DateTime.Now); CheckNetworkBoost(); }

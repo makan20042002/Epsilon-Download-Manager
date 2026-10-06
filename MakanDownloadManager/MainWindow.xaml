@@ -2,18 +2,19 @@
         Title="Epsilon Download Manager" Width="1240" Height="740" MinWidth="920" MinHeight="500" WindowStartupLocation="CenterScreen"
         AllowDrop="True" Drop="Window_Drop">
   <Window.Resources>
-    <!-- v1.6 command button: compact, horizontal and deliberately unlike an IDM ribbon -->
+    <!-- v1.7 command button: clean vertical icon + label, based on the approved v6 preview. -->
     <Style x:Key="ToolBtn" TargetType="Button">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="BorderBrush" Value="Transparent"/>
-      <Setter Property="Margin" Value="2,0"/>
-      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="Margin" Value="1,0"/>
+      <Setter Property="MinWidth" Value="62"/>
+      <Setter Property="Height" Value="70"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10,7">
+            <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8,6">
               <ContentPresenter HorizontalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
@@ -30,41 +31,42 @@
     </Style>
     <Style x:Key="ToolGlyph" TargetType="TextBlock">
       <Setter Property="FontFamily" Value="{StaticResource IconFont}"/>
-      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontSize" Value="23"/>
       <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
     <Style x:Key="ToolCaption" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontSize" Value="11.5"/>
       <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
-      <Setter Property="Margin" Value="7,0,0,0"/>
+      <Setter Property="Margin" Value="0,5,0,0"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
     </Style>
     <Style x:Key="ToolSeparator" TargetType="Border">
       <Setter Property="Width" Value="1"/>
-      <Setter Property="Height" Value="24"/>
-      <Setter Property="Margin" Value="5,4"/>
+      <Setter Property="Height" Value="48"/>
+      <Setter Property="Margin" Value="7,8"/>
       <Setter Property="Background" Value="{DynamicResource Border}"/>
     </Style>
 
-    <!-- Canvas navigation is text-first: a thin accent line replaces boxed tabs. -->
+    <!-- v6 filter chips: clear counts/categories without a permanent sidebar. -->
     <Style x:Key="CanvasTab" TargetType="RadioButton">
       <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderBrush" Value="Transparent"/>
       <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Margin" Value="0,0,26,0"/>
+      <Setter Property="Margin" Value="0,0,8,0"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="RadioButton">
-            <Border x:Name="TabBorder" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="2,9,2,8">
+            <Border x:Name="TabBorder" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="16" Padding="13,7">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource Text}"/></Trigger>
               <Trigger Property="IsChecked" Value="True">
-                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
+                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource Accent}"/>
                 <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource Accent}"/>
               </Trigger>
             </ControlTemplate.Triggers>
@@ -128,67 +130,73 @@
   </Window.Resources>
 
   <DockPanel>
-    <!-- Canvas header: one quiet workspace, no permanent navigation rail or ribbon. -->
-    <Border DockPanel.Dock="Top" Background="{DynamicResource Bg}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="18,14,18,0">
-      <StackPanel>
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
-          <StackPanel VerticalAlignment="Center">
-            <TextBlock Text="Downloads" FontSize="25" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
-            <TextBlock x:Name="CanvasSummary" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,2,0,0"/>
-          </StackPanel>
-          <Border Grid.Column="2" Background="{DynamicResource Input}" BorderBrush="{DynamicResource InputBorder}" BorderThickness="1" CornerRadius="4" Padding="10,0" VerticalAlignment="Center" MinWidth="120" MaxWidth="360" HorizontalAlignment="Stretch">
-            <DockPanel>
-              <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
-              <TextBox x:Name="SearchBox" BorderThickness="0" Background="Transparent" Padding="9,7" TextChanged="SearchBox_TextChanged" ToolTip="Search downloads by name or URL"/>
-            </DockPanel>
-          </Border>
-          <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button Style="{StaticResource ToolBtn}" Background="{DynamicResource Accent}" BorderBrush="{DynamicResource Accent}" Click="Add_Click" ToolTip="Add a download (Ctrl+N)">
-              <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE710;" Foreground="{DynamicResource OnAccent}"/><TextBlock Style="{StaticResource ToolCaption}" Foreground="{DynamicResource OnAccent}" Text="New download"/></StackPanel>
-            </Button>
-            <Button Style="{StaticResource ToolBtn}" Click="AddTorrent_Click" ToolTip="Add a magnet link or a .torrent file">
-              <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE753;" Foreground="{DynamicResource IconGrey}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Torrent"/></StackPanel>
-            </Button>
-            <Button x:Name="BtnStartAllTop" Style="{StaticResource ToolBtn}" Click="StartAll_Click" ToolTip="Resume all stopped downloads">
-              <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE768;"/><TextBlock Style="{StaticResource ToolCaption}" Text="Start all"/></StackPanel>
-            </Button>
-            <Button Style="{StaticResource ToolBtn}" Click="Scheduler_Click" ToolTip="Open download schedules and queues">
-              <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE787;"/><TextBlock Style="{StaticResource ToolCaption}" Text="Schedule"/></StackPanel>
-            </Button>
-            <Button x:Name="BtnSpeedLimiter" Style="{StaticResource ToolBtn}" Click="SpeedLimiter_Click" ToolTip="Set the download speed limit">
-              <StackPanel Orientation="Horizontal">
-                <Viewbox Width="18" Height="18" VerticalAlignment="Center">
-                  <Canvas Width="20" Height="20">
-                    <Path Data="M 2,15 A 8,8 0 0 1 18,15" Stroke="{DynamicResource Text}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                    <Line X1="10" Y1="15" X2="14.5" Y2="7.5" Stroke="{DynamicResource Accent}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                    <Line X1="4" Y1="11" X2="5.5" Y2="11.8" Stroke="{DynamicResource Muted}" StrokeThickness="1.2"/>
-                    <Line X1="10" Y1="7" X2="10" Y2="9" Stroke="{DynamicResource Muted}" StrokeThickness="1.2"/>
-                    <Line X1="16" Y1="11" X2="14.5" Y2="11.8" Stroke="{DynamicResource Muted}" StrokeThickness="1.2"/>
-                  </Canvas>
-                </Viewbox>
-                <TextBlock x:Name="SpeedLimiterCaption" Style="{StaticResource ToolCaption}" Text="Unlimited"/>
-                <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="9" Foreground="{DynamicResource Muted}" Margin="6,1,0,0" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
-            <Button x:Name="BtnMore" Style="{StaticResource ToolBtn}" Click="More_Click" ToolTip="More options &amp; tools" Padding="11,7">
-              <TextBlock Text="•••" FontSize="15" Foreground="{DynamicResource Text}" Margin="0,-3,0,3"/>
-            </Button>
-            <!-- Selection-only actions stay available in the row context menu and keyboard shortcuts. -->
-            <Button x:Name="BtnResume" Visibility="Collapsed"/><Button x:Name="BtnStop" Visibility="Collapsed"/><Button x:Name="BtnStopAllTop" Visibility="Collapsed"/>
-            <StackPanel Visibility="Collapsed"><Border x:Name="SmartDot"/><TextBlock x:Name="SmartText"/><Border x:Name="BrowserDot"/><TextBlock x:Name="BrowserText"/><TextBlock x:Name="MultiNetCaption"/><TextBlock x:Name="MultiNetGlyph"/></StackPanel>
-          </StackPanel>
-        </Grid>
-        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+    <!-- Approved v6 shell: brand/menu row, clean vertical commands, then download filters. -->
+    <StackPanel DockPanel.Dock="Top" Background="{DynamicResource HeaderBg}">
+      <Grid Height="58" Margin="16,0" VerticalAlignment="Center">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Image Source="Assets/makan.ico" Width="38" Height="38" Margin="0,0,10,0"/>
+          <StackPanel VerticalAlignment="Center"><TextBlock Text="Epsilon Download Manager" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/><TextBlock Text="Fast, intelligent and private downloading" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel>
+        </StackPanel>
+        <Menu Grid.Column="1" Margin="24,0,0,0" Background="Transparent" Foreground="{DynamicResource Muted}" VerticalAlignment="Center">
+          <MenuItem Header="Tasks"><MenuItem Header="Add URL" Click="Add_Click" InputGestureText="Ctrl+N"/><MenuItem Header="Add torrent" Click="AddTorrent_Click"/><Separator/><MenuItem Header="Options" Click="Settings_Click"/></MenuItem>
+          <MenuItem Header="File"><MenuItem Header="Open" Click="Open_Click"/><MenuItem Header="Open folder" Click="OpenFolder_Click"/></MenuItem>
+          <MenuItem Header="Downloads"><MenuItem Header="Resume" Click="Start_Click" InputGestureText="Ctrl+R"/><MenuItem Header="Stop" Click="Pause_Click" InputGestureText="Ctrl+S"/><MenuItem Header="Stop all" Click="StopAll_Click"/><Separator/><MenuItem Header="Delete…" Click="Remove_Click" InputGestureText="Del"/><MenuItem Header="Reset remembered delete choice" Click="ResetDeleteChoice_Click"/></MenuItem>
+          <MenuItem Header="View"><MenuItem Header="Newest first" Tag="Id:Descending" Click="Sort_Click"/><MenuItem Header="Name" Tag="FileName:Ascending" Click="Sort_Click"/><MenuItem Header="Size" Tag="TotalBytes:Descending" Click="Sort_Click"/><MenuItem Header="Status" Tag="Status:Ascending" Click="Sort_Click"/><MenuItem Header="Speed" Tag="SpeedBytesPerSec:Descending" Click="Sort_Click"/></MenuItem>
+          <MenuItem Header="Tools"><MenuItem Header="Scheduler &amp; queues" Click="Scheduler_Click"/><MenuItem Header="Site grabber" Click="SiteGrabber_Click"/><MenuItem Header="Intelligent Center" Click="Center_Click"/></MenuItem>
+          <MenuItem Header="Help"><MenuItem Header="About Epsilon"/></MenuItem>
+        </Menu>
+        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+          <Border x:Name="SmartDot" Width="9" Height="9" CornerRadius="5" Background="{DynamicResource Success}" Margin="0,0,8,0"/>
+          <StackPanel><TextBlock x:Name="SmartText" Text="Smart engine on" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Success}"/><TextBlock x:Name="BrowserText" Text="Browser connected" FontSize="9.5" Foreground="{DynamicResource Muted}"/></StackPanel>
+          <Border x:Name="BrowserDot" Visibility="Collapsed"/>
+        </StackPanel>
+      </Grid>
+
+      <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,1" Background="{DynamicResource Panel}" Padding="12,5">
+        <StackPanel Orientation="Horizontal">
+          <Button Style="{StaticResource ToolBtn}" Click="Add_Click" ToolTip="Add URL (Ctrl+N)"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE710;" Foreground="{DynamicResource Accent}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Add URL"/></StackPanel></Button>
+          <Button Style="{StaticResource ToolBtn}" Click="AddTorrent_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE8B7;" Foreground="{DynamicResource IconPurple}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Torrent"/></StackPanel></Button>
+          <Button x:Name="BtnResume" Style="{StaticResource ToolBtn}" Click="Start_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE768;" Foreground="{DynamicResource Success}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Resume"/></StackPanel></Button>
+          <Button x:Name="BtnStop" Style="{StaticResource ToolBtn}" Click="Pause_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE769;" Foreground="{DynamicResource Warning}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Stop"/></StackPanel></Button>
+          <Button x:Name="BtnStopAllTop" Style="{StaticResource ToolBtn}" Click="StopAll_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE71A;" Foreground="{DynamicResource Danger}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Stop all"/></StackPanel></Button>
+          <Button x:Name="BtnDelete" Style="{StaticResource ToolBtn}" Click="Remove_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE74D;" Foreground="{DynamicResource Danger}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Delete"/></StackPanel></Button>
+          <Border Style="{StaticResource ToolSeparator}"/>
+          <Button Style="{StaticResource ToolBtn}" Click="Scheduler_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE787;" Foreground="{DynamicResource IconPurple}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Schedule"/></StackPanel></Button>
+          <Button Style="{StaticResource ToolBtn}" Click="Scheduler_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE8FD;" Foreground="{DynamicResource IconTeal}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Queues"/></StackPanel></Button>
+          <Button Style="{StaticResource ToolBtn}" Click="SiteGrabber_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE774;" Foreground="{DynamicResource Success}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Grabber"/></StackPanel></Button>
+          <Border Style="{StaticResource ToolSeparator}"/>
+          <Button x:Name="BtnMultiNet" Style="{StaticResource ToolBtn}" Click="MultiNet_Click"><StackPanel><TextBlock x:Name="MultiNetGlyph" Style="{StaticResource ToolGlyph}" Text="&#xE968;" Foreground="{DynamicResource Accent}"/><TextBlock x:Name="MultiNetCaption" Style="{StaticResource ToolCaption}" Text="Multi-Net"/><TextBlock x:Name="MultiNetState" Text="Off" FontSize="9" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center"/></StackPanel></Button>
+          <Button x:Name="BtnSpeedLimiter" Style="{StaticResource ToolBtn}" Click="SpeedLimiter_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE9D9;" Foreground="{DynamicResource Warning}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Limiter"/><TextBlock x:Name="SpeedLimiterCaption" Text="Off" FontSize="9" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center"/></StackPanel></Button>
+          <Border Style="{StaticResource ToolSeparator}"/>
+          <Button x:Name="BtnThemes" Style="{StaticResource ToolBtn}" Click="Themes_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE790;" Foreground="{DynamicResource IconPurple}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Themes"/></StackPanel></Button>
+          <Button Style="{StaticResource ToolBtn}" Click="Settings_Click"><StackPanel><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE713;" Foreground="{DynamicResource Muted}"/><TextBlock Style="{StaticResource ToolCaption}" Text="Options"/></StackPanel></Button>
+          <Button x:Name="BtnStartAllTop" Visibility="Collapsed"/><Button x:Name="BtnMore" Visibility="Collapsed"/><Button x:Name="BtnDeleteCompleted" Visibility="Collapsed"/>
+        </StackPanel>
+      </Border>
+
+      <Grid Margin="18,13,18,10">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel><TextBlock Text="Downloads" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/><TextBlock x:Name="CanvasSummary" FontSize="11" Foreground="{DynamicResource Muted}"/></StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <StackPanel Margin="0,0,24,0"><TextBlock Text="Download" FontSize="9" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="HeaderDownloadSpeed" Text="0 B/s" FontFamily="{StaticResource MonoFont}" FontWeight="SemiBold"/></StackPanel>
+          <StackPanel Margin="0,0,24,0"><TextBlock Text="Upload" FontSize="9" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="HeaderUploadSpeed" Text="0 B/s" FontFamily="{StaticResource MonoFont}" FontWeight="SemiBold"/></StackPanel>
+          <StackPanel><TextBlock Text="Active" FontSize="9" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="HeaderActiveCount" Text="0 items" FontFamily="{StaticResource MonoFont}" FontWeight="SemiBold"/></StackPanel>
+        </StackPanel>
+      </Grid>
+      <Grid Margin="18,0,18,10">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="280"/></Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal">
           <RadioButton x:Name="FilterAll" Style="{StaticResource CanvasTab}" Content="All" Tag="all" GroupName="CanvasFilter" IsChecked="True" Click="FilterTab_Click"/>
+          <RadioButton x:Name="FilterFiles" Style="{StaticResource CanvasTab}" Content="Files" Tag="files" GroupName="CanvasFilter" Click="FilterTab_Click"/>
+          <RadioButton x:Name="FilterTorrents" Style="{StaticResource CanvasTab}" Content="Torrents" Tag="torrents" GroupName="CanvasFilter" Click="FilterTab_Click"/>
           <RadioButton x:Name="FilterActive" Style="{StaticResource CanvasTab}" Content="Active" Tag="unfinished" GroupName="CanvasFilter" Click="FilterTab_Click"/>
           <RadioButton x:Name="FilterFinished" Style="{StaticResource CanvasTab}" Content="Finished" Tag="finished" GroupName="CanvasFilter" Click="FilterTab_Click"/>
-          <RadioButton x:Name="FilterQueues" Style="{StaticResource CanvasTab}" Content="Queues" Tag="queues" GroupName="CanvasFilter" Click="FilterTab_Click"/>
+          <RadioButton x:Name="FilterQueues" Visibility="Collapsed" Tag="queues" GroupName="CanvasFilter"/>
         </StackPanel>
-      </StackPanel>
-    </Border>
+        <Border Grid.Column="1" Background="{DynamicResource Input}" BorderBrush="{DynamicResource InputBorder}" BorderThickness="1" CornerRadius="6" Padding="9,0"><DockPanel><TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/><TextBox x:Name="SearchBox" BorderThickness="0" Background="Transparent" Padding="8,7" TextChanged="SearchBox_TextChanged" ToolTip="Search downloads"/></DockPanel></Border>
+      </Grid>
+    </StackPanel>
 
     <!-- quick speed control; detailed connection settings remain available in Options -->
     <Popup x:Name="SpeedLimiterPopup" PlacementTarget="{Binding ElementName=BtnSpeedLimiter}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
@@ -218,6 +226,48 @@
             <Button Grid.Column="1" Content="Cancel" Click="SpeedLimiterCancel_Click" Padding="7" Margin="2,0"/>
             <Button Grid.Column="2" Content="Apply" Click="SpeedLimiterApply_Click" Padding="7" Margin="4,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}"/>
           </Grid>
+        </StackPanel>
+      </Border>
+    </Popup>
+
+    <Popup x:Name="MultiNetPopup" PlacementTarget="{Binding ElementName=BtnMultiNet}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+      <Border Background="{DynamicResource Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="10" Padding="17" Width="390">
+        <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.4" Color="Black"/></Border.Effect>
+        <StackPanel>
+          <DockPanel Margin="0,0,0,12"><TextBlock Text="&#xE968;" FontFamily="{StaticResource IconFont}" FontSize="25" Foreground="{DynamicResource Accent}" Margin="0,0,10,0"/><StackPanel><TextBlock Text="Multi-Network" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="Combine available internet connections" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></DockPanel>
+          <UniformGrid Columns="2" Margin="0,0,0,12"><Button x:Name="MultiNetOnButton" Content="On" Click="MultiNetOn_Click" Padding="10,7" Margin="0,0,3,0"/><Button x:Name="MultiNetOffButton" Content="Off" Click="MultiNetOff_Click" Padding="10,7" Margin="3,0,0,0"/></UniformGrid>
+          <TextBlock x:Name="MultiNetStatusText" TextWrapping="Wrap" Foreground="{DynamicResource Muted}" Margin="0,0,0,10"/>
+          <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6" Padding="11" Margin="0,0,0,7"><DockPanel><TextBlock Text="Wi-Fi" FontWeight="SemiBold"/><TextBlock DockPanel.Dock="Right" Text="Available" Foreground="{DynamicResource Success}"/></DockPanel></Border>
+          <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6" Padding="11"><DockPanel><TextBlock Text="Ethernet / tethering" FontWeight="SemiBold"/><TextBlock DockPanel.Dock="Right" Text="Auto-detected" Foreground="{DynamicResource Accent}"/></DockPanel></Border>
+          <CheckBox Content="Automatically balance segments between active networks" IsChecked="True" Margin="2,13,0,0" Foreground="{DynamicResource Muted}"/>
+        </StackPanel>
+      </Border>
+    </Popup>
+
+    <!-- All built-in themes in one dedicated gallery.  The toolbar button opens this directly; themes are
+         deliberately kept out of a generic overflow menu so the complete collection is always visible. -->
+    <Popup x:Name="ThemePopup" PlacementTarget="{Binding ElementName=BtnThemes}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+      <Border Background="{DynamicResource Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="10" Padding="16" Width="570">
+        <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.4" Color="Black"/></Border.Effect>
+        <StackPanel>
+          <DockPanel Margin="2,0,2,12">
+            <StackPanel><TextBlock Text="Themes" FontSize="17" FontWeight="SemiBold"/><TextBlock x:Name="CurrentThemeText" Text="12 palettes" FontSize="10.5" Foreground="{DynamicResource Muted}"/></StackPanel>
+            <TextBlock DockPanel.Dock="Right" Text="&#xE790;" FontFamily="{StaticResource IconFont}" FontSize="26" Foreground="{DynamicResource IconPurple}" VerticalAlignment="Center"/>
+          </DockPanel>
+          <UniformGrid Columns="3">
+            <Button Style="{StaticResource ToolMenuRow}" Tag="obsidian-gold" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#E0B75A"/><TextBlock Text="Obsidian Gold" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Black · warm gold" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="platinum-blue" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#1467D8"/><TextBlock Text="Platinum Blue" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Clean · professional" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="royal-amethyst" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#8D55DE"/><TextBlock Text="Royal Amethyst" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Deep royal purple" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="emerald-executive" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#21B88A"/><TextBlock Text="Emerald Executive" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Premium green" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="champagne-minimal" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#C39B68"/><TextBlock Text="Champagne Minimal" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Warm and refined" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="graphite-copper" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#E28A4D"/><TextBlock Text="Graphite Copper" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Industrial copper" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="sapphire-noir" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#2E86FF"/><TextBlock Text="Sapphire Noir" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Dark electric blue" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="ivory-luxe" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#B6854A"/><TextBlock Text="Ivory Luxe" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Timeless ivory" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="rose-titanium" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#E187B1"/><TextBlock Text="Rose Titanium" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Modern muted rose" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="arctic-glass" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#32B6E8"/><TextBlock Text="Arctic Glass" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Bright frosted blue" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="dracula" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#BD93F9"/><TextBlock Text="Dracula" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Classic dark purple" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+            <Button Style="{StaticResource ToolMenuRow}" Tag="makan-lab" Click="SetTheme_Click" Margin="2"><StackPanel><Border Height="8" CornerRadius="4" Background="#58A6FF"/><TextBlock Text="Makan Lab" FontWeight="SemiBold" Margin="0,7,0,0"/><TextBlock Text="Website signature" FontSize="10" Foreground="{DynamicResource Muted}"/></StackPanel></Button>
+          </UniformGrid>
         </StackPanel>
       </Border>
     </Popup>
@@ -253,9 +303,9 @@
           <Button Style="{StaticResource ToolMenuRow}" Click="History_Click"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE81C;" FontSize="16" Foreground="{DynamicResource Muted}" Margin="0,0,10,0"/><TextBlock Text="Download history…" VerticalAlignment="Center" Foreground="{DynamicResource Text}"/></StackPanel></Button>
           <Button Style="{StaticResource ToolMenuRow}" Click="Settings_Click"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE713;" FontSize="16" Foreground="{DynamicResource Muted}" Margin="0,0,10,0"/><TextBlock Text="Settings" VerticalAlignment="Center" Foreground="{DynamicResource Text}"/></StackPanel></Button>
           <Border Height="1" Background="{DynamicResource Border}" Margin="6,4"/>
-          <Button x:Name="BtnDelete" Style="{StaticResource ToolMenuRow}" Click="Remove_Click" ToolTip="Delete selected downloads (Del)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE74D;" FontSize="16" Foreground="{DynamicResource Danger}" Margin="0,0,10,0"/><TextBlock Text="Delete selected" VerticalAlignment="Center" Foreground="{DynamicResource Text}"/></StackPanel></Button>
+          <Button Style="{StaticResource ToolMenuRow}" Click="Remove_Click" ToolTip="Delete selected downloads (Del)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE74D;" FontSize="16" Foreground="{DynamicResource Danger}" Margin="0,0,10,0"/><TextBlock Text="Delete selected" VerticalAlignment="Center" Foreground="{DynamicResource Text}"/></StackPanel></Button>
           <Button x:Name="BtnStopAll" Style="{StaticResource ToolMenuRow}" Click="StopAll_Click" ToolTip="Stop every running download"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE71A;" FontSize="16" Foreground="{DynamicResource Danger}" Margin="0,0,10,0"/><TextBlock Text="Stop All" VerticalAlignment="Center" Foreground="{DynamicResource Text}"/></StackPanel></Button>
-          <Button x:Name="BtnDeleteCompleted" Style="{StaticResource ToolMenuRow}" Click="DeleteCompleted_Click" ToolTip="Remove finished downloads from the list"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE73E;" FontSize="16" Foreground="{DynamicResource Success}" Margin="0,0,10,0"/><TextBlock Text="Delete Completed" VerticalAlignment="Center" Foreground="{DynamicResource Text}"/></StackPanel></Button>
+          <Button Style="{StaticResource ToolMenuRow}" Click="DeleteCompleted_Click" ToolTip="Remove finished downloads from the list"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource ToolGlyph}" Text="&#xE73E;" FontSize="16" Foreground="{DynamicResource Success}" Margin="0,0,10,0"/><TextBlock Text="Delete Completed" VerticalAlignment="Center" Foreground="{DynamicResource Text}"/></StackPanel></Button>
           <CheckBox x:Name="ShowCategories" Content="Show navigation panel" IsChecked="False" Click="ToggleCategories_Click" Margin="10,7"/>
           <CheckBox x:Name="ShowDropTarget" Content="Show drop target" Click="ShowDropTarget_Click" Margin="10,7"/>
           <Button Style="{StaticResource ToolMenuRow}" Click="AppMenu_Click">
@@ -303,13 +353,18 @@
     </Popup>
 
     <!-- status bar -->
-    <Border DockPanel.Dock="Bottom" Background="{DynamicResource HeaderBg}" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="16,8">
-      <Grid>
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <TextBlock x:Name="Footer" Foreground="{DynamicResource Muted}" Text="Ready" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-        <TextBlock x:Name="ActiveText" Grid.Column="1" Foreground="{DynamicResource Muted}" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center"/>
-        <TextBlock x:Name="TotalSpeed" Grid.Column="2" HorizontalAlignment="Right" MinWidth="90" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" Text="0 B/s" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center"/>
-      </Grid>
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource HeaderBg}" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="16,9">
+      <DockPanel LastChildFill="True">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="Multi-Net " Foreground="{DynamicResource Muted}"/><TextBlock x:Name="FooterMultiNet" Text="Off" FontWeight="SemiBold" Margin="0,0,16,0"/>
+          <TextBlock Text="Limiter " Foreground="{DynamicResource Muted}"/><TextBlock x:Name="FooterLimiter" Text="Off" FontWeight="SemiBold" Margin="0,0,16,0"/>
+          <TextBlock Text="Browser " Foreground="{DynamicResource Muted}"/><TextBlock x:Name="FooterBrowser" Text="Connected" FontWeight="SemiBold" Margin="0,0,16,0"/>
+          <TextBlock Text="Disk free " Foreground="{DynamicResource Muted}"/><TextBlock x:Name="FooterDisk" Text="—" FontWeight="SemiBold" Margin="0,0,18,0"/>
+          <TextBlock x:Name="ActiveText" Foreground="{DynamicResource Muted}" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+          <TextBlock x:Name="TotalSpeed" MinWidth="90" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" Text="↓ 0 B/s" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center"/>
+        </StackPanel>
+        <TextBlock x:Name="Footer" Foreground="{DynamicResource Muted}" Text="Ready" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,16,0"/>
+      </DockPanel>
     </Border>
 
     <!-- categories + list -->
@@ -333,7 +388,29 @@
       <!-- Downloads List -->
       <Border Grid.Column="2" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Border}" BorderThickness="0" CornerRadius="0">
         <Grid>
-        <ListView x:Name="Downloads" SelectionMode="Extended" Background="Transparent" BorderThickness="0" Margin="0"
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,7">
+          <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <CheckBox Content="Select all" Click="SelectAll_Click" VerticalAlignment="Center" Margin="3,0,18,0"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="Sort:" FontSize="10.5" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <Button Style="{StaticResource ToolMenuRow}" Padding="7,3" Tag="FileName" Content="Name" Click="SortButton_Click"/>
+              <Button Style="{StaticResource ToolMenuRow}" Padding="7,3" Tag="TotalBytes" Content="Size" Click="SortButton_Click"/>
+              <Button Style="{StaticResource ToolMenuRow}" Padding="7,3" Tag="Status" Content="Status" Click="SortButton_Click"/>
+              <Button Style="{StaticResource ToolMenuRow}" Padding="7,3" Tag="SpeedBytesPerSec" Content="Speed" Click="SortButton_Click"/>
+              <Button Style="{StaticResource ToolMenuRow}" Padding="7,3" Tag="Id" Content="Date added ↓" Click="SortButton_Click"/>
+            </StackPanel>
+            <StackPanel x:Name="SelectionActions" Grid.Column="2" Orientation="Horizontal" Visibility="Collapsed" VerticalAlignment="Center">
+              <TextBlock x:Name="SelectedCountText" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <Button Content="Resume" Click="Start_Click" Padding="8,3" Margin="2,0"/>
+              <Button Content="Stop" Click="Pause_Click" Padding="8,3" Margin="2,0"/>
+              <Button Content="Move to queue ▾" Click="MoveSelectedQueue_Click" Padding="8,3" Margin="2,0"/>
+              <Button Content="Delete…" Click="Remove_Click" Padding="8,3" Margin="2,0" Foreground="{DynamicResource Danger}"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+        <ListView Grid.Row="1" x:Name="Downloads" SelectionMode="Extended" Background="Transparent" BorderThickness="0" Margin="0"
                   ItemContainerStyle="{StaticResource RowStyle}" SelectionChanged="Downloads_SelectionChanged" MouseDoubleClick="Downloads_DoubleClick" ContextMenuOpening="Downloads_ContextMenuOpening"
                   PreviewMouseDown="Downloads_PreviewMouseDown" PreviewMouseLeftButtonDown="Downloads_PreviewMouseLeftButtonDown" PreviewMouseMove="Downloads_PreviewMouseMove"
                   PreviewMouseLeftButtonUp="Downloads_PreviewMouseLeftButtonUp" LostMouseCapture="Downloads_LostMouseCapture">
@@ -361,13 +438,14 @@
               <GridViewColumn Header="DOWNLOAD" Width="340">
                 <GridViewColumn.CellTemplate>
                   <DataTemplate>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="2,3">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="2,1">
+                      <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                       <Border Width="32" Height="32" CornerRadius="4" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Margin="0,0,10,0">
                         <TextBlock Text="{Binding Glyph}" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Border>
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" Foreground="{DynamicResource Text}" TextTrimming="CharacterEllipsis" ToolTip="{Binding FilePath}"/>
-                        <TextBlock Text="{Binding CategoryName}" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                        <TextBlock Text="{Binding TypeLabel}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}"/>
                       </StackPanel>
                     </StackPanel>
                   </DataTemplate>
@@ -394,7 +472,7 @@
                   <DataTemplate>
                     <StackPanel Width="150" VerticalAlignment="Center">
                       <DockPanel>
-                        <TextBlock x:Name="StatusLabel" Text="{Binding StatusText}" FontSize="11.5" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="StatusLabel" Text="{Binding RowStatusText}" FontSize="11.5" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding Progress, StringFormat='{}{0:0}%'}" DockPanel.Dock="Right" HorizontalAlignment="Right" FontSize="11" FontFamily="{StaticResource MonoFont}" Foreground="{DynamicResource Accent}"/>
                       </DockPanel>
                       <ProgressBar x:Name="Bar" Minimum="0" Maximum="100" Value="{Binding Progress, Mode=OneWay}" Height="5" Margin="0,4,0,0" Visibility="Collapsed"
@@ -447,29 +525,24 @@
             </GridView>
           </ListView.View>
         </ListView>
-          <Canvas x:Name="SelectionCanvas" Margin="0" IsHitTestVisible="False" Panel.ZIndex="10">
+          <Canvas Grid.Row="1" x:Name="SelectionCanvas" Margin="0" IsHitTestVisible="False" Panel.ZIndex="10">
             <Border x:Name="SelectionRectangle" Visibility="Collapsed" Background="{DynamicResource Selected}" BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="1" Opacity="0.62"/>
           </Canvas>
         </Grid>
       </Border>
     </Grid>
 
-    <!-- Delete choices are attached to the selected row instead of occupying a permanent toolbar. -->
+    <!-- v6 delete prompt: the file is never erased unless the user explicitly chooses a disk action. -->
     <Popup x:Name="DeleteActionPopup" Placement="Bottom" StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
-      <Border Background="{DynamicResource Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="12" Width="760">
+      <Border Background="{DynamicResource Popup}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="10" Padding="20" Width="540">
         <Border.Effect><DropShadowEffect BlurRadius="18" ShadowDepth="5" Opacity="0.42" Color="Black"/></Border.Effect>
-        <Grid>
-          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-          <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
-            <TextBlock x:Name="DeleteBarTitle" Text="Remove selected downloads?" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
-            <TextBlock Text="Completed files stay on disk." FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,2,0,0"/>
-          </StackPanel>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button Content="Remove from Epsilon" Click="DeleteBarRemove_Click" Padding="10,6" Margin="0,0,6,0"/>
-            <Button x:Name="DeleteUnfinishedDataButton" Content="Delete unfinished data" Click="DeleteBarDisk_Click" Padding="10,6" Margin="0,0,6,0"/>
-            <Button Content="Cancel" Click="DeleteBarCancel_Click" Padding="10,6"/>
-          </StackPanel>
-        </Grid>
+        <StackPanel>
+          <DockPanel Margin="0,0,0,14"><TextBlock Text="&#xE74D;" FontFamily="{StaticResource IconFont}" FontSize="24" Foreground="{DynamicResource Danger}" Margin="0,0,12,0"/><StackPanel><TextBlock x:Name="DeleteBarTitle" Text="Delete selected download?" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/><TextBlock x:Name="DeleteBarHelp" Text="Choose exactly what Epsilon should remove." FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap"/><TextBlock x:Name="DeleteTorrentNote" Text="Removing a seeding torrent also stops sharing it." FontSize="11" Foreground="{DynamicResource Warning}" Margin="0,5,0,0" Visibility="Collapsed"/></StackPanel></DockPanel>
+          <Button Click="DeleteBarRemove_Click" Style="{StaticResource ToolMenuRow}" Margin="0,2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="&#xE8BB;" FontFamily="{StaticResource IconFont}" FontSize="18" Foreground="{DynamicResource Muted}"/><StackPanel Grid.Column="1"><TextBlock Text="Remove from list" FontWeight="SemiBold"/><TextBlock Text="Keep every downloaded file on your disk." FontSize="11" Foreground="{DynamicResource Muted}"/></StackPanel><TextBlock Grid.Column="2" Text="R" Foreground="{DynamicResource Muted}"/></Grid></Button>
+          <Button x:Name="DeleteFileOnlyButton" Click="DeleteBarFileOnly_Click" Style="{StaticResource ToolMenuRow}" Margin="0,2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="&#xE74D;" FontFamily="{StaticResource IconFont}" FontSize="18" Foreground="{DynamicResource Warning}"/><StackPanel Grid.Column="1"><TextBlock Text="Delete file only" FontWeight="SemiBold"/><TextBlock Text="Erase its data but keep the entry so it can be downloaded again." FontSize="11" Foreground="{DynamicResource Muted}"/></StackPanel><TextBlock Grid.Column="2" Text="F" Foreground="{DynamicResource Muted}"/></Grid></Button>
+          <Button x:Name="DeleteUnfinishedDataButton" Click="DeleteBarDisk_Click" Style="{StaticResource ToolMenuRow}" Margin="0,2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="&#xE74D;" FontFamily="{StaticResource IconFont}" FontSize="18" Foreground="{DynamicResource Danger}"/><StackPanel Grid.Column="1"><TextBlock Text="Delete completely" FontWeight="SemiBold" Foreground="{DynamicResource Danger}"/><TextBlock Text="Remove the entry and erase its file from disk. This cannot be undone." FontSize="11" Foreground="{DynamicResource Muted}"/></StackPanel><TextBlock Grid.Column="2" Text="D" Foreground="{DynamicResource Muted}"/></Grid></Button>
+          <DockPanel Margin="4,14,4,0"><CheckBox x:Name="RememberDeleteChoice" Content="Remember my choice" FontSize="11" Foreground="{DynamicResource Muted}"/><Button DockPanel.Dock="Right" Content="Cancel" Click="DeleteBarCancel_Click" Padding="12,6"/></DockPanel>
+        </StackPanel>
       </Border>
     </Popup>
   </DockPanel>

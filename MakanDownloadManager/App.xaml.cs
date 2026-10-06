@@ -149,6 +149,7 @@ public partial class App : Application
             ListenPort = Settings.TorrentPort, EnableDht = Settings.TorrentDht, EnablePex = Settings.TorrentPex, EnablePortMapping = Settings.TorrentPortMapping,
             UploadSlots = Settings.TorrentUploadSlots, MaxPeersPerTorrent = Settings.TorrentMaxPeers,
             SeedAfterCompletion = Settings.TorrentSeedAfterCompletion, SeedRatioLimit = Settings.TorrentSeedRatioLimit,
+            SeedTimeLimit = TimeSpan.FromMinutes(Settings.TorrentSeedTimeMinutes),
             StateDirectory = Path.Combine(PortableModeService.DataDirectory, "torrents")
         };
         var engine = new TorrentEngine(options);
@@ -173,7 +174,16 @@ public partial class App : Application
         Manager.DefaultUserAgent = Settings.UserAgent;
         Manager.FfmpegPath = string.IsNullOrWhiteSpace(Settings.FfmpegPath) ? null : Settings.FfmpegPath;
         Manager.TorrentSeedOnStart = Settings.TorrentSeedOnStart;
-        if (Manager.Torrents is { } torrents) { torrents.UploadLimit.Rate = Settings.TorrentUploadKbps * 1024; torrents.DownloadLimit.Rate = Settings.TorrentDownloadKbps * 1024; }   // port/DHT/slots need a restart; the limits apply live
+        if (Manager.Torrents is { } torrents)
+        {
+            torrents.UploadLimit.Rate = Settings.TorrentUploadKbps * 1024; torrents.DownloadLimit.Rate = Settings.TorrentDownloadKbps * 1024;
+            // The sharing rules and peer numbers are read by the engine as it runs, so they apply at once too; only the port and DHT need a restart.
+            torrents.Options.SeedAfterCompletion = Settings.TorrentSeedAfterCompletion;
+            torrents.Options.SeedRatioLimit = Settings.TorrentSeedRatioLimit;
+            torrents.Options.SeedTimeLimit = TimeSpan.FromMinutes(Settings.TorrentSeedTimeMinutes);
+            torrents.Options.UploadSlots = Settings.TorrentUploadSlots;
+            torrents.Options.MaxPeersPerTorrent = Settings.TorrentMaxPeers;
+        }
         Manager.TorrentDownloadScheduleEnabled = Settings.TorrentDownloadScheduleEnabled;
         Manager.TorrentDownloadStart = ParseTimeOfDay(Settings.TorrentDownloadStartTime);
         Manager.TorrentDownloadStop = ParseTimeOfDay(Settings.TorrentDownloadStopTime);

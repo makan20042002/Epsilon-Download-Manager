@@ -189,6 +189,16 @@ public sealed class TorrentStorage : IDisposable
     /// A completed torrent only needs read handles for seeding. Reopen the files read-only so ordinary programs
     /// (which commonly share reads but not writes) can open the download as soon as completion is reported.
     /// </summary>
+    public void MarkWritable()
+    {
+        lock (_gate)
+        {
+            if (!_readOnly) return;
+            _readOnly = false;
+            for (var i = 0; i < _streams.Length; i++) { _streams[i]?.Dispose(); _streams[i] = null; }   // reopened read/write on next use
+        }
+    }
+
     public void MarkComplete()
     {
         lock (_gate)

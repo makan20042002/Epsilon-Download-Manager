@@ -94,6 +94,7 @@ static class TorrentTests
         Dir = dir;
         await Run("Torrent: bencode, metainfo, magnet links", Formats);
         await Run("Torrent: unlimited by default; removing a user limit wakes transfers immediately", TokenBucketChanges);
+        await Run("DHT: known bootstrap nodes survive an app restart", DhtPersistence);
         await Run("Port mapping: NAT-PMP request, renew and delete against a mock gateway", NatPmp);
         await Run("Port mapping: UPnP discovery, device description, and SOAP request/response handling", Upnp);
         var script = Script();
@@ -105,6 +106,7 @@ static class TorrentTests
         await Run("Torrent: bad data is rejected and re-fetched; hostile peers are dropped", Integrity);
         await Run("Torrent: file selection (skip / high priority) and completion", FileSelection);
         await Run("Torrent: pause and resume across a restart", Resume);
+        await Run("Torrent: dead trackers do not delay the start; the seed-time limit stops sharing and survives a restart", FastStartAndSeedTime);
         await Run("Torrent: download and upload speed limits (global and per torrent)", Limits);
         await Run("Torrent: seeding uploads to another client", Seeding);
         await Run("Torrent: trackerless magnet through the DHT", DhtLookup);
@@ -140,6 +142,17 @@ static class TorrentTests
         await waiting;
     }
 
+    static Task DhtPersistence()
+    {
+        var state = Sub();
+        File.WriteAllText(Path.Combine(state, "dht-nodes.json"), "[{\"Address\":\"127.0.0.1\",\"Port\":49001}]");
+        using (var engine = NewEngine(state, dht: true))
+            T.Check("the saved DHT endpoint is loaded before the first lookup", engine.Dht!.Bootstrap.Any(x => x.Address.Equals(IPAddress.Loopback) && x.Port == 49001));
+        var saved = File.ReadAllText(Path.Combine(state, "dht-nodes.json"));
+        T.Check("the routing cache is written atomically on shutdown", saved.Contains("49001", StringComparison.Ordinal));
+        return Task.CompletedTask;
+    }
+
     static Task Formats()
     {
         T.Check("bencode round trip (numbers, strings, lists, dictionaries in key order)",
@@ -161,10 +174,11 @@ static class TorrentTests
         // a single-file torrent built here
         var pieces = new byte[40];
         var info = new Dictionary<string, object> { ["name"] = "file.bin", ["piece length"] = 16384L, ["length"] = 20000L, ["pieces"] = pieces };
-        var file = Bencode.Encode(new Dictionary<string, object> { ["info"] = info, ["announce"] = "http://tracker.example/announce", ["announce-list"] = new List<object> { new List<object> { "udp://a.example:80", "http://b.example/announce" }, new List<object> { "ftp://ignored.example/x" } } });
+        var file = Bencode.Encode(new Dictionary<string, object> { ["info"] = info, ["announce"] = "http://tracker.example/announce", ["announce-list"] = new List<object> { new List<object> { "udp://a.example:80", "http://b.example/announce" }, new List<object> { "ftp://ignored.example/x" } }, ["url-list"] = new List<object> { "https://cdn.example/file.bin", "ftp://ignored.example/file.bin" } });
         var meta = MetaInfo.Parse(file);
         T.Check("single file: name, size, pieces, last piece is shorter", meta is { Name: "file.bin", TotalLength: 20000, PieceCount: 2, IsMultiFile: false } && meta.PieceSize(0) == 16384 && meta.PieceSize(1) == 3616);
         T.Check("tracker tiers keep udp/http and drop unknown protocols", meta.TrackerTiers.Count == 1 && meta.TrackerTiers[0].SequenceEqual(new[] { "udp://a.example:80", "http://b.example/announce" }));
+        T.Check("BEP 19 web seeds keep HTTP(S), reject other schemes, and survive rebuilding", meta.WebSeeds.SequenceEqual(new[] { "https://cdn.example/file.bin" }) && MetaInfo.Parse(meta.ToTorrentFile()).WebSeeds.SequenceEqual(meta.WebSeeds));
         T.Check("the info hash is the SHA-1 of the info bytes", meta.InfoHash.Length == 20 && meta.InfoHashHex.Length == 40 && MetaInfo.FromInfo(meta.RawInfo).InfoHashHex == meta.InfoHashHex);
         T.Check("a torrent file can be rebuilt from its info (magnet metadata is kept as .torrent)", MetaInfo.Parse(meta.ToTorrentFile()).InfoHashHex == meta.InfoHashHex);
 
@@ -204,7 +218,7 @@ static class TorrentTests
     {
         using var swarm = new Swarm(Script(), "--seeders", "2");
         var hash = Convert.FromHexString(swarm.InfoHash);
-        var request = new AnnounceRequest(hash, Encoding.ASCII.GetBytes("-MK0160-abcdefghijkl"), 6881, 0, 0, 1000, "started");
+        var request = new AnnounceRequest(hash, Encoding.ASCII.GetBytes("-MK0170-abcdefghijkl"), 6881, 0, 0, 1000, "started");
         var http = await TrackerClient.AnnounceAsync(swarm.Info.GetProperty("http_tracker").GetString()!, request, CancellationToken.None);
         T.Check("HTTP tracker: both seeders come back (compact peers)", http.Peers.Select(p => p.Port).OrderBy(x => x).SequenceEqual(swarm.SeederPorts.OrderBy(x => x)) && http.IntervalSeconds >= 1 && http.Seeders == 2);
         var udp = await TrackerClient.AnnounceAsync(swarm.UdpTracker, request, CancellationToken.None, TimeSpan.FromSeconds(2));
@@ -392,6 +406,35 @@ static class TorrentTests
         var line = await p.StandardOutput.ReadLineAsync() ?? "{}";
         if (!p.WaitForExit(30000)) p.Kill(true);
         return JsonDocument.Parse(line.Length == 0 ? "{}" : line).RootElement.Clone();
+    }
+
+    static async Task FastStartAndSeedTime()
+    {
+        using var swarm = new Swarm(Script(), "--files", "s.bin:400000", "--piece", "32768");
+        var real = MetaInfo.Parse(File.ReadAllBytes(swarm.TorrentPath));
+        // eight trackers that never answer, each in its own tier, in front of the real ones (what a public magnet looks like)
+        var tiers = Enumerable.Range(0, 8).Select(i => (IReadOnlyList<string>)new[] { $"udp://127.0.0.1:{9 + i}" }).Concat(real.TrackerTiers).ToList();
+        var top = (Dictionary<string, object>)Bencode.Parse(File.ReadAllBytes(swarm.TorrentPath));
+        top["announce-list"] = tiers.Select(t => (object)t.Select(u => (object)u).ToList()).ToList();
+        var meta = MetaInfo.Parse(Bencode.Encode(top));
+        var state = Sub(); var save = Sub();
+        using (var engine = NewEngine(state, tweak: o => o.SeedTimeLimit = TimeSpan.FromSeconds(3)))
+        {
+            var session = engine.AddTorrent(meta, save);
+            var sw = Stopwatch.StartNew();
+            session.Start();
+            T.Check("the first peer is found at once although eight trackers ahead of the working one are dead (they used to cost a time-out each)", await Until(() => session.PeerCount > 0, 4), sw.Elapsed.TotalSeconds.ToString("0.0") + " s");
+            T.Check("the torrent completes", await Done(session, 40), session.Error + " / " + session.State);
+            T.Check("and shares at first", session.State is TorrentState.Seeding or TorrentState.Finished);
+            T.Check("sharing stops by itself when the seed-time limit is reached", await Until(() => session.State == TorrentState.Finished, 12), session.State.ToString());
+            T.Check("the completion time is saved with the resume data", engine.LoadResume(session.InfoHashHex)?.CompletedUtc != null);
+        }
+        using (var engine = NewEngine(state, tweak: o => o.SeedTimeLimit = TimeSpan.FromSeconds(3)))
+        {
+            var session = engine.AddTorrent(meta, save);
+            session.Start();
+            T.Check("after a restart the limit still counts from the original completion, so sharing does not start over", await Until(() => session.State == TorrentState.Finished, 8), session.State.ToString());
+        }
     }
 
     static async Task Seeding()

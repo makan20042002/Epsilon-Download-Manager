@@ -11,14 +11,14 @@ A fast, private download manager and BitTorrent client for Windows. Epsilon comb
 
 ## Download
 
-**[Download Epsilon Download Manager 1.6.0 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.6.0/EpsilonDownloadManager-1.6.0-Setup.exe)**
+**[Download Epsilon Download Manager 1.7.0 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.7.0/EpsilonDownloadManager-1.7.0-Setup.exe)**
 
-Run the installer normally. Version 1.6.0 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
+Run the installer normally. Version 1.7.0 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
 
 SHA-256:
 
 ```text
-D190956AA8494A165FEF0EA67E7F04C3384D6D4E6B6EC3667CA797EA545D2E4B
+47168248FD290BEEC39388498D1AD7F96B25E4485704A7CCBFC3AB13C1D750E3
 ```
 
 ## Highlights
@@ -26,7 +26,7 @@ D190956AA8494A165FEF0EA67E7F04C3384D6D4E6B6EC3667CA797EA545D2E4B
 - **Fast, reliable downloads** — up to 16 connections, exact-byte resume after pause/restart, retry with back-off, checksum verification, and live handling of network-speed changes.
 - **Multi-Network downloads** — optionally distribute segmented HTTP connections across connected Wi-Fi, Ethernet, or tethered networks, with automatic fallback when one link fails.
 - **Flexible speed limits** — unlimited by default, a combined global limit, and optional independent per-file limits.
-- **BitTorrent Engine 2.0** — magnet links and `.torrent` files, DHT, PEX, HTTP/UDP trackers, UPnP/NAT-PMP, file priority, seeding controls, and per-torrent bandwidth limits. Torrents have no artificial speed cap unless you set one.
+- **BitTorrent Engine 2.0** — magnet links and `.torrent` files, persistent DHT, PEX, HTTP/UDP trackers, HTTP web seeds, UPnP/NAT-PMP, file priority, seeding controls, and per-torrent bandwidth limits. Torrents have no artificial speed cap unless you set one.
 - **Browser integration** — Chrome, Edge, Brave, and Firefox capture, context-menu commands, selected-link batches, page-link grabbing, and an on-video download button.
 - **Media downloads** — native HLS and DASH plus YouTube and other supported sites through yt-dlp, including quality selection, audio extraction, playlists, and subtitles.
 - **Scheduling and queues** — parallel queue limits, Start All/Schedule/Stop All controls, retryable failed items, and a complete schedule stop that does not advance to the next file.
@@ -36,7 +36,7 @@ D190956AA8494A165FEF0EA67E7F04C3384D6D4E6B6EC3667CA797EA545D2E4B
 - **Windows integration** — magnet and `.torrent` handlers, tray speed display, optional keep-awake while downloading, and in-place upgrades.
 - **English and Persian** — full RTL-aware Persian localization.
 
-See [the 1.6.0 release notes](RELEASE_NOTES_1.6.0.md) for the latest changes, or [the 1.5.0 release notes](RELEASE_NOTES_1.5.0.md) for the previous release.
+See [the 1.7.0 release notes](RELEASE_NOTES_1.7.0.md) for the latest changes, or [the 1.6.0 release notes](RELEASE_NOTES_1.6.0.md) for the previous release.
 
 ## Browser extensions
 
