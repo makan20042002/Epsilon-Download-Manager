@@ -37,6 +37,7 @@
     <SolidColorBrush x:Key="Disabled" Color="#4A5668"/>
     
     <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI, Inter</FontFamily>
+    <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI</FontFamily>
     <FontFamily x:Key="IconFont">Segoe MDL2 Assets</FontFamily>
     <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Courier New</FontFamily>
 

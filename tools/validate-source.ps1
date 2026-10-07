@@ -55,6 +55,23 @@ Check 'All XAML files are well-formed XML' {
   $bad.Count -eq 0
 }
 
+Check 'Every named StaticResource exists in application, control, or window resources' {
+  $app = Read-Src 'MakanDownloadManager/App.xaml'
+  $controls = Read-Src 'MakanDownloadManager/Themes/ControlStyles.xaml'
+  $global = New-Object 'System.Collections.Generic.HashSet[string]'
+  foreach ($m in [regex]::Matches(($app + $controls), 'x:Key="([A-Za-z_]\w*)"')) { [void]$global.Add($m.Groups[1].Value) }
+  $missing = @()
+  foreach ($f in (Get-ChildItem 'MakanDownloadManager' -Filter *.xaml -Recurse | Where-Object { $_.FullName -notmatch 'Themes\\ControlStyles\.xaml$' })) {
+    $text = Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8
+    $available = New-Object 'System.Collections.Generic.HashSet[string]' ($global)
+    foreach ($m in [regex]::Matches($text, 'x:Key="([A-Za-z_]\w*)"')) { [void]$available.Add($m.Groups[1].Value) }
+    foreach ($m in [regex]::Matches($text, '\{StaticResource\s+([A-Za-z_]\w*)\}')) {
+      if (-not $available.Contains($m.Groups[1].Value)) { $missing += ($f.Name + ': ' + $m.Groups[1].Value) }
+    }
+  }
+  $missing.Count -eq 0
+}
+
 Check 'Every event handler named in XAML exists in its code-behind' {
   $missing = @()
   foreach ($f in (Get-ChildItem 'MakanDownloadManager' -Filter *.xaml -Recurse | Where-Object { $_.FullName -notmatch 'Themes' })) {

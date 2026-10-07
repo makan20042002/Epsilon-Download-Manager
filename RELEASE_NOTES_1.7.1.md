@@ -34,3 +34,9 @@ Version 1.7.1 is an in-place upgrade. Existing settings, download links, history
 - Chrome/Edge and Firefox extension packages are aligned to 1.7.1.
 - The Mozilla-approved Firefox extension is available from [Firefox Add-ons](https://addons.mozilla.org/addon/epsilon-download-manager/).
 - The installer upgrades older Epsilon versions in place and keeps all application data.
+
+## Browser capture hotfix
+
+- Fixed the Add Download window failing to open for downloads captured by Chrome, Edge, Brave, and Firefox.
+- Added the missing shared display-font resource used by the redesigned secondary windows.
+- Added validation that rejects undefined named XAML resources before a release is built.

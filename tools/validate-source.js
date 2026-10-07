@@ -63,6 +63,19 @@ check("all XAML files are well-formed XML", () => {
   return bad.length ? bad.join("; ") : true;
 });
 
+check("every named StaticResource exists in application, control, or window resources", () => {
+  const app = read("MakanDownloadManager/App.xaml");
+  const controls = read("MakanDownloadManager/Themes/ControlStyles.xaml");
+  const global = new Set([...(`${app}\n${controls}`).matchAll(/x:Key="([A-Za-z_]\w*)"/g)].map((m) => m[1]));
+  const missing = [];
+  for (const f of walk("MakanDownloadManager", (p) => p.endsWith(".xaml") && !p.endsWith(path.join("Themes", "ControlStyles.xaml")))) {
+    const text = read(f);
+    const available = new Set([...global, ...[...text.matchAll(/x:Key="([A-Za-z_]\w*)"/g)].map((m) => m[1])]);
+    for (const m of text.matchAll(/\{StaticResource\s+([A-Za-z_]\w*)\}/g)) if (!available.has(m[1])) missing.push(`${f}: ${m[1]}`);
+  }
+  return missing.length ? missing.join("; ") : true;
+});
+
 check("every event handler named in XAML exists in its code-behind", () => {
   const missing = [];
   for (const f of walk("MakanDownloadManager", (p) => p.endsWith(".xaml") && !p.includes("Themes"))) {
