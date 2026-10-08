@@ -1,7 +1,7 @@
 <Window x:Class="MakanDownloadManager.DownloadProgressWindow" Style="{StaticResource AppWindow}"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Download" Width="720" SizeToContent="Height" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen"
-        WindowStyle="None" Background="#050A14" Foreground="#EAF1F7">
+        WindowStyle="None" Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}">
 
   <!-- Borderless window Chrome with custom title bar matching Epsilon website .eps-window showcase -->
   <WindowChrome.WindowChrome>
@@ -9,44 +9,6 @@
   </WindowChrome.WindowChrome>
 
   <Window.Resources>
-    <!-- Exact Epsilon web design system palette -->
-    <SolidColorBrush x:Key="Bg" Color="#050A14"/>
-    <SolidColorBrush x:Key="Panel" Color="#0B1422"/>
-    <SolidColorBrush x:Key="Panel2" Color="#0E1A2C"/>
-    <SolidColorBrush x:Key="Surface" Color="#0B1422"/>
-    <SolidColorBrush x:Key="Border" Color="#1C2839"/>
-    <SolidColorBrush x:Key="Text" Color="#EAF1F7"/>
-    <SolidColorBrush x:Key="Muted" Color="#93A1B5"/>
-    <SolidColorBrush x:Key="Faint" Color="#5E6B7E"/>
-    <SolidColorBrush x:Key="Accent" Color="#13C8F5"/>
-    <SolidColorBrush x:Key="AccentDark" Color="#1F5BFF"/>
-    <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="Hover" Color="#132033"/>
-    <SolidColorBrush x:Key="Selected" Color="#16304F"/>
-    <SolidColorBrush x:Key="Success" Color="#22E58A"/>
-    <SolidColorBrush x:Key="Danger" Color="#FF5F57"/>
-    <SolidColorBrush x:Key="Warning" Color="#FEBC2E"/>
-    <SolidColorBrush x:Key="Track" Color="#141D2B"/>
-    <SolidColorBrush x:Key="Input" Color="#08101C"/>
-    <SolidColorBrush x:Key="InputBorder" Color="#26344A"/>
-    <SolidColorBrush x:Key="Popup" Color="#0E1A2C"/>
-    <SolidColorBrush x:Key="HeaderBg" Color="#0E1A2C"/>
-
-    <!-- Exact web brand gradient: green #22E58A → cyan #13C8F5 → blue #1F5BFF -->
-    <LinearGradientBrush x:Key="BrandGrad" StartPoint="0,0.5" EndPoint="1,0.5">
-      <GradientStop Color="#22E58A" Offset="0"/>
-      <GradientStop Color="#13C8F5" Offset="0.5"/>
-      <GradientStop Color="#1F5BFF" Offset="1"/>
-    </LinearGradientBrush>
-
-    <!-- Connection active gradient: blue #1F5BFF → cyan #13C8F5 -->
-    <LinearGradientBrush x:Key="ConnGrad" StartPoint="0,0.5" EndPoint="1,0.5">
-      <GradientStop Color="#1F5BFF" Offset="0"/>
-      <GradientStop Color="#13C8F5" Offset="1"/>
-    </LinearGradientBrush>
-
-    <SolidColorBrush x:Key="DoneBrush" Color="#22E58A"/>
-    <SolidColorBrush x:Key="FaintBrush" Color="#5E6B7E"/>
     <FontFamily x:Key="Mono">Cascadia Mono, Consolas, Courier New</FontFamily>
 
     <!-- macOS traffic lights (.eps-dots) -->
@@ -103,8 +65,8 @@
 
     <!-- .eps-mainbar: 12px clean rectangular bar -->
     <Style x:Key="MainBarStyle" TargetType="ProgressBar">
-      <Setter Property="Foreground" Value="{StaticResource BrandGrad}"/>
-      <Setter Property="Background" Value="#141D2B"/>
+      <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+      <Setter Property="Background" Value="{DynamicResource Track}"/>
       <Setter Property="Height" Value="12"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -112,9 +74,6 @@
             <Border x:Name="TemplateRoot" Background="{TemplateBinding Background}" CornerRadius="0" ClipToBounds="True">
               <Border x:Name="PART_Track">
                 <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="0">
-                  <Border.Effect>
-                    <DropShadowEffect Color="#13C8F5" BlurRadius="12" ShadowDepth="0" Opacity="0.4"/>
-                  </Border.Effect>
                 </Border>
               </Border>
             </Border>
@@ -125,8 +84,8 @@
 
     <!-- .eps-conn-bar: 6px clean rectangular bar -->
     <Style x:Key="ConnBarStyle" TargetType="ProgressBar">
-      <Setter Property="Foreground" Value="{StaticResource ConnGrad}"/>
-      <Setter Property="Background" Value="#141D2B"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentDark}"/>
+      <Setter Property="Background" Value="{DynamicResource Track}"/>
       <Setter Property="Height" Value="6"/>
       <Setter Property="Minimum" Value="0"/>
       <Setter Property="Maximum" Value="100"/>
@@ -145,20 +104,20 @@
 
     <!-- Outlined buttons -->
     <Style x:Key="OutlineButton" TargetType="Button">
-      <Setter Property="Foreground" Value="#EAF1F7"/>
+      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Height" Value="38"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd" CornerRadius="10" Background="#0B1422" BorderBrush="#26344A" BorderThickness="1">
+            <Border x:Name="Bd" CornerRadius="10" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource InputBorder}" BorderThickness="1">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="14,0"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="BorderBrush" Value="#13C8F5"/>
-                <Setter TargetName="Bd" Property="Background" Value="#0E1D30"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -168,7 +127,7 @@
 
     <!-- Gradient primary button -->
     <Style x:Key="GradButton" TargetType="Button">
-      <Setter Property="Foreground" Value="#03111A"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="FontSize" Value="13.5"/>
       <Setter Property="Height" Value="38"/>
@@ -176,10 +135,7 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd" CornerRadius="10" Background="{StaticResource BrandGrad}">
-              <Border.Effect>
-                <DropShadowEffect Color="#13C8F5" BlurRadius="16" ShadowDepth="0" Opacity="0.35"/>
-              </Border.Effect>
+            <Border x:Name="Bd" CornerRadius="10" Background="{DynamicResource Accent}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
@@ -194,7 +150,7 @@
 
     <!-- Interactive chips (.eps-chip) -->
     <Style x:Key="ChipButton" TargetType="Button">
-      <Setter Property="Foreground" Value="#93A1B5"/>
+      <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
       <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
       <Setter Property="FontSize" Value="11"/>
       <Setter Property="Margin" Value="0,0,8,8"/>
@@ -202,13 +158,13 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd" CornerRadius="3" Padding="11,4" BorderBrush="#26344A" BorderThickness="1" Background="Transparent">
+            <Border x:Name="Bd" CornerRadius="3" Padding="11,4" BorderBrush="{DynamicResource InputBorder}" BorderThickness="1" Background="Transparent">
               <ContentPresenter/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="BorderBrush" Value="#13C8F5"/>
-                <Setter Property="Foreground" Value="#EAF1F7"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -218,7 +174,7 @@
     <Style x:Key="Chip" TargetType="Border">
       <Setter Property="CornerRadius" Value="3"/>
       <Setter Property="Padding" Value="11,4"/>
-      <Setter Property="BorderBrush" Value="#26344A"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="Margin" Value="0,0,8,8"/>
@@ -228,18 +184,18 @@
     <Style x:Key="StatLabel" TargetType="TextBlock">
       <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
       <Setter Property="FontSize" Value="11"/>
-      <Setter Property="Foreground" Value="#5E6B7E"/>
+      <Setter Property="Foreground" Value="{DynamicResource Faint}"/>
       <Setter Property="Margin" Value="0,0,0,4"/>
     </Style>
     <Style x:Key="StatValue" TargetType="TextBlock">
       <Setter Property="FontSize" Value="15"/>
       <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="#EAF1F7"/>
+      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     </Style>
     <Style x:Key="Card" TargetType="Border">
-      <Setter Property="Background" Value="#0B1422"/>
-      <Setter Property="BorderBrush" Value="#1C2839"/>
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="14"/>
       <Setter Property="Padding" Value="16,14"/>
@@ -247,15 +203,12 @@
   </Window.Resources>
 
   <!-- Container matching .eps-window (background #0B1422, border 1px solid rgba(255,255,255,.08), rounded corners 18px) -->
-  <Border Margin="12" Background="#0B1422" BorderBrush="#1F2D42" BorderThickness="1" CornerRadius="18" ClipToBounds="True">
-    <Border.Effect>
-      <DropShadowEffect Color="#1378F5" BlurRadius="60" ShadowDepth="0" Opacity="0.3"/>
-    </Border.Effect>
+  <Border Margin="12" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="18" ClipToBounds="True">
 
     <DockPanel>
 
       <!-- ============ .eps-window-bar title bar ============ -->
-      <Border DockPanel.Dock="Top" Background="#0E1A2C" BorderBrush="#16223A" BorderThickness="0,0,0,1" Height="44">
+      <Border DockPanel.Dock="Top" Background="{DynamicResource HeaderBg}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Height="44">
         <DockPanel>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Right" Margin="0,0,12,0">
             <Button Style="{StaticResource TrafficLightMax}" ToolTip="Download Progress"/>
@@ -264,13 +217,13 @@
           </StackPanel>
 
           <Border x:Name="ConnPill" DockPanel.Dock="Left" VerticalAlignment="Center" Margin="16,0,12,0" CornerRadius="3" Padding="10,3"
-                  BorderBrush="#4D22E58A" BorderThickness="1" Background="#1422E58A">
-            <TextBlock x:Name="ConnCountText" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#22E58A"/>
+                  BorderBrush="{DynamicResource Success}" BorderThickness="1" Background="{DynamicResource SuccessBg}">
+            <TextBlock x:Name="ConnCountText" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Success}"/>
           </Border>
 
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <Image Source="pack://application:,,,/Assets/makan.ico" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
-            <TextBlock x:Name="TitleText" VerticalAlignment="Center" Foreground="#93A1B5" FontFamily="{StaticResource Mono}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+            <TextBlock x:Name="TitleText" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" FontFamily="{StaticResource Mono}" FontSize="13" TextTrimming="CharacterEllipsis"/>
           </StackPanel>
         </DockPanel>
       </Border>
@@ -279,8 +232,8 @@
       <StackPanel Margin="24,20,24,22">
 
         <!-- File title & URL -->
-        <TextBlock x:Name="FileNameText" FontSize="17" FontWeight="SemiBold" Foreground="#EAF1F7" TextTrimming="CharacterEllipsis"/>
-        <TextBlock x:Name="UrlText" Foreground="#5E6B7E" FontFamily="{StaticResource Mono}" FontSize="11.5" Margin="0,3,0,18" TextTrimming="CharacterEllipsis"/>
+        <TextBlock x:Name="FileNameText" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Text}" TextTrimming="CharacterEllipsis"/>
+        <TextBlock x:Name="UrlText" Foreground="{DynamicResource Faint}" FontFamily="{StaticResource Mono}" FontSize="11.5" Margin="0,3,0,18" TextTrimming="CharacterEllipsis"/>
 
         <!-- .eps-stats display grid -->
         <Grid Margin="0,0,0,18">
@@ -309,30 +262,30 @@
         <Grid Margin="0,0,0,0">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <ProgressBar x:Name="MainBar" Style="{StaticResource MainBarStyle}" Minimum="0" Maximum="100" VerticalAlignment="Center"/>
-          <TextBlock x:Name="PercentText" Grid.Column="1" Margin="14,0,0,0" FontFamily="{StaticResource Mono}" FontSize="13" FontWeight="Bold" Foreground="#13C8F5" VerticalAlignment="Center" MinWidth="54" TextAlignment="Right"/>
+          <TextBlock x:Name="PercentText" Grid.Column="1" Margin="14,0,0,0" FontFamily="{StaticResource Mono}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" MinWidth="54" TextAlignment="Right"/>
         </Grid>
 
         <!-- Saved partial data recovered at resume. This stays separate from the network progress above, so a user
              can immediately see that Epsilon found and loaded the existing data instead of appearing stuck. -->
         <StackPanel x:Name="DiskLoadPanel" Margin="0,9,0,0" Visibility="Collapsed">
           <DockPanel Margin="0,0,0,4">
-            <TextBlock Text="DISK LOAD" Style="{StaticResource StatLabel}" Margin="0" Foreground="#FEBC2E"/>
+            <TextBlock Text="DISK LOAD" Style="{StaticResource StatLabel}" Margin="0" Foreground="{DynamicResource Warning}"/>
             <TextBlock x:Name="DiskLoadText" DockPanel.Dock="Right" Style="{StaticResource StatLabel}" Margin="0" TextAlignment="Right"/>
           </DockPanel>
           <Grid>
-            <ProgressBar x:Name="DiskLoadBar" Style="{StaticResource MainBarStyle}" Foreground="#FEBC2E" Height="7" Minimum="0" Maximum="100"/>
-            <TextBlock x:Name="DiskLoadPercentText" HorizontalAlignment="Right" Margin="0,-20,0,0" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#FEBC2E"/>
+            <ProgressBar x:Name="DiskLoadBar" Style="{StaticResource MainBarStyle}" Foreground="{DynamicResource Warning}" Height="7" Minimum="0" Maximum="100"/>
+            <TextBlock x:Name="DiskLoadPercentText" HorizontalAlignment="Right" Margin="0,-20,0,0" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Warning}"/>
           </Grid>
         </StackPanel>
 
         <!-- .eps-conns: 16 connection rows -->
         <StackPanel x:Name="DetailsPanel" Margin="0,20,0,0">
           <DockPanel Margin="0,0,0,10">
-            <TextBlock DockPanel.Dock="Left" Style="{StaticResource StatLabel}" Text="CONNECTIONS" Margin="0" FontSize="11" Foreground="#5E6B7E"/>
+            <TextBlock DockPanel.Dock="Left" Style="{StaticResource StatLabel}" Text="CONNECTIONS" Margin="0" FontSize="11" Foreground="{DynamicResource Faint}"/>
             <TextBlock HorizontalAlignment="Right" Style="{StaticResource StatLabel}" Margin="0" Text="Start positions and download progress by connections"/>
           </DockPanel>
 
-          <Border Height="6" CornerRadius="1" Background="#141D2B" ClipToBounds="True" Margin="0,0,0,14">
+          <Border Height="6" CornerRadius="1" Background="{DynamicResource Track}" ClipToBounds="True" Margin="0,0,0,14">
             <UniformGrid x:Name="PositionGrid" Rows="1"/>
           </Border>
 
@@ -348,15 +301,15 @@
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="104"/><ColumnDefinition Width="70"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding Label}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#5E6B7E" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Label}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Faint}" VerticalAlignment="Center"/>
                     <ProgressBar x:Name="Bar" Grid.Column="1" Style="{StaticResource ConnBarStyle}" Value="{Binding Percent, Mode=OneWay}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{Binding Network}" FontFamily="{StaticResource Mono}" FontSize="9.5" Foreground="#7568DF" TextAlignment="Right" TextTrimming="CharacterEllipsis" ToolTip="{Binding Network}" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="Sp" Grid.Column="3" Text="{Binding SpeedText}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#5E6B7E" TextAlignment="Right" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Network}" FontFamily="{StaticResource Mono}" FontSize="9.5" Foreground="{DynamicResource IconPurple}" TextAlignment="Right" TextTrimming="CharacterEllipsis" ToolTip="{Binding Network}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Sp" Grid.Column="3" Text="{Binding SpeedText}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Faint}" TextAlignment="Right" VerticalAlignment="Center"/>
                   </Grid>
                   <DataTemplate.Triggers>
                     <DataTrigger Binding="{Binding IsDone}" Value="True">
-                      <Setter TargetName="Bar" Property="Foreground" Value="{StaticResource DoneBrush}"/>
-                      <Setter TargetName="Sp" Property="Foreground" Value="{StaticResource DoneBrush}"/>
+                      <Setter TargetName="Bar" Property="Foreground" Value="{DynamicResource Success}"/>
+                      <Setter TargetName="Sp" Property="Foreground" Value="{DynamicResource Success}"/>
                       <Setter TargetName="Sp" Property="FontWeight" Value="SemiBold"/>
                     </DataTrigger>
                   </DataTemplate.Triggers>
@@ -367,13 +320,13 @@
         </StackPanel>
 
         <!-- .eps-window-foot: action chips -->
-        <Border BorderBrush="#16223A" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,16,0,0">
+        <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,16,0,0">
           <WrapPanel x:Name="FootPanel">
-            <Border Style="{StaticResource Chip}"><TextBlock x:Name="SizeText" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#93A1B5"/></Border>
-            <Border x:Name="ResumeChip" Style="{StaticResource Chip}"><TextBlock x:Name="ResumeText" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#93A1B5"/></Border>
+            <Border Style="{StaticResource Chip}"><TextBlock x:Name="SizeText" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Muted}"/></Border>
+            <Border x:Name="ResumeChip" Style="{StaticResource Chip}"><TextBlock x:Name="ResumeText" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Muted}"/></Border>
             <Button Style="{StaticResource ChipButton}" Click="Options_Click"><TextBlock x:Name="LimiterChipText"/></Button>
             <Button Style="{StaticResource ChipButton}" Click="Options_Click"><TextBlock x:Name="CompletionChipText"/></Button>
-            <Border Style="{StaticResource Chip}" BorderBrush="#4D22E58A"><TextBlock Text="SHA-256 ✓ on finish" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="#22E58A"/></Border>
+            <Border Style="{StaticResource Chip}" BorderBrush="{DynamicResource Success}"><TextBlock Text="SHA-256 ✓ on finish" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Success}"/></Border>
           </WrapPanel>
         </Border>
 
@@ -382,16 +335,16 @@
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
           <Border Style="{StaticResource Card}">
             <StackPanel>
-              <TextBlock Style="{StaticResource StatLabel}" Text="Speed Limiter" Foreground="#13C8F5"/>
+              <TextBlock Style="{StaticResource StatLabel}" Text="Speed Limiter" Foreground="{DynamicResource Accent}"/>
               <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                <TextBlock Text="Transfer rate" Foreground="#93A1B5" Margin="0,0,10,0"/>
+                <TextBlock Text="Transfer rate" Foreground="{DynamicResource Muted}" Margin="0,0,10,0"/>
                 <TextBlock x:Name="LimiterRate" FontWeight="SemiBold"/>
               </StackPanel>
               <CheckBox x:Name="UseLimiter" Content="Use Speed Limiter" Margin="0,12,0,0" Checked="Limiter_Changed" Unchecked="Limiter_Changed"/>
-              <TextBlock Text="Maximum download speed:" Foreground="#93A1B5" Margin="0,10,0,4"/>
+              <TextBlock Text="Maximum download speed:" Foreground="{DynamicResource Muted}" Margin="0,10,0,4"/>
               <StackPanel Orientation="Horizontal">
                 <TextBox x:Name="LimitBox" Width="90" Text="500" TextChanged="Limiter_Text_Changed"/>
-                <TextBlock Text="KBytes/sec" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#93A1B5"/>
+                <TextBlock Text="KBytes/sec" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource Muted}"/>
               </StackPanel>
               <CheckBox x:Name="RememberLimit" Margin="0,12,0,0" Checked="Limiter_Changed" Unchecked="Limiter_Changed">
                 <TextBlock Text="Remember Speed Limiter settings for this file on download stop/resume" TextWrapping="Wrap"/>
@@ -400,13 +353,13 @@
           </Border>
           <Border Grid.Column="2" Style="{StaticResource Card}">
             <StackPanel>
-              <TextBlock Style="{StaticResource StatLabel}" Text="Options on completion" Foreground="#13C8F5"/>
+              <TextBlock Style="{StaticResource StatLabel}" Text="Options on completion" Foreground="{DynamicResource Accent}"/>
               <DockPanel Margin="0,4,0,0">
-                <TextBlock DockPanel.Dock="Left" Text="Save To:" Foreground="#93A1B5" Margin="0,0,8,0"/>
+                <TextBlock DockPanel.Dock="Left" Text="Save To:" Foreground="{DynamicResource Muted}" Margin="0,0,8,0"/>
                 <TextBlock x:Name="SaveToText" TextTrimming="CharacterEllipsis"/>
               </DockPanel>
               <CheckBox x:Name="ShowCompleteBox" Content="Show download complete dialog" Margin="0,10,0,0" Checked="Completion_Changed" Unchecked="Completion_Changed"/>
-              <TextBlock Text="These settings are unavailable when 'Show download complete dialog' is turned on" Foreground="#5E6B7E" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,6"/>
+              <TextBlock Text="These settings are unavailable when 'Show download complete dialog' is turned on" Foreground="{DynamicResource Faint}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,6"/>
               <CheckBox x:Name="ExitBox" Content="Exit Epsilon when done" Margin="0,3" Checked="Completion_Changed" Unchecked="Completion_Changed"/>
               <CheckBox x:Name="PowerBox" Content="Turn off computer when done" Margin="0,3" Checked="Completion_Changed" Unchecked="Completion_Changed"/>
               <ComboBox x:Name="PowerCombo" Width="150" HorizontalAlignment="Left" Margin="24,4,0,0" SelectedIndex="0" SelectionChanged="Completion_Changed">
@@ -429,7 +382,7 @@
         </Grid>
 
         <!-- .eps-caption footer text -->
-        <TextBlock Margin="0,16,0,0" HorizontalAlignment="Center" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="#5E6B7E"
+        <TextBlock Margin="0,16,0,0" HorizontalAlignment="Center" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{DynamicResource Faint}"
                    Text="Live illustration of Epsilon's download progress window — every segment is its own connection."/>
       </StackPanel>
     </DockPanel>

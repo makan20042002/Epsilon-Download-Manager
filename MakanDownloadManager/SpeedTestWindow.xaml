@@ -1,0 +1,46 @@
+<Window x:Class="MakanDownloadManager.SpeedTestWindow" Style="{StaticResource AppWindow}"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Network speed test" Width="690" SizeToContent="Height" MaxHeight="780" ResizeMode="NoResize" WindowStartupLocation="CenterOwner">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="22">
+      <DockPanel Margin="0,0,0,16">
+        <Border DockPanel.Dock="Left" Width="48" Height="48" CornerRadius="9" Background="{DynamicResource Selected}" BorderBrush="{DynamicResource Accent}" BorderThickness="1" Margin="0,0,14,0">
+          <TextBlock Text="&#xE9D9;" FontFamily="{StaticResource IconFont}" FontSize="23" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <StackPanel><TextBlock Text="Network speed test" FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="Measure your internet, then compare it with a specific download server." Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/></StackPanel>
+      </DockPanel>
+
+      <Border Style="{StaticResource CardBorder}" Padding="16">
+        <StackPanel>
+          <DockPanel><StackPanel><TextBlock Text="Internet connection" FontSize="15" FontWeight="SemiBold"/><TextBlock Text="Uses up to about 36 MB download and 4 MB upload." Foreground="{DynamicResource Muted}" FontSize="11.5" Margin="0,3,0,0"/></StackPanel><Button x:Name="StartButton" DockPanel.Dock="Right" Content="Start test" Style="{StaticResource PrimaryButton}" Click="Start_Click" MinWidth="110"/></DockPanel>
+          <ProgressBar x:Name="InternetProgress" Height="8" Minimum="0" Maximum="100" Margin="0,16,0,10"/>
+          <TextBlock x:Name="InternetStatus" Text="Ready" Foreground="{DynamicResource Muted}"/>
+          <UniformGrid Columns="4" Margin="0,14,0,0">
+            <Border Background="{DynamicResource Panel2}" CornerRadius="6" Padding="10" Margin="0,0,7,0"><StackPanel><TextBlock Text="DOWNLOAD" FontSize="10" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="DownloadText" Text="—" FontFamily="{StaticResource MonoFont}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" Margin="0,4,0,0"/></StackPanel></Border>
+            <Border Background="{DynamicResource Panel2}" CornerRadius="6" Padding="10" Margin="0,0,7,0"><StackPanel><TextBlock Text="UPLOAD" FontSize="10" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="UploadText" Text="—" FontFamily="{StaticResource MonoFont}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource IconTeal}" Margin="0,4,0,0"/></StackPanel></Border>
+            <Border Background="{DynamicResource Panel2}" CornerRadius="6" Padding="10" Margin="0,0,7,0"><StackPanel><TextBlock Text="PING" FontSize="10" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="PingText" Text="—" FontFamily="{StaticResource MonoFont}" FontSize="17" FontWeight="SemiBold" Margin="0,4,0,0"/></StackPanel></Border>
+            <Border Background="{DynamicResource Panel2}" CornerRadius="6" Padding="10"><StackPanel><TextBlock Text="JITTER" FontSize="10" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="JitterText" Text="—" FontFamily="{StaticResource MonoFont}" FontSize="17" FontWeight="SemiBold" Margin="0,4,0,0"/></StackPanel></Border>
+          </UniformGrid>
+        </StackPanel>
+      </Border>
+
+      <Border Style="{StaticResource CardBorder}" Padding="16" Margin="0,14,0,0">
+        <StackPanel>
+          <TextBlock Text="Compare a download server" FontSize="15" FontWeight="SemiBold"/>
+          <TextBlock Text="Paste a direct file link. Epsilon reads no more than 8 MB and does not add the file." Foreground="{DynamicResource Muted}" FontSize="11.5" Margin="0,3,0,10" TextWrapping="Wrap"/>
+          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBox x:Name="LinkBox" FlowDirection="LeftToRight" VerticalContentAlignment="Center" MinHeight="36"/>
+            <Button x:Name="LinkButton" Grid.Column="1" Content="Test this server" Click="Link_Click" Margin="8,0,0,0" MinWidth="128"/>
+          </Grid>
+          <ProgressBar x:Name="LinkProgress" Height="7" Minimum="0" Maximum="100" Margin="0,12,0,8"/>
+          <TextBlock x:Name="LinkResultText" Text="Enter a link to compare its server with your internet speed." Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+          <Border x:Name="DomesticPanel" Visibility="Collapsed" Background="{DynamicResource Panel2}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,12,0,0">
+            <StackPanel><TextBlock Text="تشخیص نوع ترافیک در ایران" FontWeight="SemiBold"/><TextBlock x:Name="DomesticText" Text="پس از آزمایش لینک، نتیجهٔ احتمالی داخلی یا بین‌الملل اینجا نمایش داده می‌شود." Foreground="{DynamicResource Muted}" Margin="0,4,0,0" TextWrapping="Wrap"/><TextBlock Text="این نتیجه تخمینی است؛ مرجع قطعی محاسبه، پنل مصرف اپراتور شماست." FontSize="11" Foreground="{DynamicResource Warning}" Margin="0,5,0,0" TextWrapping="Wrap"/></StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <DockPanel Margin="0,16,0,0"><TextBlock x:Name="PrivacyText" Text="Test results remain on this computer." Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/><Button DockPanel.Dock="Right" Content="Close" IsCancel="True" Click="Close_Click" MinWidth="90"/></DockPanel>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

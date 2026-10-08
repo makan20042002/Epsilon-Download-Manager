@@ -18,7 +18,7 @@ Run the installer normally. Version 1.7.1 upgrades an existing Epsilon installat
 SHA-256:
 
 ```text
-B6B72F32BB4D9E51D1CCBC11B81F4740EF9A4E8D34EAF1406C98C4D383A91E46
+F7E598A1B0D5FB6D967426867EB7BEAEE9C09BF5DF92870BA534D520A0D4DDCA
 ```
 
 ## Highlights
@@ -40,14 +40,13 @@ See [the 1.7.1 release notes](RELEASE_NOTES_1.7.1.md) for the latest changes, or
 
 ## Browser extensions
 
-The Windows installer registers Epsilon's native browser connection. Browsers still require the extension to be enabled once.
+The Windows installer registers Epsilon's native browser connection. Install the extension once from your browser's official store; Epsilon's first-run screen and Options page contain the same official buttons.
 
 ### Chrome, Edge, and Brave
 
-1. Open the browser's extensions page (`chrome://extensions`, `edge://extensions`, or `brave://extensions`).
-2. Enable **Developer mode**.
-3. Select **Load unpacked** and choose the installed `browser-extension` folder.
-4. Restart the browser and open the Epsilon toolbar button. It should show **Connected**.
+**[Epsilon Download Manager on the Chrome Web Store](https://chromewebstore.google.com/detail/epsilon-download-manager/nglldicodleblllopbkgncogljbdldpd)**
+
+Chrome, Edge, Brave, and other Chromium browsers can use the official Store package. No Developer mode or unpacked folder is required.
 
 ### Firefox
 
@@ -55,7 +54,7 @@ Install the officially published Firefox extension from Mozilla Add-ons:
 
 **[Epsilon Download Manager for Firefox](https://addons.mozilla.org/addon/epsilon-download-manager/)**
 
-The Mozilla-signed store version remains installed after Firefox restarts. Development builds can still be tested temporarily from `about:debugging#/runtime/this-firefox` by choosing **Load Temporary Add-on** and selecting `browser-extension-firefox/manifest.json`.
+The Mozilla-signed store version remains installed after Firefox restarts. No temporary-add-on setup is required.
 
 ## Requirements
 

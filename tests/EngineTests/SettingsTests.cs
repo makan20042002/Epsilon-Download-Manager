@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Text.Json;
 using MakanDownloadManager.Models;
 using MakanDownloadManager.Services;
@@ -25,6 +26,26 @@ static class SettingsTests
         await Run("Localization: English stays as written, Persian by exact text and by pattern", Localization);
         await Run("Themes: light and dark blue-grey palettes are complete and readable, every colour used in XAML exists", Themes);
         await Run("Engine options: temp directory, file date from server, ignore-modified on resume, default User-Agent, overwrite", EngineOptions);
+        await Run("Speed test: Iranian address classification follows APNIC allocations", SpeedTestClassification);
+    }
+
+    static Task SpeedTestClassification()
+    {
+        const string registry = """
+            # sample APNIC delegated data
+            apnic|IR|ipv4|5.160.0.0|65536|20200101|allocated
+            apnic|JP|ipv4|8.8.8.0|256|20200101|allocated
+            apnic|IR|ipv6|2a01:5ec0::|32|20200101|allocated
+            """;
+        T.Check("Iranian IPv4 allocation", SpeedTestService.IsIranAllocation(IPAddress.Parse("5.160.42.7"), registry));
+        T.Check("non-Iranian IPv4 allocation", !SpeedTestService.IsIranAllocation(IPAddress.Parse("8.8.8.8"), registry));
+        T.Check("Iranian IPv6 allocation", SpeedTestService.IsIranAllocation(IPAddress.Parse("2a01:5ec0:1234::1"), registry));
+        T.Check("an address outside the sample is not classified as Iranian", !SpeedTestService.IsIranAllocation(IPAddress.Parse("1.1.1.1"), registry));
+        T.Check("very slow upload uses a small sample instead of timing out", SpeedTestService.UploadPayloadBytesFor(0.02) == 32 * 1024);
+        T.Check("ordinary upload sample is sized for about six seconds", SpeedTestService.UploadPayloadBytesFor(1) is >= 700_000 and <= 800_000);
+        T.Check("fast upload sample stays bounded", SpeedTestService.UploadPayloadBytesFor(100) == 2 * 1024 * 1024);
+        T.Check("slow upload uses one stream and fast upload can use two", SpeedTestService.UploadStreamCountFor(0.4) == 1 && SpeedTestService.UploadStreamCountFor(20) == 2);
+        return Task.CompletedTask;
     }
 
     static async Task Run(string title, Func<Task> body)
@@ -106,9 +127,9 @@ static class SettingsTests
 
     static Task Themes()
     {
-        var all = new[] { ("obsidian-gold", ThemePalette.ObsidianGold), ("platinum-blue", ThemePalette.PlatinumBlue), ("royal-amethyst", ThemePalette.RoyalAmethyst), ("emerald-executive", ThemePalette.EmeraldExecutive), ("champagne-minimal", ThemePalette.ChampagneMinimal), ("graphite-copper", ThemePalette.GraphiteCopper), ("sapphire-noir", ThemePalette.SapphireNoir), ("ivory-luxe", ThemePalette.IvoryLuxe), ("rose-titanium", ThemePalette.RoseTitanium), ("arctic-glass", ThemePalette.ArcticGlass), ("dracula", ThemePalette.Dracula) };
+        var all = new[] { ("obsidian-gold", ThemePalette.ObsidianGold), ("platinum-blue", ThemePalette.PlatinumBlue), ("royal-amethyst", ThemePalette.RoyalAmethyst), ("emerald-executive", ThemePalette.EmeraldExecutive), ("champagne-minimal", ThemePalette.ChampagneMinimal), ("graphite-copper", ThemePalette.GraphiteCopper), ("sapphire-noir", ThemePalette.SapphireNoir), ("rose-titanium", ThemePalette.RoseTitanium), ("arctic-glass", ThemePalette.ArcticGlass), ("crystal-noir", ThemePalette.CrystalNoir), ("dracula", ThemePalette.Dracula) };
         T.Check("all palettes define the same colours", all.Skip(1).All(p => ThemePalette.ObsidianGold.Keys.OrderBy(k => k).SequenceEqual(p.Item2.Keys.OrderBy(k => k))), string.Join(" | ", all.Skip(1).Select(p => p.Item1 + ": " + string.Join(",", ThemePalette.ObsidianGold.Keys.Except(p.Item2.Keys).Concat(p.Item2.Keys.Except(ThemePalette.ObsidianGold.Keys))))));
-        T.Check("every value is a #RRGGBB colour", all.SelectMany(p => p.Item2.Values).All(v => System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9A-Fa-f]{6}$")));
+        T.Check("every value is a #RRGGBB or #AARRGGBB colour", all.SelectMany(p => p.Item2.Values).All(v => System.Text.RegularExpressions.Regex.IsMatch(v, "^#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$")));
         foreach (var (name, p) in all)
         {
             T.Check($"{name}: text is easy to read on the window, cards, inputs and popups (contrast >= 7)", new[] { "Bg", "Surface", "Input", "Popup", "Panel2" }.All(k => ThemePalette.Contrast(p["Text"], p[k]) >= 7), string.Join(" ", new[] { "Bg", "Surface", "Input", "Popup" }.Select(k => ThemePalette.Contrast(p["Text"], p[k]).ToString("0.0"))));
@@ -119,7 +140,7 @@ static class SettingsTests
             T.Check($"{name}: status colours are readable on cards (>= 3.5)", new[] { "Success", "Danger", "Warning", "Accent" }.All(k => ThemePalette.Contrast(p[k], p["Surface"]) >= 3.5), string.Join(" ", new[] { "Success", "Danger", "Warning", "Accent" }.Select(k => ThemePalette.Contrast(p[k], p["Surface"]).ToString("0.0"))));
             T.Check($"{name}: selected rows keep the text readable (>= 4.5)", ThemePalette.Contrast(p["Text"], p["Selected"]) >= 4.5 && ThemePalette.Contrast(p["Text"], p["Hover"]) >= 7, ThemePalette.Contrast(p["Text"], p["Selected"]).ToString("0.0"));
         }
-        T.Check("dark and light palettes are classified correctly", new[] { ThemePalette.ObsidianGold, ThemePalette.RoyalAmethyst, ThemePalette.EmeraldExecutive, ThemePalette.GraphiteCopper, ThemePalette.SapphireNoir, ThemePalette.RoseTitanium, ThemePalette.ArcticGlass, ThemePalette.Dracula }.All(p => ThemePalette.Contrast("#000000", p["Bg"]) < 3) && new[] { ThemePalette.PlatinumBlue, ThemePalette.ChampagneMinimal, ThemePalette.IvoryLuxe }.All(p => ThemePalette.Contrast("#FFFFFF", p["Bg"]) < 1.2));
+        T.Check("dark and light palettes are classified correctly", new[] { ThemePalette.ObsidianGold, ThemePalette.RoyalAmethyst, ThemePalette.EmeraldExecutive, ThemePalette.GraphiteCopper, ThemePalette.SapphireNoir, ThemePalette.RoseTitanium, ThemePalette.ArcticGlass, ThemePalette.CrystalNoir, ThemePalette.Dracula }.All(p => ThemePalette.Contrast("#000000", p["Bg"]) < 3) && new[] { ThemePalette.PlatinumBlue, ThemePalette.ChampagneMinimal }.All(p => ThemePalette.Contrast("#FFFFFF", p["Bg"]) < 1.2));
         T.Check("auto follows Windows; every named theme resolves", ThemePalette.Resolve("auto", true) == "sapphire-noir" && ThemePalette.Resolve("auto", false) == "platinum-blue" && ThemePalette.Names.All(name => ThemePalette.Resolve(name, false) == name));
 
         var settings = new AppSettings(new MemSettings());
@@ -131,8 +152,19 @@ static class SettingsTests
         T.Check("legacy Nebula settings migrate to Royal Amethyst", settings.Theme == "royal-amethyst", settings.Theme);
         settings.Theme = "orange";
         T.Check("legacy Orange settings migrate to Champagne Minimal", settings.Theme == "champagne-minimal", settings.Theme);
+        settings.Theme = "ivory-luxe";
+        T.Check("duplicate Ivory Luxe settings migrate to Champagne Minimal", settings.Theme == "champagne-minimal", settings.Theme);
         settings.Theme = "not-a-real-theme";
         T.Check("an unrecognised value falls back to Sapphire Noir", settings.Theme == "sapphire-noir", settings.Theme);
+
+        var completed = new DownloadItem
+        {
+            Status = nameof(DownloadStatus.Complete),
+            StartedAt = new DateTime(2026, 10, 7, 10, 0, 0, DateTimeKind.Utc),
+            FinishedAt = new DateTime(2026, 10, 7, 10, 0, 10, DateTimeKind.Utc),
+            DoneBytes = 10 * 1024 * 1024
+        };
+        T.Check("completed downloads show their finish time and average speed", completed.FinishedDisplay.Length > 0 && completed.AverageSpeedText == "1.00 MB/s" && completed.CompletionDetails.Contains("Average 1.00 MB/s"), completed.CompletionDetails);
 
         T.Check("with no torrent folder set, torrents save to the same place as everything else", settings.TorrentSaveFolder == settings.DefaultFolder);
         settings.TorrentFolder = @"D:\Torrents";

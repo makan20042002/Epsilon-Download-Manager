@@ -25,7 +25,6 @@ if (-not $iscc) {
          "or download it from https://jrsoftware.org/isdl.php")
 }
 
-Copy-Item (Join-Path $root 'installer\EXTENSION-SETUP.txt') $publish -Force
 $version = (Get-Content (Join-Path $root 'VERSION.txt') -Raw).Trim()
 & $iscc (Join-Path $root 'installer\MakanDownloadManager.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup reported an error (see above).' }

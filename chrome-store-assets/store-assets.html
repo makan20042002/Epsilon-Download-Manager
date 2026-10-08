@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Epsilon Chrome Store Assets</title>
+<style>
+  *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:"Segoe UI Variable",Segoe UI,Arial,sans-serif;background:#07111f;color:#f4f8ff}
+  body{background:radial-gradient(circle at 78% 14%,#123b70 0,transparent 37%),radial-gradient(circle at 15% 88%,#0d5b5b 0,transparent 34%),linear-gradient(135deg,#050b15,#071a32 56%,#07111f)}
+  .noise{position:absolute;inset:0;background-image:linear-gradient(115deg,rgba(255,255,255,.025),transparent 38%,rgba(56,217,255,.035));pointer-events:none}
+  .logo{object-fit:contain;filter:drop-shadow(0 12px 30px rgba(46,134,255,.28))}
+  .eyebrow{color:#62e0b1;font-size:14px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+  h1{margin:10px 0 12px;font-size:48px;line-height:1.03;letter-spacing:-.035em}p{margin:0;color:#adc6e1;line-height:1.55}
+  .badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid rgba(98,224,177,.34);background:rgba(12,38,49,.78);border-radius:8px;color:#dffdf1;font-size:13px}.dot{width:8px;height:8px;background:#51dba3;border-radius:2px;box-shadow:0 0 13px #51dba3}
+  .screen{position:absolute;inset:0;padding:42px 54px}.browser{height:100%;border:1px solid rgba(111,159,211,.34);border-radius:18px;background:#edf4fb;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden;color:#162a44}
+  .browserbar{height:58px;background:#f8fbfe;border-bottom:1px solid #cad9e7;display:flex;align-items:center;padding:0 18px;gap:14px}.traffic{display:flex;gap:8px}.traffic i{display:block;width:11px;height:11px;border-radius:50%;background:#ff6e78}.traffic i:nth-child(2){background:#f6c453}.traffic i:nth-child(3){background:#51dba3}.url{height:34px;flex:1;border:1px solid #cfdeec;border-radius:8px;background:#fff;color:#68809b;padding:8px 14px;font-size:13px}
+  .webpage{position:relative;height:calc(100% - 58px);background:linear-gradient(135deg,#d9eafa,#f8fbff 58%,#d8eff0);padding:38px}.webcopy{width:54%}.webcopy .line{height:12px;border-radius:2px;background:#a9bed3;margin:10px 0}.webcopy .line.big{height:26px;width:76%;background:#244f7b}.webcopy .line.short{width:62%}.video{position:absolute;left:38px;right:448px;bottom:38px;height:350px;background:linear-gradient(145deg,#0d1c31,#153f68);border-radius:13px;overflow:hidden;box-shadow:0 18px 40px rgba(20,49,80,.24)}.video:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 70% 25%,rgba(56,217,255,.27),transparent 32%),linear-gradient(120deg,transparent 38%,rgba(255,255,255,.06) 39%,transparent 40%)}.play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.92);box-shadow:0 12px 32px rgba(0,0,0,.3)}.play:after{content:"";position:absolute;left:28px;top:21px;border-left:20px solid #1467d8;border-top:13px solid transparent;border-bottom:13px solid transparent}.overlay{position:absolute;right:16px;top:16px;background:#0a1729;color:white;border:1px solid #2e86ff;padding:10px 13px;border-radius:8px;font-size:13px;font-weight:650;display:flex;align-items:center;gap:8px}.overlay img{width:22px;height:22px}
+  .popup{position:absolute;right:76px;top:92px;width:354px;border-radius:12px;background:#071429;color:#eff7ff;box-shadow:0 24px 54px rgba(0,0,0,.45);overflow:hidden;border:1px solid #1b477a}.pophead{display:flex;align-items:center;gap:11px;padding:16px 17px;background:#0b2140}.pophead img{width:34px;height:34px}.pophead strong{display:block;font-size:15px}.connected{font-size:11px;color:#8be7c2;margin-top:3px}.section{padding:15px 17px;border-top:1px solid #1b477a}.switchrow{display:flex;justify-content:space-between;align-items:center}.switch{width:37px;height:20px;border-radius:10px;background:#2e86ff;padding:3px}.switch:after{content:"";display:block;width:14px;height:14px;border-radius:50%;background:#fff;margin-left:auto}.section h2{margin:0 0 10px;color:#a7c4e5;font-size:10px;letter-spacing:.12em}.buttons{display:flex;gap:7px}.btn{padding:8px 10px;border-radius:5px;background:#0b2140;border:1px solid #1b477a;font-size:11px}.btn.primary{background:#2e86ff;border-color:#2e86ff;color:white}.mediaitem{display:flex;align-items:center;gap:8px;padding:8px 0;color:#e9f4ff}.tag{font-size:9px;padding:3px 5px;background:#174474;border-radius:3px;color:#9ed7ff}.meta{font-size:10px;color:#9eb8d4;margin-top:2px}.features{position:absolute;left:54px;right:54px;bottom:10px;display:flex;justify-content:center;gap:24px;color:#bed4eb;font-size:12px}.features span:before{content:"✓";color:#62e0b1;margin-right:7px;font-weight:800}
+  .promo{position:absolute;inset:0;display:flex;align-items:center}.promo .copy{position:relative;z-index:2}.promo h1{font-size:64px;max-width:680px}.promo p{font-size:20px;max-width:650px}.promo .logo{width:130px;height:130px}.orb{position:absolute;width:460px;height:460px;border:1px solid rgba(56,217,255,.25);border-radius:50%;right:-70px;top:50%;transform:translateY(-50%);box-shadow:inset 0 0 100px rgba(46,134,255,.13),0 0 120px rgba(56,217,255,.08)}.orb:after{content:"";position:absolute;inset:58px;border:1px solid rgba(98,224,177,.22);border-radius:50%}.mini-popup{position:absolute;right:90px;top:75px;width:380px;height:410px;background:#071429;border:1px solid #1b477a;border-radius:16px;box-shadow:0 32px 80px rgba(0,0,0,.48);padding:25px}.mini-popup .row{display:flex;align-items:center;gap:12px}.mini-popup img{width:44px;height:44px}.mini-popup b{font-size:18px}.mini-popup .ok{color:#62e0b1;font-size:12px;margin-top:3px}.card{margin-top:22px;padding:17px;background:#0b2140;border:1px solid #1b477a;border-radius:9px}.card small{color:#a7c4e5;display:block;margin-bottom:9px}.card .action{display:inline-block;background:#2e86ff;color:#fff;padding:9px 13px;border-radius:6px;margin:5px 5px 0 0;font-size:12px}
+  body[data-asset="small"] .screen,body[data-asset="small"] .promo.marquee{display:none}body[data-asset="small"] .promo.small{display:flex;padding:28px 30px}.promo.small{display:none}.promo.small .logo{width:84px;height:84px}.promo.small h1{font-size:34px;margin:10px 0 8px;max-width:340px}.promo.small p{font-size:15px;line-height:1.35;max-width:330px}.promo.small .copy{margin-left:20px}.promo.small .eyebrow{font-size:10px}.promo.small .orb{width:280px;height:280px;right:-115px}
+  body[data-asset="marquee"] .screen,body[data-asset="marquee"] .promo.small{display:none}body[data-asset="marquee"] .promo.marquee{display:flex;padding:58px 74px}.promo.marquee{display:none}.promo.marquee .copy{width:58%}
+</style>
+</head>
+<body data-asset="screenshot">
+  <div class="noise"></div>
+  <main class="screen">
+    <div class="browser">
+      <div class="browserbar"><div class="traffic"><i></i><i></i><i></i></div><div class="url">https://example.com/video</div></div>
+      <div class="webpage">
+        <div class="webcopy"><div class="line big"></div><div class="line"></div><div class="line short"></div></div>
+        <div class="video"><div class="play"></div><div class="overlay"><img src="../browser-extension/icons/icon48.png">Download with Epsilon</div></div>
+      </div>
+    </div>
+    <aside class="popup">
+      <div class="pophead"><img src="../browser-extension/icons/icon48.png"><div><strong>Epsilon Download Manager</strong><div class="connected">● Connected — Epsilon 1.7.1 is running</div></div></div>
+      <div class="section switchrow"><span>Take over browser downloads</span><span class="switch"></span></div>
+      <div class="section"><h2>MEDIA ON THIS PAGE</h2><div class="mediaitem"><span class="tag">MP4</span><div><b>1080p HD video</b><div class="meta">33 min · about 1.1 GB</div></div></div><div class="buttons"><span class="btn primary">Download</span><span class="btn">Download all</span></div></div>
+      <div class="section"><h2>LINKS ON THIS PAGE</h2><div class="buttons"><span class="btn">Download selected links</span><span class="btn">Download all links</span></div></div>
+      <div class="section"><h2>APPEARANCE</h2><div class="buttons"><span class="btn primary">Follow app</span><span class="btn">Themes</span></div></div>
+    </aside>
+    <div class="features"><span>Capture browser downloads</span><span>Grab selected links</span><span>Detect video streams</span><span>Send to queues</span></div>
+  </main>
+
+  <main class="promo small"><img class="logo" src="../browser-extension/icons/icon128.png"><div class="copy"><div class="eyebrow">Browser integration</div><h1>Epsilon Download Manager</h1><p>Capture downloads, links and video.</p></div><div class="orb"></div></main>
+
+  <main class="promo marquee"><div class="copy"><img class="logo" src="../browser-extension/icons/icon128.png"><div class="eyebrow">Fast · private · connected</div><h1>Bring every browser download into Epsilon.</h1><p>Capture files, selected links and video streams, then manage them with Epsilon queues, schedules and themes.</p><div style="margin-top:24px"><span class="badge"><span class="dot"></span>Connected locally through Chrome Native Messaging</span></div></div><div class="orb"></div><aside class="mini-popup"><div class="row"><img src="../browser-extension/icons/icon48.png"><div><b>Epsilon Download Manager</b><div class="ok">● Connected</div></div></div><div class="card"><small>BROWSER DOWNLOADS</small><strong>Take over downloads</strong><span class="action">On</span></div><div class="card"><small>LINKS ON THIS PAGE</small><span class="action">Selected links</span><span class="action">All links</span></div><div class="card"><small>VIDEO</small><strong>1080p HD · Ready</strong></div></aside></main>
+  <script>const asset=new URLSearchParams(location.search).get('asset')||'screenshot';document.body.dataset.asset=asset;</script>
+</body>
+</html>

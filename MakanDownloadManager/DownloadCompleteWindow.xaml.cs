@@ -16,7 +16,9 @@ public partial class DownloadCompleteWindow : Window
         InitializeComponent();
         _path = item.FilePath;
         NameText.Text = item.FileName;
-        DetailText.Text = item.SizeDisplay.Length > 0 ? item.SizeDisplay + "  ·  " + Path.GetDirectoryName(_path) : Path.GetDirectoryName(_path) ?? "";
+        var details = new[] { item.SizeDisplay, item.CompletionDetails, Path.GetDirectoryName(_path) }
+            .Where(value => !string.IsNullOrWhiteSpace(value));
+        DetailText.Text = string.Join("  ·  ", details);
         var area = SystemParameters.WorkArea;
         var slot = _open++ % 5;                                   // several finished at once: cascade instead of stacking
         Loaded += (_, _) => { Left = area.Right - ActualWidth - 20 - slot * 14; Top = area.Bottom - ActualHeight - 20 - slot * 26; };

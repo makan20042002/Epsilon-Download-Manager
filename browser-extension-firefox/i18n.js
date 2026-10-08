@@ -67,7 +67,7 @@
     "Don't take over these sites": "این سایت‌ها را در اختیار نگیر",
     "one per line, e.g. example.com": "در هر خط یکی، مثلاً example.com",
     "Save": "ذخیره", "Open Epsilon": "باز کردن اپسیلون", "Saved.": "ذخیره شد.",
-    "Appearance": "ظاهر", "Follow app": "پیروی از برنامه", "Obsidian Gold": "طلای آبسیدین", "Platinum Blue": "آبی پلاتینی", "Royal Amethyst": "آمیتیست سلطنتی", "Emerald Executive": "زمرد مدیریتی", "Champagne Minimal": "شامپاین مینیمال", "Graphite Copper": "مس گرافیتی", "Sapphire Noir": "یاقوت کبود نوآر", "Ivory Luxe": "عاج لوکس", "Rose Titanium": "رز تیتانیومی", "Arctic Glass": "شیشهٔ قطبی",
+    "Appearance": "ظاهر", "Follow app": "پیروی از برنامه", "Obsidian Gold": "طلای آبسیدین", "Platinum Blue": "آبی پلاتینی", "Royal Amethyst": "آمیتیست سلطنتی", "Emerald Executive": "زمرد مدیریتی", "Champagne Minimal": "شامپاین مینیمال", "Graphite Copper": "مس گرافیتی", "Sapphire Noir": "یاقوت کبود نوآر", "Ivory Luxe": "عاج لوکس", "Rose Titanium": "رز تیتانیومی", "Arctic Glass": "شیشهٔ قطبی", "Crystal Noir Glass": "شیشهٔ کریستال نوآر",
     "The extension popup and video controls follow the desktop theme. You can override them here.": "پنجرهٔ افزونه و کنترل‌های روی ویدیو از پوستهٔ برنامه پیروی می‌کنند. می‌توانید اینجا آن را تغییر دهید.",
     "Connected — Epsilon {0} is running": "متصل — اپسیلون {0} در حال اجراست",
     "Epsilon will start automatically on the next download": "اپسیلون در دانلود بعدی خودکار اجرا می‌شود",

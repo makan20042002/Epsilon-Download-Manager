@@ -45,12 +45,16 @@ Name: "startup";     Description: "Start Epsilon quietly in the tray when I sign
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 
 [Files]
-; everything build-release.ps1 put into .\publish: the app, the native host, the updater, the browser extensions and helper scripts
-Source: "..\publish\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
+; The public extensions now come from their official stores. The installer only needs the desktop app,
+; native host, updater and registration helpers; no unpacked-extension folders or old setup text are shipped.
+Source: "..\publish\MakanDownloadManager.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\MakanNativeHost.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\MakanUpdater.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\install-browser-integration.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\install-background.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autoprograms}\{#MyAppName} - browser extension folder"; Filename: "{app}\browser-extension"
 Name: "{autoprograms}\{#MyAppName} - check the browser connection"; Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -NoExit -File ""{app}\install-browser-integration.ps1"" -Check"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
@@ -76,7 +80,6 @@ Root: HKCU; Subkey: "Software\Classes\MakanDownloadManager.torrent\shell\open\co
 [Run]
 Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -InstallDir ""{app}"""; StatusMsg: "Connecting the browsers to Epsilon..."; Flags: runhidden runasoriginaluser waituntilterminated
 Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden runasoriginaluser skipifdoesntexist; StatusMsg: "Refreshing file associations..."
-Filename: "{app}\EXTENSION-SETUP.txt"; Description: "Show how to add the extension to my browser"; Flags: postinstall shellexec skipifsilent
 Filename: "{app}\{#MyAppExeName}"; Description: "Start {#MyAppName}"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]

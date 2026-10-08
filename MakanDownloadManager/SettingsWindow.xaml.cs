@@ -30,7 +30,7 @@ public partial class SettingsWindow : Window
         BrChrome.IsChecked = allowed.Contains("chrome"); BrEdge.IsChecked = allowed.Contains("edge"); BrFirefox.IsChecked = allowed.Contains("firefox");
         BrOpera.IsChecked = allowed.Contains("opera"); BrVivaldi.IsChecked = allowed.Contains("vivaldi"); BrOther.IsChecked = allowed.Contains("other");
         LanguageBox.SelectedIndex = s.Language == "fa" ? 1 : 0;
-        ThemeBox.SelectedIndex = s.Theme switch { "obsidian-gold" => 0, "platinum-blue" => 1, "royal-amethyst" => 2, "emerald-executive" => 3, "champagne-minimal" => 4, "graphite-copper" => 5, "sapphire-noir" => 6, "ivory-luxe" => 7, "rose-titanium" => 8, "arctic-glass" => 9, "dracula" => 10, "makan-lab" => 11, "auto" => 12, _ => 1 };
+        ThemeBox.SelectedIndex = ThemePalette.Normalize(s.Theme) switch { "obsidian-gold" => 0, "platinum-blue" => 1, "royal-amethyst" => 2, "emerald-executive" => 3, "champagne-minimal" => 4, "graphite-copper" => 5, "sapphire-noir" => 6, "rose-titanium" => 7, "arctic-glass" => 8, "crystal-noir" => 9, "dracula" => 10, "makan-lab" => 11, "auto" => 12, _ => 1 };
 
         // File types
         FileTypesBox.Text = s.FileTypes; SitesBox.Text = s.ExcludedSites; AddressesBox.Text = s.ExcludedAddresses;
@@ -123,6 +123,15 @@ public partial class SettingsWindow : Window
     }
 
     void Recheck_Click(object sender, RoutedEventArgs e) => ShowBrowserStatus();
+
+    void ChromeExtension_Click(object sender, RoutedEventArgs e) => OpenBrowserStore("https://chromewebstore.google.com/detail/epsilon-download-manager/nglldicodleblllopbkgncogljbdldpd");
+    void FirefoxExtension_Click(object sender, RoutedEventArgs e) => OpenBrowserStore("https://addons.mozilla.org/addon/epsilon-download-manager/");
+
+    void OpenBrowserStore(string address)
+    {
+        try { Process.Start(new ProcessStartInfo(address) { UseShellExecute = true }); }
+        catch (Exception ex) { Dlg.Show(this, ex.Message, "Options"); }
+    }
 
     void Repair_Click(object sender, RoutedEventArgs e)
     {
@@ -257,7 +266,7 @@ public partial class SettingsWindow : Window
         var newLanguage = LanguageBox.SelectedIndex == 1 ? "fa" : "en";
         var languageChanged = newLanguage != s.Language;
         s.Language = newLanguage;
-        s.Theme = ThemeBox.SelectedIndex switch { 0 => "obsidian-gold", 1 => "platinum-blue", 2 => "royal-amethyst", 3 => "emerald-executive", 4 => "champagne-minimal", 5 => "graphite-copper", 6 => "sapphire-noir", 7 => "ivory-luxe", 8 => "rose-titanium", 9 => "arctic-glass", 10 => "dracula", 11 => "makan-lab", 12 => "auto", _ => "platinum-blue" };
+        s.Theme = ThemeBox.SelectedIndex switch { 0 => "obsidian-gold", 1 => "platinum-blue", 2 => "royal-amethyst", 3 => "emerald-executive", 4 => "champagne-minimal", 5 => "graphite-copper", 6 => "sapphire-noir", 7 => "rose-titanium", 8 => "arctic-glass", 9 => "crystal-noir", 10 => "dracula", 11 => "makan-lab", 12 => "auto", _ => "platinum-blue" };
 
         // File types
         s.FileTypes = FileTypesBox.Text.Trim(); s.ExcludedSites = SitesBox.Text.Trim(); s.ExcludedAddresses = AddressesBox.Text.Trim();

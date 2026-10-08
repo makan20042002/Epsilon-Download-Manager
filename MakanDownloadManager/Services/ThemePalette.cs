@@ -8,7 +8,7 @@ public static class ThemePalette
     public static readonly string[] Names =
     [
         "obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal",
-        "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass", "dracula", "makan-lab"
+        "graphite-copper", "sapphire-noir", "rose-titanium", "arctic-glass", "crystal-noir", "dracula", "makan-lab"
     ];
 
     public static readonly IReadOnlyDictionary<string, string> ObsidianGold = Palette(
@@ -61,6 +61,12 @@ public static class ThemePalette
         "#45C7FF", "#0D86C6", "#03131D", "#174C6D", "#1E5D80", "#62E0B1", "#FF6F91", "#FFD166", "#10382E",
         "#0B2133", "#103049", "#081A28", "#2B6687", "#103049", "#A9D4E8", "#BFA5FF", "#55DFE5", "#FFD166", "#2B6687", "#45C7FF", "#557F95");
 
+    /// <summary>A dark, translucent jewel palette intended for the Windows acrylic backdrop.</summary>
+    public static readonly IReadOnlyDictionary<string, string> CrystalNoir = Palette(
+        "#B20A0D18", "#C4141928", "#B91C2235", "#CC242B40", "#805E6A86", "#FFF8FAFF", "#FFD2D8E8", "#FF909AB1", "#FF100C1D",
+        "#FFB89CFF", "#FF8063D8", "#FF100C1D", "#753A435E", "#8A46516F", "#FF6DE0B3", "#FFFF6F91", "#FFFFD37A", "#99213B34",
+        "#C4141928", "#A91B2233", "#C8101421", "#8A5E6A86", "#D81B2031", "#FFD2D8E8", "#FFD89BFF", "#FF65D9E8", "#FFFFC56E", "#995E6A86", "#FFB89CFF", "#FF6F7890");
+
     public static readonly IReadOnlyDictionary<string, string> Dracula = Palette(
         "#1E1F29", "#282A36", "#343746", "#3C3F51", "#5A5F78", "#F8F8F2", "#C9C9C2", "#8B8D9A", "#1E1F29",
         "#BD93F9", "#8B5CC7", "#171820", "#44475A", "#50536A", "#50FA7B", "#FF6E78", "#F1FA8C", "#243C2B",
@@ -75,6 +81,7 @@ public static class ThemePalette
     public static string Normalize(string? theme)
     {
         var value = (theme ?? "").Trim().ToLowerInvariant();
+        if (value == "ivory-luxe") return "champagne-minimal";
         if (value == "auto" || Names.Contains(value)) return value;
         return value switch
         {
@@ -100,9 +107,9 @@ public static class ThemePalette
         "emerald-executive" => EmeraldExecutive,
         "champagne-minimal" => ChampagneMinimal,
         "graphite-copper" => GraphiteCopper,
-        "ivory-luxe" => IvoryLuxe,
         "rose-titanium" => RoseTitanium,
         "arctic-glass" => ArcticGlass,
+        "crystal-noir" => CrystalNoir,
         "dracula" => Dracula,
         "makan-lab" => MakanLab,
         _ => SapphireNoir
@@ -111,10 +118,27 @@ public static class ThemePalette
     public static (byte R, byte G, byte B) Parse(string hex)
     {
         var value = hex.TrimStart('#');
+        if (value.Length == 8) value = value[2..];
         return (
             byte.Parse(value[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture),
             byte.Parse(value.Substring(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
             byte.Parse(value.Substring(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+    }
+
+    public static (byte A, byte R, byte G, byte B) ParseArgb(string hex)
+    {
+        var value = hex.TrimStart('#');
+        if (value.Length == 6)
+        {
+            var (r, g, b) = Parse(value);
+            return (255, r, g, b);
+        }
+        if (value.Length != 8) throw new FormatException($"Invalid colour '{hex}'.");
+        return (
+            byte.Parse(value[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+            byte.Parse(value.Substring(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+            byte.Parse(value.Substring(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+            byte.Parse(value.Substring(6, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture));
     }
 
     public static double Contrast(string foreground, string background)

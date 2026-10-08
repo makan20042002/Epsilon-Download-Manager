@@ -985,6 +985,12 @@ public partial class MainWindow : Window
 
     void More_Click(object? sender, RoutedEventArgs? e) => MorePopup.IsOpen = true;
 
+    void SpeedTest_Click(object sender, RoutedEventArgs e)
+    {
+        MorePopup.IsOpen = false;
+        new SpeedTestWindow(this, Selected()).ShowDialog();
+    }
+
     // ---- quick speed limiter -------------------------------------------------------------------------------------------
 
     void SpeedLimiter_Click(object? sender, RoutedEventArgs? e)
@@ -1541,9 +1547,9 @@ public partial class MainWindow : Window
         ("sapphire-noir", "Sapphire Noir", "#061327", "#2E86FF", "#8DC1FF", false),
         ("royal-amethyst", "Royal Amethyst", "#150D2C", "#A873F0", "#D8B9FF", false),
         ("arctic-glass", "Arctic Glass", "#0B2133", "#45C7FF", "#B9ECFF", false),
+        ("crystal-noir", "Crystal Noir Glass", "#101421", "#B89CFF", "#65D9E8", false),
         ("graphite-copper", "Graphite Copper", "#151311", "#E28A4D", "#FFD0AD", false),
         ("rose-titanium", "Rose Titanium", "#20111B", "#E187B1", "#FFD1E7", false),
-        ("ivory-luxe", "Ivory Luxe", "#FFFAF0", "#9A6B32", "#DFC08F", true),
         ("champagne-minimal", "Champagne", "#FBF7F1", "#9B682D", "#E6D3B7", true),
     };
 
@@ -1625,6 +1631,8 @@ public partial class MainWindow : Window
     void History_Click(object sender, RoutedEventArgs e) => new HistoryWindow { Owner = this }.ShowDialog();
 
     void GettingStarted_Click(object sender, RoutedEventArgs e) => new FirstRunWindow(this).Show();
+
+    void ReportBug_Click(object sender, RoutedEventArgs e) => new ReportBugWindow(this).ShowDialog();
 
     void About_Click(object sender, RoutedEventArgs e) => new AboutWindow(this).ShowDialog();
 

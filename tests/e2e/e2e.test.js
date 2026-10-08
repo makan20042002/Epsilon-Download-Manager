@@ -44,7 +44,7 @@ const prompts = (dir) => { try { return fs.readFileSync(path.join(dir, "prompts.
 // ---- what Chrome/Firefox do for chrome.runtime.sendNativeMessage: start the host, frame in, frame out --------------------
 function nativeMessage(message) {
   return new Promise((resolve, reject) => {
-    const host = spawn("dotnet", [HOST_DLL, "chrome-extension://gnhdkknoelpaneocnbnkbjgbnkkflpgk/"], { stdio: ["pipe", "pipe", "inherit"] });
+    const host = spawn("dotnet", [HOST_DLL, "chrome-extension://nglldicodleblllopbkgncogljbdldpd/"], { stdio: ["pipe", "pipe", "inherit"] });
     const body = Buffer.from(JSON.stringify(message), "utf8");
     const head = Buffer.alloc(4); head.writeInt32LE(body.length);
     host.stdin.write(Buffer.concat([head, body]));

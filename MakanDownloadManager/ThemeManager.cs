@@ -89,7 +89,7 @@ public static class ThemeManager
     public static void Apply(string? mode)
     {
         var resolved = ThemePalette.Resolve(mode, WindowsUsesDarkApps());
-        var dark = resolved is "obsidian-gold" or "royal-amethyst" or "emerald-executive" or "graphite-copper" or "sapphire-noir" or "rose-titanium" or "arctic-glass" or "dracula" or "makan-lab";
+        var dark = resolved is "obsidian-gold" or "royal-amethyst" or "emerald-executive" or "graphite-copper" or "sapphire-noir" or "rose-titanium" or "arctic-glass" or "crystal-noir" or "dracula" or "makan-lab";
         var resources = Application.Current.Resources;
         var p = ThemePalette.For(resolved);
         foreach (var (name, hex) in p) resources[name] = Brush(hex);
@@ -122,8 +122,8 @@ public static class ThemeManager
 
     static SolidColorBrush Brush(string hex)
     {
-        var (r, g, b) = ThemePalette.Parse(hex);
-        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        var (a, r, g, b) = ThemePalette.ParseArgb(hex);
+        var brush = new SolidColorBrush(Color.FromArgb(a, r, g, b));
         brush.Freeze();
         return brush;
     }
@@ -143,6 +143,9 @@ public static class ThemeManager
             var value = IsDark ? 1 : 0;
             if (DwmSetWindowAttribute(handle, 20, ref value, sizeof(int)) != 0)   // DWMWA_USE_IMMERSIVE_DARK_MODE (older builds: 19)
                 DwmSetWindowAttribute(handle, 19, ref value, sizeof(int));
+            // Windows 11 acrylic for Crystal Noir. Other themes explicitly restore the normal backdrop.
+            var backdrop = Current == "crystal-noir" ? 3 : 0; // DWMSBT_TRANSIENTWINDOW / DWMSBT_AUTO
+            DwmSetWindowAttribute(handle, 38, ref backdrop, sizeof(int));
         }
         catch (Exception) { /* cosmetic only */ }
     }

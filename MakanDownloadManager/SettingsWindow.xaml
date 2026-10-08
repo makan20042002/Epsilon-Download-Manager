@@ -20,6 +20,8 @@
                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                   <Button Content="Set up / repair…" Click="Repair_Click"/>
                   <Button Content="Check again" Click="Recheck_Click"/>
+                  <Button Content="Chrome / Edge extension" Click="ChromeExtension_Click"/>
+                  <Button Content="Firefox extension" Click="FirefoxExtension_Click"/>
                 </StackPanel>
               </StackPanel>
             </Border>
@@ -56,9 +58,9 @@
               <ComboBoxItem Content="Champagne Minimal"/>
               <ComboBoxItem Content="Graphite Copper"/>
               <ComboBoxItem Content="Sapphire Noir"/>
-              <ComboBoxItem Content="Ivory Luxe"/>
               <ComboBoxItem Content="Rose Titanium"/>
               <ComboBoxItem Content="Arctic Glass"/>
+              <ComboBoxItem Content="Crystal Noir Glass"/>
               <ComboBoxItem Content="Dracula"/>
               <ComboBoxItem Content="Makan Lab"/>
               <ComboBoxItem Content="Follow Windows"/>

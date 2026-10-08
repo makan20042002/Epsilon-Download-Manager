@@ -40,3 +40,10 @@ Version 1.7.1 is an in-place upgrade. Existing settings, download links, history
 - Fixed the Add Download window failing to open for downloads captured by Chrome, Edge, Brave, and Firefox.
 - Added the missing shared display-font resource used by the redesigned secondary windows.
 - Added validation that rejects undefined named XAML resources before a release is built.
+
+## Speed test and official browser stores
+
+- Fixed intermittent upload-test failures on slow connections. Epsilon now starts with a small upload sample, adapts the test size to the measured connection, allows slow transfers enough time, retries temporary server failures, and keeps a valid probe result if a larger follow-up request fails.
+- Added direct buttons for the official Chrome Web Store and Firefox Add-ons listings to Getting Started and Options.
+- Removed the old text-file instructions, Developer mode, unpacked Chrome installation, and temporary Firefox installation from the public installer.
+- Kept the application and both browser extensions at version 1.7.1.

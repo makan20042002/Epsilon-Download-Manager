@@ -9,7 +9,7 @@
 #>
 param(
   [string]$InstallDir,
-  [string]$ExtensionId = 'gnhdkknoelpaneocnbnkbjgbnkkflpgk',                   # fixed by the "key" in browser-extension\manifest.json
+  [string]$ExtensionId = 'nglldicodleblllopbkgncogljbdldpd',                   # official Chrome Web Store item ID
   [string]$FirefoxId   = 'epsilon-download-manager@makanlab.tech',  # must match browser-extension-firefox\manifest.json
   [switch]$Check,
   [switch]$Uninstall

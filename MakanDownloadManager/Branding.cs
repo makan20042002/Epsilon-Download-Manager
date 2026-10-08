@@ -10,6 +10,8 @@ public static class Branding
     public const string Website = "https://makanlab.tech";
     public const string WebsiteHost = "makanlab.tech";
     public const string Email = "makan20042002@gmail.com";
+    public const string SupportEmail = "epsilondownloadmanager@gmail.com";
+    public static readonly string[] BugReportEmails = { SupportEmail, Email };
     public const string GitHubUrl = "https://github.com/makan20042002/Epsilon-Download-Manager";
     public const string CreatorGitHubUrl = "https://github.com/makan20042002";
     public const string CoCreatorGitHubUrl = "https://github.com/Uhnohh";

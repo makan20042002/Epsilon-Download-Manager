@@ -60,14 +60,6 @@ public partial class DownloadProgressWindow : Window
     bool _loading = true;
     bool? _resume;
 
-    static readonly Brush Green = Frozen(0x22, 0xE5, 0x8A);
-    static readonly Brush Red = Frozen(0xFF, 0x6B, 0x6B);
-    static readonly Brush Amber = Frozen(0xFF, 0xB4, 0x4A);
-    static readonly Brush Muted = Frozen(0x93, 0xA1, 0xB5);
-    static readonly Brush Text = Frozen(0xEA, 0xF1, 0xF7);
-
-    static SolidColorBrush Frozen(byte r, byte g, byte b) { var brush = new SolidColorBrush(Color.FromRgb(r, g, b)); brush.Freeze(); return brush; }
-
     /// <summary>Shows the window for a download (or brings the existing one to the front).</summary>
     public static void ShowFor(DownloadItem item, Window? owner = null)
     {
@@ -75,6 +67,7 @@ public partial class DownloadProgressWindow : Window
         {
             if (Open.TryGetValue(item.Id, out var existing)) { if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal; existing.Activate(); return; }
             var window = new DownloadProgressWindow(item);
+            if (owner != null) window.Owner = owner;
             Open[item.Id] = window;
             window.Show();
         }
@@ -93,10 +86,11 @@ public partial class DownloadProgressWindow : Window
     DownloadProgressWindow(DownloadItem item)
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => ThemeManager.ApplyToWindow(this);
         _item = item;
         ConnList.ItemsSource = _connections;
 
-        var fill = (Brush)FindResource("BrandGrad");
+        var fill = (Brush)FindResource("Accent");
         for (var i = 0; i < Buckets; i++)
         {
             _cells[i] = new Border { Background = fill, Opacity = 0 };
@@ -157,10 +151,10 @@ public partial class DownloadProgressWindow : Window
         StatusText.ToolTip = StatusText.Text;
         StatusText.Foreground = item.Status switch
         {
-            nameof(DownloadStatus.Failed) => Red,
-            nameof(DownloadStatus.Paused) => Amber,
-            nameof(DownloadStatus.Downloading) => Green,
-            _ => Text
+            nameof(DownloadStatus.Failed) => ResourceBrush("Danger"),
+            nameof(DownloadStatus.Paused) => ResourceBrush("Warning"),
+            nameof(DownloadStatus.Downloading) => ResourceBrush("Success"),
+            _ => ResourceBrush("Text")
         };
 
         var totalText = hasTotal ? DownloadItem.FormatBytes(item.TotalBytes!.Value) : Loc.T("unknown");
@@ -178,7 +172,7 @@ public partial class DownloadProgressWindow : Window
 
         if (App.Manager.SupportsResume(item) is { } known) _resume = known;
         ResumeText.Text = Loc.T("Resume capability") + ": " + (_resume == null ? "—" : Loc.T(_resume == true ? "Yes" : "No"));
-        ResumeText.Foreground = _resume == true ? Green : _resume == false ? Amber : Muted;
+        ResumeText.Foreground = _resume == true ? ResourceBrush("Success") : _resume == false ? ResourceBrush("Warning") : ResourceBrush("Muted");
 
         LimiterChipText.Text = Loc.T("Speed Limiter") + ": " + (item.SpeedLimitBytesPerSec > 0 ? Speed(item.SpeedLimitBytesPerSec) : Loc.T("Off"));
         CompletionChipText.Text = Loc.T("On completion") + ": " + CompletionSummary();
@@ -191,6 +185,8 @@ public partial class DownloadProgressWindow : Window
 
         if (item.Status is nameof(DownloadStatus.Complete) or nameof(DownloadStatus.Cancelled)) Close();
     }
+
+    Brush ResourceBrush(string key) => TryFindResource(key) as Brush ?? Brushes.Transparent;
 
     string CompletionSummary()
     {

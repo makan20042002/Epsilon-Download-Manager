@@ -59,7 +59,6 @@ Copy-Item (Join-Path $root 'browser-extension-firefox') (Join-Path $publish 'bro
 Get-ChildItem (Join-Path $publish 'browser-extension-firefox') -Filter '*.xpi' | Remove-Item -Force
 Copy-Item (Join-Path $root 'install-browser-integration.ps1') $publish
 Copy-Item (Join-Path $root 'install-background.ps1')          $publish
-Copy-Item (Join-Path $root 'installer\EXTENSION-SETUP.txt') $publish
 Get-ChildItem $publish -Filter *.pdb | Remove-Item -Force
 
 # Ready-to-share extension packages (a Firefox .xpi is just a zip).
@@ -68,8 +67,19 @@ New-Item -ItemType Directory -Force -Path $dist | Out-Null
 Compress-Archive -Path (Join-Path $publish 'browser-extension\*')         -DestinationPath (Join-Path $dist 'epsilon-chrome-edge.zip') -Force
 Compress-Archive -Path (Join-Path $publish 'browser-extension-firefox\*') -DestinationPath (Join-Path $dist 'epsilon-firefox.zip')     -Force
 
+# Chrome Web Store rejects the development-only manifest "key" field. Keep it in the unpacked copy so local
+# development has the official Store ID, but create a separate, upload-ready ZIP without that field.
+$storeStage = Join-Path $publish '_chrome-store-package'
+Copy-Item (Join-Path $publish 'browser-extension') $storeStage -Recurse
+$storeManifestPath = Join-Path $storeStage 'manifest.json'
+$storeManifest = Get-Content $storeManifestPath -Raw | ConvertFrom-Json
+$storeManifest.PSObject.Properties.Remove('key')
+[IO.File]::WriteAllText($storeManifestPath, ($storeManifest | ConvertTo-Json -Depth 20), [Text.UTF8Encoding]::new($false))
+Compress-Archive -Path (Join-Path $storeStage '*') -DestinationPath (Join-Path $dist 'epsilon-chrome-store.zip') -Force
+Remove-Item $storeStage -Recurse -Force
+
 # Sanity check: everything the installer and the browsers need is really there.
-foreach ($file in 'MakanDownloadManager.exe', 'MakanNativeHost.exe', 'MakanUpdater.exe', 'install-browser-integration.ps1', 'EXTENSION-SETUP.txt', 'browser-extension\manifest.json', 'browser-extension-firefox\manifest.json') {
+foreach ($file in 'MakanDownloadManager.exe', 'MakanNativeHost.exe', 'MakanUpdater.exe', 'install-browser-integration.ps1', 'browser-extension\manifest.json', 'browser-extension-firefox\manifest.json') {
   if (-not (Test-Path (Join-Path $publish $file))) { throw "Build finished but $file is missing from $publish" }
 }
 $version = (Get-Content (Join-Path $root 'VERSION.txt') -Raw).Trim()

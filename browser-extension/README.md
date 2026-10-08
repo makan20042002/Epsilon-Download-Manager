@@ -3,7 +3,7 @@
 ## Install
 1. Build/publish Makan and run `install-browser-integration.ps1` from the publish folder (once).
 2. Open `chrome://extensions` (or `edge://extensions`), turn on **Developer mode**, click **Load unpacked** and choose this `browser-extension` folder.
-   The extension ID is fixed (`gnhdkknoelpaneocnbnkbjgbnkkflpgk`, from the `key` in `manifest.json`), so the installer already knows it.
+   The extension ID is fixed (`nglldicodleblllopbkgncogljbdldpd`, matching the Chrome Web Store item and the `key` in `manifest.json`), so the installer already knows it.
 3. Restart the browser and click the Makan toolbar icon: the status line should say **Connected** (or that Makan will start on the next download).
 
 ## What it does

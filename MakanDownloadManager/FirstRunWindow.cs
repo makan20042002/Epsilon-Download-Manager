@@ -12,6 +12,8 @@ namespace MakanDownloadManager;
 /// automatically after the very first launch, and any time afterward from Help &gt; Getting Started.</summary>
 public sealed class FirstRunWindow : Window
 {
+    const string ChromeStoreUrl = "https://chromewebstore.google.com/detail/epsilon-download-manager/nglldicodleblllopbkgncogljbdldpd";
+    const string FirefoxStoreUrl = "https://addons.mozilla.org/addon/epsilon-download-manager/";
     readonly TextBlock _browserStatus = Stat();
     readonly TextBlock _toolsStatus = Stat();
     readonly TextBlock _folderStatus = Stat();
@@ -30,9 +32,10 @@ public sealed class FirstRunWindow : Window
         root.Children.Add(new TextBlock { Text = Loc.T("Welcome to Epsilon Download Manager"), FontSize = 17, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         root.Children.Add(Muted(Loc.T("A couple of things finish setting it up:")));
 
-        root.Children.Add(Section(
-            Loc.T("Browser extension"), _browserStatus,
-            Btn(Loc.T("Show me how"), OpenExtensionInstructions)));
+        var browserButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        browserButtons.Children.Add(Btn(Loc.T("Chrome / Edge"), (_, _) => OpenUrl(ChromeStoreUrl)));
+        browserButtons.Children.Add(Btn(Loc.T("Firefox"), (_, _) => OpenUrl(FirefoxStoreUrl)));
+        root.Children.Add(Section(Loc.T("Browser extension"), _browserStatus, browserButtons));
 
         root.Children.Add(Section(
             Loc.T("Video downloads (YouTube and similar sites)"), _toolsStatus,
@@ -57,7 +60,7 @@ public sealed class FirstRunWindow : Window
     static TextBlock Muted(string text) { var t = new TextBlock { Text = text, Margin = new Thickness(0, 0, 0, 16) }; t.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); return t; }
     static Button Btn(string text, RoutedEventHandler click) { var b = new Button { Content = text, Padding = new Thickness(12, 5, 12, 5) }; b.Click += click; return b; }
 
-    static UIElement Section(string title, TextBlock status, Button action)
+    static UIElement Section(string title, TextBlock status, FrameworkElement action)
     {
         var box = new Border { Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 10), CornerRadius = new CornerRadius(8) };
         box.SetResourceReference(Border.BackgroundProperty, "Surface");
@@ -77,7 +80,7 @@ public sealed class FirstRunWindow : Window
     void Refresh()
     {
         var connected = WindowsIntegration.Browsers().Any(b => b.Registered);
-        _browserStatus.Text = Loc.T(connected ? "Connected - Epsilon will offer to grab video/audio and captured downloads." : "Not yet - open your browser's extensions page and turn it on.");
+        _browserStatus.Text = Loc.T(connected ? "Desktop connection ready - install the extension from your browser's official store." : "Browser connection needs repair - reinstall Epsilon, then install the official extension.");
 
         var ready = App.Manager.YtDlp is { } yt && File.Exists(yt.ExePath);
         _toolsStatus.Text = Loc.T(ready ? "Ready." : "Not installed yet - needed only for YouTube-style sites.");
@@ -87,16 +90,11 @@ public sealed class FirstRunWindow : Window
         _folderStatus.Text = App.Settings.DefaultFolder;
     }
 
-    static void OpenExtensionInstructions()
+    static void OpenUrl(string address)
     {
-        try
-        {
-            var readme = Path.Combine(AppContext.BaseDirectory, "EXTENSION-SETUP.txt");
-            if (File.Exists(readme)) Process.Start(new ProcessStartInfo(readme) { UseShellExecute = true });
-        }
-        catch (Exception) { /* the person can still find the file by hand next to Makan.exe */ }
+        try { Process.Start(new ProcessStartInfo(address) { UseShellExecute = true }); }
+        catch (Exception) { }
     }
-    void OpenExtensionInstructions(object sender, RoutedEventArgs e) => OpenExtensionInstructions();
 
     async void InstallTools_Click(object sender, RoutedEventArgs e)
     {

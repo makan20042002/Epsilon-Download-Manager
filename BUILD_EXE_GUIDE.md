@@ -55,7 +55,7 @@ Run the `Setup.exe` from `installer-output`. It:
 - connects Chrome, Edge, Brave and Firefox to Makan
 - adds Start Menu entries
 
-Browsers won't let an installer silently turn an extension on, so the last step is always manual: open `EXTENSION-SETUP.txt` (also copied into the install folder) and flip the extension on in each browser you use — takes about 10 seconds per browser.
+Browsers won't let an installer silently turn an extension on. Epsilon's first-run screen and Options page open the official Chrome Web Store and Firefox Add-ons listings; no Developer mode or unpacked-folder setup is required.
 
 ## 5. If something goes wrong
 

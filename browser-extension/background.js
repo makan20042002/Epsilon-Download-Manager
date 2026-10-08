@@ -31,8 +31,9 @@ function callHost(payload) {
 
 /** Remember the desktop app's resolved palette so the popup and in-page controls can follow it. */
 function noteAppearance(reply) {
-  const theme = reply && reply.theme;
-  if (!["obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal", "graphite-copper", "sapphire-noir", "ivory-luxe", "rose-titanium", "arctic-glass", "dracula", "makan-lab"].includes(theme)) return;
+  let theme = reply && reply.theme;
+  if (theme === "ivory-luxe") theme = "champagne-minimal";
+  if (!["obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal", "graphite-copper", "sapphire-noir", "rose-titanium", "arctic-glass", "crystal-noir", "dracula", "makan-lab"].includes(theme)) return;
   try { ext.storage.local.set({ appTheme: theme }); } catch { /* cosmetic */ }
 }
 

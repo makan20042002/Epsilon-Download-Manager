@@ -24,7 +24,8 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public DateTime? ScheduledAt { get; set; }
     long? _total;
     public long? TotalBytes { get => _total; set { _total = value; Changed(); Changed(nameof(SizeDisplay)); Changed(nameof(StatusText)); } }
-    public long DoneBytes { get; set; }
+    long _doneBytes;
+    public long DoneBytes { get => _doneBytes; set { _doneBytes = value; Changed(); Changed(nameof(SizeDisplay)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
     long _diskLoadedBytes;
     /// <summary>In-memory only: bytes recovered from existing partial files when this run resumed.</summary>
     public long DiskLoadedBytes { get => _diskLoadedBytes; set { _diskLoadedBytes = Math.Max(0, value); Changed(); Changed(nameof(DiskLoadPercent)); Changed(nameof(DiskLoadText)); } }
@@ -35,8 +36,8 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public long SpeedLimitBytesPerSec { get; set; }
     public int StatusCode { get; set; }
     DateTime? _started, _finished;
-    public DateTime? StartedAt { get => _started; set { _started = value; Changed(); Changed(nameof(LastTry)); } }
-    public DateTime? FinishedAt { get => _finished; set { _finished = value; Changed(); Changed(nameof(LastTry)); } }
+    public DateTime? StartedAt { get => _started; set { _started = value; Changed(); Changed(nameof(LastTry)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
+    public DateTime? FinishedAt { get => _finished; set { _finished = value; Changed(); Changed(nameof(LastTry)); Changed(nameof(FinishedDisplay)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
     int _retryCount;
     public int RetryCount { get => _retryCount; set { _retryCount = value; Changed(); } }
 
@@ -85,7 +86,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public int ActiveConnections { get => _activeConnections; set { _activeConnections = value; Changed(); } }
 
     public double Progress { get => _progress; set { _progress = Math.Clamp(value, 0, 100); Changed(); Changed(nameof(StatusText)); Changed(nameof(RowStatusText)); } }
-    public string Status { get => _status; set { _status = value; Changed(); Changed(nameof(StatusText)); Changed(nameof(RowStatusText)); Changed(nameof(TimeLeft)); Changed(nameof(Rate)); } }
+    public string Status { get => _status; set { _status = value; Changed(); Changed(nameof(StatusText)); Changed(nameof(RowStatusText)); Changed(nameof(TimeLeft)); Changed(nameof(Rate)); Changed(nameof(FinishedDisplay)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
     public string SpeedText { get => _speed; set { _speed = value; Changed(); Changed(nameof(Rate)); } }
     public string SizeText { get => _size; set { _size = value; Changed(); Changed(nameof(SizeDisplay)); } }
     public string EtaText { get => _eta; set { _eta = value; Changed(); Changed(nameof(TimeLeft)); } }
@@ -114,6 +115,19 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public string TimeLeft => Status == nameof(DownloadStatus.Downloading) && EtaText != "—" ? EtaText : "";
     public string Rate => Status == nameof(DownloadStatus.Downloading) ? SpeedText : "";
     public string LastTry => (FinishedAt ?? StartedAt)?.ToLocalTime().ToString("MMM dd HH:mm:ss", CultureInfo.InvariantCulture) ?? "";
+    public string FinishedDisplay => Status == nameof(DownloadStatus.Complete) && FinishedAt is { } finished
+        ? finished.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture)
+        : "";
+    public string AverageSpeedText
+    {
+        get
+        {
+            if (Status != nameof(DownloadStatus.Complete) || StartedAt is not { } started || FinishedAt is not { } finished || DoneBytes <= 0) return "";
+            var seconds = (finished - started).TotalSeconds;
+            return seconds > 0 ? FormatBytes((long)(DoneBytes / seconds)) + "/s" : "";
+        }
+    }
+    public string CompletionDetails => FinishedDisplay.Length == 0 ? "" : Loc.F("Finished {0} · Average {1}", FinishedDisplay, AverageSpeedText.Length > 0 ? AverageSpeedText : "—");
     public string SizeDisplay => TotalBytes is > 0 ? FormatBytes(TotalBytes.Value) : (DoneBytes > 0 ? FormatBytes(DoneBytes) : "");
     public string StatusText
     {
