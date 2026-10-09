@@ -131,6 +131,11 @@ static class Extra
         T.Check("same link twice is reported as duplicate", Ok(first) && Ok(second) && second.TryGetProperty("duplicate", out var d) && d.GetBoolean()
                 && first.GetProperty("id").GetInt64() == second.GetProperty("id").GetInt64());
         T.Check("only one item exists", manager.Items.Count == 1);
+        DownloadPrompt? duplicatePrompt = null;
+        bridge.DuplicatePrompt = p => { duplicatePrompt = p; return true; };
+        var third = await Ask($"{{\"url\":\"{Base}/slow.bin\",\"filePath\":\"copy.bin\"}}");
+        T.Check("a browser duplicate is handed to the desktop so the user can choose another copy", Ok(third) && third.TryGetProperty("duplicate", out var dup) && dup.GetBoolean()
+                && third.TryGetProperty("pending", out var pending) && pending.GetBoolean() && duplicatePrompt is { FileName: "copy.bin" } && manager.Items.Count == 1, third.ToString());
         foreach (var i in manager.Items) manager.Cancel(i);
 
         var batch = await Ask($"{{\"kind\":\"batch\",\"urls\":[\"{Base}/small.bin?a=1\",\"{Base}/small.bin?a=2\",\"{Base}/small.bin?a=2\",\"ftp://x/y\",\"javascript:alert(1)\"]}}");

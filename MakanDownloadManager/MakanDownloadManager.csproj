@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\makan.ico" />
+    <Resource Include="Assets\epsilon-logo-hq.png" />
     <!-- Epsilon UI kit fonts (Inter, JetBrains Mono, Space Grotesk - all SIL Open Font License, free to bundle).
          Referenced as e.g. FontFamily="pack://application:,,,/Assets/Fonts/#Inter" once windows are updated to use them. -->
     <Resource Include="Assets\Fonts\Inter-Regular.ttf" />

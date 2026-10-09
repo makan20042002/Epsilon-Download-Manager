@@ -110,6 +110,8 @@ public sealed class NativeBridge : IDisposable
 
     /// <summary>Same idea for ordinary files and for batches of links. Return true when the UI took over.</summary>
     public Func<DownloadPrompt, bool>? DownloadPrompt { get; set; }
+    /// <summary>Duplicates must always reach the desktop so the user can explicitly add another copy, even when the ordinary “ask first” option is off.</summary>
+    public Func<DownloadPrompt, bool>? DuplicatePrompt { get; set; }
     public Func<BatchPrompt, bool>? BatchPrompt { get; set; }
     /// <summary>The "Download all links" picker (always shown, whatever the ask setting says). Return true when the UI took over.</summary>
     public Func<LinksPrompt, bool>? LinksPrompt { get; set; }
@@ -239,10 +241,16 @@ public sealed class NativeBridge : IDisposable
         if (!IsHttpUrl(r.Url)) return Fail("Only HTTP/HTTPS URLs are accepted.");
         var url = r.Url!;
 
-        var existing = _manager.FindTorrentDuplicate(url) ?? _manager.FindActive(url);
-        if (existing != null) return new BridgeResponse { Ok = true, Duplicate = true, Id = existing.Id, FilePath = existing.FilePath };
-
         var hint = NameHint(r.FilePath);
+        var existing = _manager.FindTorrentDuplicate(url) ?? _manager.FindActive(url);
+        if (existing != null)
+        {
+            var duplicatePrompt = new DownloadPrompt(url, hint, Blank(r.Cookie), Blank(r.Referrer), Blank(r.UserAgent), Blank(r.Mime));
+            if (DuplicatePrompt?.Invoke(duplicatePrompt) == true)
+                return new BridgeResponse { Ok = true, Duplicate = true, Pending = true, Id = existing.Id, FilePath = existing.FilePath };
+            return new BridgeResponse { Ok = true, Duplicate = true, Id = existing.Id, FilePath = existing.FilePath };
+        }
+
         var item = NewItem(url, hint, r);
         long? probedSize = null; string? probedName = null, probedType = null;
 

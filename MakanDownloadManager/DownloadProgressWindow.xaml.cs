@@ -86,7 +86,13 @@ public partial class DownloadProgressWindow : Window
     DownloadProgressWindow(DownloadItem item)
     {
         InitializeComponent();
+        var workArea = SystemParameters.WorkArea;
+        MaxHeight = Math.Max(360, workArea.Height - 24);
+        MaxWidth = Math.Max(520, workArea.Width - 24);
+        MinWidth = Math.Min(620, MaxWidth);
+        Width = Math.Min(720, MaxWidth);
         SourceInitialized += (_, _) => ThemeManager.ApplyToWindow(this);
+        StateChanged += (_, _) => RefreshMaximizeButton();
         _item = item;
         ConnList.ItemsSource = _connections;
 
@@ -118,8 +124,9 @@ public partial class DownloadProgressWindow : Window
         Refresh();
         _timer.Tick += (_, _) => Refresh();
         _timer.Start();
-        // SizeToContent + a custom title bar: measure once more after the first frame so no empty strip is left at the bottom
-        ContentRendered += (_, _) => { SizeToContent = SizeToContent.Manual; SizeToContent = SizeToContent.Height; };
+        // Re-measure after the first frame. Later Details/Options toggles use the same path so the window
+        // opens and closes by itself instead of making the user drag its bottom edge.
+        ContentRendered += (_, _) => FitToContent();
         Closed += (_, _) => { _timer.Stop(); Open.Remove(item.Id); };
     }
 
@@ -255,6 +262,19 @@ public partial class DownloadProgressWindow : Window
 
     void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
+    void Maximize_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    void RefreshMaximizeButton()
+    {
+        if (!IsInitialized) return;
+        var restored = WindowState == WindowState.Maximized;
+        MaximizeButton.ToolTip = Loc.T(restored ? "Restore" : "Maximize");
+        MaximizeGlyph.Data = Geometry.Parse(restored
+            ? "M 4.5 2.5 H 11.5 V 9.5 H 9.5 M 2.5 4.5 H 9.5 V 11.5 H 2.5 Z"
+            : "M 2.5 2.5 H 11.5 V 11.5 H 2.5 Z");
+    }
+
     /// <summary>The X button: closes the window only - the download keeps running in the main window (as in IDM).</summary>
     void CloseWindow_Click(object sender, RoutedEventArgs e) => Close();
 
@@ -272,6 +292,7 @@ public partial class DownloadProgressWindow : Window
         DetailsPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         DetailsButton.Content = Loc.T(show ? "<< Hide details" : "Show details >>");
         if (show && IsLoaded) RefreshPositions();
+        FitToContent();
     }
 
     void Options_Click(object sender, RoutedEventArgs e)
@@ -279,6 +300,22 @@ public partial class DownloadProgressWindow : Window
         var show = OptionsPanel.Visibility != Visibility.Visible;
         OptionsPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         OptionsButton.Content = Loc.T(show ? "Hide options" : "Options");
+        FitToContent();
+    }
+
+    /// <summary>Resize vertically around the visible panels, capped to the monitor work area; overflow scrolls inside.</summary>
+    void FitToContent()
+    {
+        if (!IsLoaded || WindowState != WindowState.Normal) return;
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (WindowState != WindowState.Normal) return;
+            var keepWidth = Math.Clamp(ActualWidth > 0 ? ActualWidth : Width, MinWidth, MaxWidth);
+            SizeToContent = SizeToContent.Manual;
+            Width = keepWidth;
+            SizeToContent = SizeToContent.Height;
+            InvalidateMeasure();
+        }, DispatcherPriority.Loaded);
     }
 
     void StartPause_Click(object sender, RoutedEventArgs e)

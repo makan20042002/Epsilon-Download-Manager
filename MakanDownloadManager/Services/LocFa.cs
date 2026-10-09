@@ -16,6 +16,8 @@ public static class LocFa
         ("OK", "تأیید"),
         ("Cancel", "انصراف"),
         ("Close", "بستن"),
+        ("Maximize", "بیشینه کردن"),
+        ("Restore", "بازگرداندن"),
         ("Cut", "برش"),
         ("Paste", "جای‌گذاری"),
         ("Select all", "انتخاب همه"),

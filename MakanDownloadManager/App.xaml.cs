@@ -97,6 +97,7 @@ public partial class App : Application
         static bool Ask() => Settings.AskBeforeDownload;
         Bridge.AskBeforeStart = Ask;
         Bridge.DownloadPrompt = p => { if (!Ask()) return false; Dispatcher.BeginInvoke(() => window.PromptDownload(p)); return true; };
+        Bridge.DuplicatePrompt = p => { Dispatcher.BeginInvoke(() => window.PromptDownload(p)); return true; };
         Bridge.BatchPrompt = b => { if (!Ask()) return false; Dispatcher.BeginInvoke(() => window.PromptBatch(b)); return true; };
         Bridge.StreamPrompt = r => { if (!Ask()) return false; Dispatcher.BeginInvoke(() => window.PromptStream(r)); return true; };
         // "Download all links" always shows its picker window: choosing is the whole point.
