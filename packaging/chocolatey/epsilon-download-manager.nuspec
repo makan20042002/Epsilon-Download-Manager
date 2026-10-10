@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>epsilon-download-manager</id>
+    <version>1.7.1</version>
+    <title>Epsilon Download Manager</title>
+    <authors>Makan A.D.</authors>
+    <owners>Makan A.D.</owners>
+    <projectUrl>https://makanlab.tech/epsilon/</projectUrl>
+    <projectSourceUrl>https://github.com/makan20042002/Epsilon-Download-Manager</projectSourceUrl>
+    <packageSourceUrl>https://github.com/makan20042002/Epsilon-Download-Manager/tree/main/packaging/chocolatey</packageSourceUrl>
+    <licenseUrl>https://github.com/makan20042002/Epsilon-Download-Manager/blob/main/LICENSE</licenseUrl>
+    <bugTrackerUrl>https://github.com/makan20042002/Epsilon-Download-Manager/issues</bugTrackerUrl>
+    <releaseNotes>https://github.com/makan20042002/Epsilon-Download-Manager/blob/main/RELEASE_NOTES_1.7.1.md</releaseNotes>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Epsilon Download Manager is a free and open-source Windows download manager and BitTorrent client. It supports segmented HTTP and HTTPS transfers, reliable pause and resume, queues and schedules, browser integration, media capture, checksum verification, Multi-Network downloads, and per-file or combined speed limits.</description>
+    <summary>A fast, private, open-source download manager and BitTorrent client for Windows.</summary>
+    <tags>epsilon download-manager bittorrent torrent magnet video-downloader browser-integration windows foss</tags>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

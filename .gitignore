@@ -12,6 +12,7 @@ msix-stage/
 *.msi
 *.pdb
 *.zip
+*.nupkg
 
 # Local test/dev artifacts
 tests/**/node_modules/

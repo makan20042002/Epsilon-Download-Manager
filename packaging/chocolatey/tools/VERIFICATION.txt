@@ -1,0 +1,13 @@
+VERIFICATION
+
+The installer downloaded by this package is the official immutable Epsilon Download Manager 1.7.1 GitHub release asset.
+
+1. Download:
+   https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.7.1/EpsilonDownloadManager-1.7.1-Setup.exe
+2. Calculate its SHA-256 hash with:
+   Get-FileHash .\EpsilonDownloadManager-1.7.1-Setup.exe -Algorithm SHA256
+3. Confirm that the result is:
+   03748DD0151BA1D73D60AA0FBAA2F7D7471E5CFECB845AF1BE89B7825C9B778B
+
+The source code is available at:
+https://github.com/makan20042002/Epsilon-Download-Manager
