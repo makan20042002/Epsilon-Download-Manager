@@ -21,6 +21,10 @@ SHA-256:
 03748DD0151BA1D73D60AA0FBAA2F7D7471E5CFECB845AF1BE89B7825C9B778B
 ```
 
+## Help test Epsilon
+
+Want to help improve Epsilon? Install version 1.7.1 and share your results in the public [tester feedback issue](https://github.com/makan20042002/Epsilon-Download-Manager/issues/1). The checklist covers download resume and retry, browser capture, queues, torrents, speed testing, Multi-Network downloads, themes, and English/Persian layouts. Please remove private URLs, cookies, tokens, and personal file paths before posting logs or screenshots.
+
 ## Highlights
 
 - **Fast, reliable downloads** — up to 16 connections, exact-byte resume after pause/restart, retry with back-off, checksum verification, and live handling of network-speed changes.
