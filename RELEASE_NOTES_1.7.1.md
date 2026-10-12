@@ -32,6 +32,7 @@ Version 1.7.1 is an in-place upgrade. Existing settings, download links, history
 ## Packaging
 
 - Chrome/Edge and Firefox extension packages are aligned to 1.7.1.
+- The Chrome extension is officially available from the [Chrome Web Store](https://chromewebstore.google.com/detail/epsilon-download-manager/nglldicodleblllopbkgncogljbdldpd).
 - The Mozilla-approved Firefox extension is available from [Firefox Add-ons](https://addons.mozilla.org/addon/epsilon-download-manager/).
 - The installer upgrades older Epsilon versions in place and keeps all application data.
 
