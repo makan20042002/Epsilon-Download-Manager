@@ -27,7 +27,7 @@ check(`version ${version} is used everywhere`, () => {
   expect("Chrome manifest", read("browser-extension/manifest.json"), /"version":\s*"([^"]+)"/);
   expect("Firefox manifest", read("browser-extension-firefox/manifest.json"), /"version":\s*"([^"]+)"/);
   expect("updater", read("updater/Program.cs"), /ProductVersion = "([^"]+)"/);
-  expect("installer", read("installer/MakanDownloadManager.iss"), /#define MyAppVersion "([^"]+)"/);
+  expect("installer", read("installer/EpsilonDownloadManager.iss"), /#define MyAppVersion "([^"]+)"/);
   return problems.length ? problems.join("; ") : true;
 });
 
@@ -112,7 +112,7 @@ check("no C# event is assigned in an object initializer (Click = handler)", () =
 });
 
 check("release tooling and required files are present", () => {
-  const need = ["installer/MakanDownloadManager.iss", "updater/MakanUpdater.csproj", "updater/Program.cs", "tools/windows-production-test.ps1", "build-release.ps1", "install-browser-integration.ps1",
+  const need = ["installer/EpsilonDownloadManager.iss", "updater/EpsilonUpdater.csproj", "updater/Program.cs", "tools/windows-production-test.ps1", "build-release.ps1", "install-browser-integration.ps1",
     "MakanDownloadManager/Themes/ControlStyles.xaml", "MakanDownloadManager/IntelligentCenterWindow.cs", "MakanDownloadManager/Branding.cs", "MakanNativeHost/Program.cs"];
   const missing = need.filter((f) => !exists(f));
   return missing.length ? "missing: " + missing.join(", ") : true;

@@ -6,10 +6,10 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>MakanDownloadManager</AssemblyName>
+    <AssemblyName>EpsilonDownloadManager</AssemblyName>
     <RootNamespace>MakanDownloadManager</RootNamespace>
     <PlatformTarget>x64</PlatformTarget>
-    <ApplicationIcon>Assets\makan.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\epsilon.ico</ApplicationIcon>
     <LangVersion>latest</LangVersion>
     <StartupObject>MakanDownloadManager.Program</StartupObject>
   </PropertyGroup>
@@ -22,7 +22,7 @@
     <Using Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Assets\makan.ico" />
+    <Resource Include="Assets\epsilon.ico" />
     <Resource Include="Assets\epsilon-logo-hq.png" />
     <!-- Epsilon UI kit fonts (Inter, JetBrains Mono, Space Grotesk - all SIL Open Font License, free to bundle).
          Referenced as e.g. FontFamily="pack://application:,,,/Assets/Fonts/#Inter" once windows are updated to use them. -->

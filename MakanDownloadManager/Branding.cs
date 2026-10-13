@@ -13,6 +13,8 @@ public static class Branding
     public const string SupportEmail = "epsilondownloadmanager@gmail.com";
     public static readonly string[] BugReportEmails = { SupportEmail, Email };
     public const string GitHubUrl = "https://github.com/makan20042002/Epsilon-Download-Manager";
+    public const string ChromeExtensionUrl = "https://chromewebstore.google.com/detail/epsilon-download-manager/nglldicodleblllopbkgncogljbdldpd";
+    public const string FirefoxExtensionUrl = "https://addons.mozilla.org/en-US/firefox/addon/epsilon-download-manager/";
     public const string CreatorGitHubUrl = "https://github.com/makan20042002";
     public const string CoCreatorGitHubUrl = "https://github.com/Uhnohh";
     public const string Tagline = "Fast, intelligent, private — built for Windows";

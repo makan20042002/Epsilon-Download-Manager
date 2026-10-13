@@ -54,7 +54,7 @@ public partial class App : Application
         }
 
         var currentPid = Environment.ProcessId;
-        var otherProcesses = System.Diagnostics.Process.GetProcessesByName("MakanDownloadManager")
+        var otherProcesses = System.Diagnostics.Process.GetProcessesByName("EpsilonDownloadManager")
             .Where(p => p.Id != currentPid)
             .ToList();
 

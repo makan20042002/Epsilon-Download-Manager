@@ -73,7 +73,7 @@
     "Epsilon will start automatically on the next download": "اپسیلون در دانلود بعدی خودکار اجرا می‌شود",
     "Native host not registered — run install-browser-integration.ps1, then restart the browser": "برنامهٔ میزبان ثبت نشده است — install-browser-integration.ps1 را اجرا کنید و مرورگر را دوباره راه‌اندازی کنید",
     "Extension ID doesn't match the installed host. This ID: {0} — run install-browser-integration.ps1 -ExtensionId {0}": "شناسهٔ افزونه با میزبان نصب‌شده یکی نیست. این شناسه: {0} — install-browser-integration.ps1 -ExtensionId {0} را اجرا کنید",
-    "Host found but it won't start — is MakanNativeHost.exe still next to MakanDownloadManager.exe?": "میزبان پیدا شد اما اجرا نمی‌شود — آیا MakanNativeHost.exe هنوز کنار MakanDownloadManager.exe است؟",
+    "Host found but it won't start — is EpsilonNativeHost.exe still next to EpsilonDownloadManager.exe?": "میزبان پیدا شد اما اجرا نمی‌شود — آیا EpsilonNativeHost.exe هنوز کنار EpsilonDownloadManager.exe است؟",
     "Can't reach Epsilon": "دسترسی به اپسیلون ممکن نیست",
     "Last problem: {0} (the browser kept that download)": "آخرین مشکل: {0} (مرورگر آن دانلود را نگه داشت)",
     "Extension {0} · ": "افزونه {0} · ",

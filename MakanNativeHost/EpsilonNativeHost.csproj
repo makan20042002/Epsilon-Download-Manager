@@ -9,7 +9,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>MakanNativeHost</AssemblyName>
+    <AssemblyName>EpsilonNativeHost</AssemblyName>
     <RootNamespace>MakanNativeHost</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>
     <UseAppHost>true</UseAppHost>

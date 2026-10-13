@@ -54,8 +54,8 @@ public static class Program
             return "{\"ok\":false,\"running\":false,\"hostInstalled\":true,\"error\":\"Epsilon Download Manager is not running.\"}";
 
         var dir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
-        var exe = Path.Combine(dir, OperatingSystem.IsWindows() ? "MakanDownloadManager.exe" : "MakanDownloadManager");
-        if (!File.Exists(exe)) return Error("MakanDownloadManager was not found next to the native host: " + exe);
+        var exe = Path.Combine(dir, OperatingSystem.IsWindows() ? "EpsilonDownloadManager.exe" : "EpsilonDownloadManager");
+        if (!File.Exists(exe)) return Error("EpsilonDownloadManager was not found next to the native host: " + exe);
         try { Process.Start(new ProcessStartInfo(exe, "--background") { UseShellExecute = false, CreateNoWindow = true }); }
         catch (Exception ex) { return Error("Could not start Epsilon Download Manager: " + ex.Message); }
 

@@ -22,7 +22,7 @@ That's it — nothing else to install.
 
 ## 2. Building (every time you have new code)
 
-Open PowerShell **in the project folder** (the one with `MakanDownloadManager.sln` in it) and run:
+Open PowerShell **in the project folder** (the one with `EpsilonDownloadManager.sln` in it) and run:
 
 ```powershell
 .\build-installer.ps1
@@ -43,7 +43,7 @@ If you only want the raw app files (no installer, e.g. to test quickly) run just
 
 | What you ran | Where it ends up |
 |---|---|
-| `build-release.ps1` | `.\publish\MakanDownloadManager.exe` (run this directly to test) |
+| `build-release.ps1` | `.\publish\EpsilonDownloadManager.exe` (run this directly to test) |
 | `build-installer.ps1` | `.\installer-output\MakanDownloadManager-<version>-Setup.exe` (this is the one to share/install) |
 
 `build-installer.ps1` runs `build-release.ps1` for you first, so you never need to run both by hand — just run `build-installer.ps1` and wait.

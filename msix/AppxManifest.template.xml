@@ -31,7 +31,7 @@
   <Applications>
     <Application
       Id="EpsilonDownloadManager"
-      Executable="MakanDownloadManager.exe"
+      Executable="EpsilonDownloadManager.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="Epsilon Download Manager"
@@ -62,7 +62,7 @@
 
         <desktop:Extension
           Category="windows.startupTask"
-          Executable="MakanDownloadManager.exe"
+          Executable="EpsilonDownloadManager.exe"
           EntryPoint="Windows.FullTrustApplication">
           <desktop:StartupTask
             TaskId="EpsilonDownloadManagerStartup"

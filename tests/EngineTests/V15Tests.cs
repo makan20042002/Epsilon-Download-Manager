@@ -140,7 +140,7 @@ static class V15Tests
         T.Check("no items: zeros, no crash", V15StatisticsService.Build(new List<DownloadItem>()) is { Total: 0, AverageMbps: 0, FastestBytesPerSec: 0 });
 
         var data = Sub(); var app = Sub(); var downloads = Path.Combine(Sub(), "dl");
-        File.WriteAllText(Path.Combine(data, "downloads.db"), "x"); File.WriteAllText(Path.Combine(app, "MakanNativeHost.exe"), "x");
+        File.WriteAllText(Path.Combine(data, "downloads.db"), "x"); File.WriteAllText(Path.Combine(app, "EpsilonNativeHost.exe"), "x");
         var inputs = new V15HealthInputs(data, app, downloads, true, null, null, new[] { ("Chrome", true), ("Firefox", false) }, () => true);
         var checks = new V15HealthService(() => inputs).Run().ToDictionary(c => c.Name);
         T.Check("database present and healthy", checks["Database"].Healthy);
@@ -169,8 +169,10 @@ static class V15Tests
         var broken = new DownloadItem { Url = "https://e.com/b", FilePath = Path.Combine(dir, "broken.bin"), Status = "Failed" };
         File.WriteAllText(DownloadStateManifest.PathFor(broken), "{ nope");
         var none = new DownloadItem { Url = "https://e.com/n", FilePath = Path.Combine(dir, "none.bin"), Status = "Paused" };
-        var found = V15RecoveryService.Scan(new[] { paused, complete, broken, none });
-        T.Check("finds the interrupted download with its position", found.Count == 1 && found[0].DoneBytes == 500 && found[0].TotalBytes == 1000 && found[0].Path == paused.FilePath, $"{found.Count}");
+        var legacy = new DownloadItem { Url = "https://e.com/old", FilePath = Path.Combine(dir, "legacy.bin"), Status = "Paused" };
+        File.Copy(DownloadStateManifest.PathFor(paused), DownloadStateManifest.LegacyPathFor(legacy));
+        var found = V15RecoveryService.Scan(new[] { paused, complete, broken, none, legacy });
+        T.Check("finds interrupted downloads with their positions, including the old state filename", found.Count == 2 && found.Any(x => x.DoneBytes == 500 && x.TotalBytes == 1000), $"{found.Count}");
         T.Check("a finished download, a damaged state file and a missing one are not listed", found.All(f => !f.Path.EndsWith("done.bin") && !f.Path.EndsWith("broken.bin")));
         DownloadStateManifest.Delete(paused);
         T.Check("deleting the state file removes it and its temp file", !File.Exists(DownloadStateManifest.PathFor(paused)) && V15RecoveryService.Scan(new[] { paused }).Count == 0);
@@ -194,7 +196,7 @@ static class V15Tests
         var log = new DiagnosticsService();
         log.Error("request failed Cookie: sessionid=LOGSECRET; other=1");
         log.Error("and Authorization: Bearer LOGTOKEN plus https://x/y?sig=LOGSIG&a=1");
-        var text = string.Join("\n", Directory.GetFiles(log.DirectoryPath, "makan-*.log").OrderByDescending(File.GetLastWriteTimeUtc).Take(1).Select(File.ReadAllText));
+        var text = string.Join("\n", Directory.GetFiles(log.DirectoryPath, "epsilon-*.log").OrderByDescending(File.GetLastWriteTimeUtc).Take(1).Select(File.ReadAllText));
         T.Check("what reaches the log file is redacted too", !text.Contains("LOGSECRET") && !text.Contains("LOGTOKEN") && !text.Contains("LOGSIG") && text.Contains("[REDACTED]"));
         return Task.CompletedTask;
     }
@@ -252,14 +254,14 @@ static class V15Tests
     static Task Updater()
     {
         var install = Sub(); var stage = Sub();
-        File.WriteAllText(Path.Combine(install, "MakanDownloadManager.exe"), "old app");
+        File.WriteAllText(Path.Combine(install, "EpsilonDownloadManager.exe"), "old app");
         File.WriteAllText(Path.Combine(install, "keep.txt"), "mine");
         Directory.CreateDirectory(Path.Combine(install, "data")); File.WriteAllText(Path.Combine(install, "data", "downloads.db"), "portable data");
-        File.WriteAllText(Path.Combine(stage, "MakanDownloadManager.exe"), "new app");
+        File.WriteAllText(Path.Combine(stage, "EpsilonDownloadManager.exe"), "new app");
         Directory.CreateDirectory(Path.Combine(stage, "browser-extension")); File.WriteAllText(Path.Combine(stage, "browser-extension", "background.js"), "new js");
 
-        MakanUpdater.FileSwap.Apply(stage, install);
-        T.Check("files are replaced and new ones added (also in sub-folders)", File.ReadAllText(Path.Combine(install, "MakanDownloadManager.exe")) == "new app" && File.ReadAllText(Path.Combine(install, "browser-extension", "background.js")) == "new js");
+        EpsilonUpdater.FileSwap.Apply(stage, install);
+        T.Check("files are replaced and new ones added (also in sub-folders)", File.ReadAllText(Path.Combine(install, "EpsilonDownloadManager.exe")) == "new app" && File.ReadAllText(Path.Combine(install, "browser-extension", "background.js")) == "new js");
         T.Check("files and folders the update does not contain (portable data!) are untouched", File.ReadAllText(Path.Combine(install, "keep.txt")) == "mine" && File.ReadAllText(Path.Combine(install, "data", "downloads.db")) == "portable data");
         T.Check("no backup files are left behind", !Directory.GetFiles(install, "*.old-*", SearchOption.AllDirectories).Any());
 
@@ -268,22 +270,22 @@ static class V15Tests
         File.WriteAllText(Path.Combine(install2, "a.exe"), "old a"); File.WriteAllText(Path.Combine(install2, "b.dll"), "old b");
         File.WriteAllText(Path.Combine(stage2, "a.exe"), "new a"); File.WriteAllText(Path.Combine(stage2, "b.dll"), "new b"); File.WriteAllText(Path.Combine(stage2, "c.dll"), "brand new");
         var copied = 0; var failed = false;
-        try { MakanUpdater.FileSwap.Apply(stage2, install2, _ => { if (++copied == 2) throw new IOException("disk full"); }); }
+        try { EpsilonUpdater.FileSwap.Apply(stage2, install2, _ => { if (++copied == 2) throw new IOException("disk full"); }); }
         catch (IOException) { failed = true; }
         T.Check("the failure is reported", failed);
         T.Check("every file is back as it was, nothing new is left, no backups remain",
             File.ReadAllText(Path.Combine(install2, "a.exe")) == "old a" && File.ReadAllText(Path.Combine(install2, "b.dll")) == "old b" && !File.Exists(Path.Combine(install2, "c.dll")) && !Directory.GetFiles(install2, "*.old-*").Any(),
             string.Join(",", Directory.GetFiles(install2).Select(Path.GetFileName)));
 
-        File.WriteAllText(Path.Combine(install2, "MakanUpdater.exe.old-20200101000000000"), "x");
-        MakanUpdater.FileSwap.CleanOld(install2);
+        File.WriteAllText(Path.Combine(install2, "EpsilonUpdater.exe.old-20200101000000000"), "x");
+        EpsilonUpdater.FileSwap.CleanOld(install2);
         T.Check("leftovers of earlier updates (a program that was running) are cleaned", !Directory.GetFiles(install2, "*.old-*").Any());
 
         // the real updater program refuses anything that is not HTTPS or not valid, without touching the installation
         var dir = AppContext.BaseDirectory;
-        while (dir != null && !File.Exists(Path.Combine(dir, "updater", "bin", "Release", "net8.0", "MakanUpdater.dll"))) dir = Path.GetDirectoryName(dir);
+        while (dir != null && !File.Exists(Path.Combine(dir, "updater", "bin", "Release", "net8.0", "EpsilonUpdater.dll"))) dir = Path.GetDirectoryName(dir);
         if (dir == null) { Console.WriteLine("  (updater program not built: skipped)"); return Task.CompletedTask; }
-        var dll = Path.Combine(dir, "updater", "bin", "Release", "net8.0", "MakanUpdater.dll");
+        var dll = Path.Combine(dir, "updater", "bin", "Release", "net8.0", "EpsilonUpdater.dll");
         (int Code, string Error) RunUpdater(params string[] args)
         {
             var psi = new System.Diagnostics.ProcessStartInfo("dotnet") { RedirectStandardError = true, RedirectStandardOutput = true, UseShellExecute = false };
@@ -297,7 +299,7 @@ static class V15Tests
         T.Check("a missing install folder is refused", noDir.Code == 1 && noDir.Error.Contains("Install folder"), noDir.Error);
         var otherProcess = RunUpdater("--manifest", "https://example.invalid/m.json", "--install-dir", install, "--process", "notepad");
         T.Check("only Makan itself may be stopped", otherProcess.Code == 1 && otherProcess.Error.Contains("Only the MakanDownloadManager"), otherProcess.Error);
-        T.Check("the installation was not touched by any of them", File.ReadAllText(Path.Combine(install, "MakanDownloadManager.exe")) == "new app");
+        T.Check("the installation was not touched by any of them", File.ReadAllText(Path.Combine(install, "EpsilonDownloadManager.exe")) == "new app");
         return Task.CompletedTask;
     }
 

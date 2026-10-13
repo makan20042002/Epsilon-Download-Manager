@@ -25,7 +25,7 @@ Check "Version $version is used everywhere" {
   ((Match-First 'browser-extension/manifest.json' '"version":\s*"([^"]+)"') -eq $version) -and
   ((Match-First 'browser-extension-firefox/manifest.json' '"version":\s*"([^"]+)"') -eq $version) -and
   ((Match-First 'updater/Program.cs' 'ProductVersion = "([^"]+)"') -eq $version) -and
-  ((Match-First 'installer/MakanDownloadManager.iss' '#define MyAppVersion "([^"]+)"') -eq $version)
+  ((Match-First 'installer/EpsilonDownloadManager.iss' '#define MyAppVersion "([^"]+)"') -eq $version)
 }
 
 Check 'One native-messaging identity everywhere' {
@@ -100,7 +100,7 @@ Check 'No C# event is assigned in an object initializer' {
 }
 
 Check 'Release tooling and required files are present' {
-  $need = @('installer/MakanDownloadManager.iss', 'updater/MakanUpdater.csproj', 'updater/Program.cs', 'tools/windows-production-test.ps1', 'build-release.ps1',
+  $need = @('installer/EpsilonDownloadManager.iss', 'updater/EpsilonUpdater.csproj', 'updater/Program.cs', 'tools/windows-production-test.ps1', 'build-release.ps1',
             'install-browser-integration.ps1', 'MakanDownloadManager/Themes/ControlStyles.xaml', 'MakanDownloadManager/IntelligentCenterWindow.cs',
             'MakanDownloadManager/Branding.cs', 'MakanNativeHost/Program.cs')
   $missing = @($need | Where-Object { -not (Test-Path -LiteralPath $_) })

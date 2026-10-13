@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$iconPath = Join-Path $root 'MakanDownloadManager\Assets\makan.ico'
+$iconPath = Join-Path $root 'MakanDownloadManager\Assets\epsilon.ico'
 if (-not (Test-Path -LiteralPath $iconPath)) { throw "Missing application icon: $iconPath" }
 
 Add-Type -AssemblyName System.Drawing

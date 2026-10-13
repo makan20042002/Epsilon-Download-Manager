@@ -10,11 +10,11 @@ try {
   # validate-source.ps1 intentionally moves to the repository root; return here before using test-relative paths.
   Set-Location $PSScriptRoot
   Write-Host '### building full solution'
-  dotnet build ..\MakanDownloadManager.sln -c Release -v q
+  dotnet build ..\EpsilonDownloadManager.sln -c Release -v q
   Write-Host '### building test components'
   dotnet build ..\MakanNativeHost -c Release -v q; dotnet build ..\updater -c Release -v q; dotnet build EngineTests -c Release -v q; dotnet build DatabaseTests -c Release -v q; dotnet build BridgeServer -c Release -v q
   Write-Host '### engine / bridge / HLS / DASH / queues'
-  dotnet .\EngineTests\bin\Release\net8.0\EngineTests.dll; if ($LASTEXITCODE -ne 0) { throw 'engine tests failed' }; dotnet .\DatabaseTests\bin\Release\net8.0-windows\DatabaseTests.dll; if ($LASTEXITCODE -ne 0) { throw 'database tests failed' }
+  dotnet .\EngineTests\bin\Release\net8.0\EngineTests.dll; if ($LASTEXITCODE -ne 0) { throw 'engine tests failed' }; dotnet run --project .\DatabaseTests\DatabaseTests.csproj -c Release --no-build; if ($LASTEXITCODE -ne 0) { throw 'database tests failed' }
   Write-Host '### extension logic + on-video button'
   Push-Location extension; npm install --no-audit --no-fund --silent; npm test; if ($LASTEXITCODE -ne 0) { throw 'extension tests failed' }; Pop-Location
   Write-Host '### full stack (extension -> native host -> app)'

@@ -1,4 +1,4 @@
-namespace MakanUpdater;
+namespace EpsilonUpdater;
 
 /// <summary>
 /// Replaces the files of an installation with the files of a staged update, and undoes everything if anything goes wrong.

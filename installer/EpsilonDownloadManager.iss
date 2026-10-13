@@ -4,7 +4,7 @@
 #define MyAppVersion "1.7.1"
 #define MyAppPublisher "Makan A.D."
 #define MyAppURL "https://makanlab.tech"
-#define MyAppExeName "MakanDownloadManager.exe"
+#define MyAppExeName "EpsilonDownloadManager.exe"
 #define PowerShell "{sys}\WindowsPowerShell\v1.0\powershell.exe"
 
 [Setup]
@@ -29,7 +29,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\{#MyAppExeName}
-SetupIconFile=..\MakanDownloadManager\Assets\makan.ico
+SetupIconFile=..\MakanDownloadManager\Assets\epsilon.ico
 WizardStyle=modern
 UsedUserAreasWarning=no
 UsePreviousAppDir=yes
@@ -47,9 +47,9 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 [Files]
 ; The public extensions now come from their official stores. The installer only needs the desktop app,
 ; native host, updater and registration helpers; no unpacked-extension folders or old setup text are shipped.
-Source: "..\publish\MakanDownloadManager.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\publish\MakanNativeHost.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\publish\MakanUpdater.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\EpsilonDownloadManager.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\EpsilonNativeHost.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\EpsilonUpdater.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\publish\install-browser-integration.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\publish\install-background.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -58,11 +58,18 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autoprograms}\{#MyAppName} - check the browser connection"; Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -NoExit -File ""{app}\install-browser-integration.ps1"" -Check"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
+[InstallDelete]
+; Remove the obsolete pre-Epsilon executable names during an in-place upgrade.
+Type: files; Name: "{app}\MakanDownloadManager.exe"
+Type: files; Name: "{app}\MakanNativeHost.exe"
+Type: files; Name: "{app}\MakanUpdater.exe"
+
 [Registry]
 ; the same entry that Options > General > "start with Windows" writes
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MakanDownloadManager"; ValueData: """{app}\{#MyAppExeName}"" --background"; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "EpsilonDownloadManager"; ValueData: """{app}\{#MyAppExeName}"" --background"; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "MakanDownloadManager"; Flags: deletevalue
 
-; magnet: link protocol - lets Makan appear as an option (and, on many Windows versions, become the app that opens automatically)
+; magnet: link protocol - lets Epsilon appear as an option (and, on many Windows versions, become the app that opens automatically)
 ; for a magnet link clicked anywhere: another program, a torrent search site the browser extension does not run on, etc.
 ; Per-user (HKCU) to match "no administrator needed"; Windows may still ask the person to confirm the choice once (its own
 ; anti-hijacking protection for URL/file associations - this is expected and cannot be skipped by an installer).
@@ -72,10 +79,11 @@ Root: HKCU; Subkey: "Software\Classes\magnet\DefaultIcon"; ValueType: string; Va
 Root: HKCU; Subkey: "Software\Classes\magnet\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 ; .torrent files - same idea, as a normal file type association (its own ProgId, so it does not disturb any other app's file types)
-Root: HKCU; Subkey: "Software\Classes\.torrent"; ValueType: string; ValueName: ""; ValueData: "MakanDownloadManager.torrent"; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Classes\MakanDownloadManager.torrent"; ValueType: string; ValueName: ""; ValueData: "BitTorrent file"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\MakanDownloadManager.torrent\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
-Root: HKCU; Subkey: "Software\Classes\MakanDownloadManager.torrent\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.torrent"; ValueType: string; ValueName: ""; ValueData: "EpsilonDownloadManager.torrent"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\EpsilonDownloadManager.torrent"; ValueType: string; ValueName: ""; ValueData: "BitTorrent file"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\EpsilonDownloadManager.torrent\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKCU; Subkey: "Software\Classes\EpsilonDownloadManager.torrent\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\MakanDownloadManager.torrent"; ValueType: none; Flags: deletekey
 
 [Run]
 Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -InstallDir ""{app}"""; StatusMsg: "Connecting the browsers to Epsilon..."; Flags: runhidden runasoriginaluser waituntilterminated
@@ -86,12 +94,16 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Start {#MyAppName}"; Flags: pos
 Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -Uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveBrowserIntegration"
 
 [Code]
-// Makan lives in the tray (closing its window does not end it), so it is stopped explicitly before files are replaced or removed.
-// Unfinished downloads are kept and continue the next time Makan starts.
-procedure StopMakan;
+// Epsilon lives in the tray (closing its window does not end it), so it is stopped explicitly before files are replaced or removed.
+// Unfinished downloads are kept and continue the next time Epsilon starts.
+procedure StopEpsilon;
 var
   Code: Integer;
 begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im EpsilonDownloadManager.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im EpsilonNativeHost.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im EpsilonUpdater.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  // Also stop the old names during the first upgrade to this build.
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im MakanDownloadManager.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im MakanNativeHost.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im MakanUpdater.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
@@ -99,7 +111,7 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  StopMakan;
+  StopEpsilon;
   Result := '';
 end;
 
@@ -107,7 +119,7 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Data: String;
 begin
-  if CurUninstallStep = usUninstall then StopMakan;
+  if CurUninstallStep = usUninstall then StopEpsilon;
   if CurUninstallStep = usPostUninstall then
   begin
     Data := ExpandConstant('{localappdata}\MakanDownloadManager');

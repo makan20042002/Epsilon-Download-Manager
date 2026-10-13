@@ -84,7 +84,7 @@ public sealed class BridgeResponse
 }
 
 /// <summary>
-/// Named-pipe server inside the desktop app. The tiny MakanNativeHost.exe (launched by the browser) relays
+/// Named-pipe server inside the desktop app. The tiny EpsilonNativeHost.exe (launched by the browser) relays
 /// extension messages here, one JSON line in, one JSON line out.
 /// </summary>
 public sealed class NativeBridge : IDisposable

@@ -30,7 +30,7 @@ public sealed class TorrentEngineOptions
     public TimeSpan MinAnnounceInterval { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan UdpTrackerTimeout { get; set; } = TimeSpan.FromSeconds(6);
     /// <summary>Where resume data and a copy of every .torrent are kept.</summary>
-    public string StateDirectory { get; set; } = Path.Combine(Path.GetTempPath(), "makan-torrents");
+    public string StateDirectory { get; set; } = Path.Combine(Path.GetTempPath(), "epsilon-torrents");
 }
 
 /// <summary>

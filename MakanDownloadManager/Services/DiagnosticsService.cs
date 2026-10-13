@@ -50,7 +50,7 @@ public sealed class DiagnosticsService
     {
         try
         {
-            var file = Path.Combine(DirectoryPath, $"makan-{DateTime.Now:yyyy-MM-dd}.log");
+            var file = Path.Combine(DirectoryPath, $"epsilon-{DateTime.Now:yyyy-MM-dd}.log");
             File.AppendAllText(file, $"{DateTime.Now:O} [{level}] {Redact(message)}{Environment.NewLine}");
         }
         catch { }

@@ -166,11 +166,11 @@ public sealed class V15HealthService
         checks.Add(CheckFreeSpace(i.DefaultFolder));
         checks.Add(CheckWritable(i.DefaultFolder));
 
-        var hostExe = Path.Combine(i.BaseDirectory, "MakanNativeHost.exe");
+        var hostExe = Path.Combine(i.BaseDirectory, "EpsilonNativeHost.exe");
         var hostPresent = File.Exists(hostExe);
         var registered = i.Browsers.Where(b => b.Registered).Select(b => b.Browser).ToList();
         checks.Add(new("Browser integration", hostPresent && registered.Count > 0,
-            !hostPresent ? "MakanNativeHost.exe was not found next to the application." :
+            !hostPresent ? "EpsilonNativeHost.exe was not found next to the application." :
             registered.Count == 0 ? "Not connected to any browser yet: run install-browser-integration.ps1 (or Options > General > Repair)." :
             "Connected: " + string.Join(", ", registered) + (i.Browsers.Count > registered.Count ? ". Not connected: " + string.Join(", ", i.Browsers.Where(b => !b.Registered).Select(b => b.Browser)) + "." : ".")));
 
@@ -200,7 +200,7 @@ public sealed class V15HealthService
         {
             if (string.IsNullOrWhiteSpace(path)) return new("Download folder", false, "No default download folder is set.");
             Directory.CreateDirectory(path);
-            var probe = Path.Combine(path, ".makan-write-test-" + Guid.NewGuid().ToString("N"));
+            var probe = Path.Combine(path, ".epsilon-write-test-" + Guid.NewGuid().ToString("N"));
             File.WriteAllText(probe, "ok");
             File.Delete(probe);
             return new("Download folder", true, "Writable: " + path);
@@ -219,7 +219,7 @@ public static class V15RecoveryService
         var result = new List<Interrupted>();
         foreach (var file in items
                      .Where(x => x.Status is nameof(DownloadStatus.Downloading) or nameof(DownloadStatus.Paused) or nameof(DownloadStatus.Failed) or nameof(DownloadStatus.Queued))
-                     .Select(DownloadStateManifest.PathFor)
+                     .Select(DownloadStateManifest.ExistingPathFor)
                      .Distinct(StringComparer.OrdinalIgnoreCase))
         {
             try

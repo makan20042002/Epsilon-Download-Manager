@@ -1,8 +1,8 @@
 <#
-.SYNOPSIS  Builds Makan and packs everything into ONE installer:  installer-output\MakanDownloadManager-<version>-Setup.exe
+.SYNOPSIS  Builds Epsilon and packs everything into ONE installer:  installer-output\EpsilonDownloadManager-<version>-Setup.exe
 .DESCRIPTION
   1. runs build-release.ps1 (validates the source, publishes the app, native host, updater and browser extensions into .\publish)
-  2. compiles installer\MakanDownloadManager.iss with Inno Setup 6 (free; install once with:  winget install -e --id JRSoftware.InnoSetup)
+  2. compiles installer\EpsilonDownloadManager.iss with Inno Setup 6 (free; install once with:  winget install -e --id JRSoftware.InnoSetup)
   -SkipBuild  reuse the existing .\publish folder
 #>
 param([switch]$SkipBuild)
@@ -11,7 +11,7 @@ $root    = Split-Path -Parent $MyInvocation.MyCommand.Path
 $publish = Join-Path $root 'publish'
 
 if (-not $SkipBuild) { & (Join-Path $root 'build-release.ps1') }
-if (-not (Test-Path (Join-Path $publish 'MakanDownloadManager.exe'))) { throw "Nothing to pack: $publish\MakanDownloadManager.exe is missing. Run without -SkipBuild." }
+if (-not (Test-Path (Join-Path $publish 'EpsilonDownloadManager.exe'))) { throw "Nothing to pack: $publish\EpsilonDownloadManager.exe is missing. Run without -SkipBuild." }
 
 $candidates = @(
   (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
@@ -26,10 +26,10 @@ if (-not $iscc) {
 }
 
 $version = (Get-Content (Join-Path $root 'VERSION.txt') -Raw).Trim()
-& $iscc (Join-Path $root 'installer\MakanDownloadManager.iss')
+& $iscc (Join-Path $root 'installer\EpsilonDownloadManager.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup reported an error (see above).' }
 
 $setup = Join-Path $root "installer-output\EpsilonDownloadManager-$version-Setup.exe"
 Write-Host ''
 Write-Host "Installer ready: $setup" -ForegroundColor Green
-Write-Host 'This one file installs Makan, connects the browsers and adds Start menu entries. Sign it before public distribution (tools\sign-release.ps1).'
+Write-Host 'This one file installs Epsilon, connects the browsers and adds Start menu entries. Sign it before public distribution (tools\sign-release.ps1).'

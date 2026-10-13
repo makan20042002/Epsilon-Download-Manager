@@ -54,7 +54,7 @@ public partial class MainWindow : Window
         UpdateMultiNetButton();
         UpdateSpeedLimiterButton();
         CompactRowsItem.IsChecked = App.Settings.CompactRows; Downloads.Tag = App.Settings.CompactRows ? "compact" : null;
-        try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/Assets/makan.ico", UriKind.Absolute)); } catch (Exception) { /* the default icon is fine */ }
+        try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/Assets/epsilon.ico", UriKind.Absolute)); } catch (Exception) { /* the default icon is fine */ }
         BuildCategoryTree();
         _tray = CreateTray();
 
@@ -270,7 +270,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var info = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/makan.ico", UriKind.Absolute));
+            var info = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/epsilon.ico", UriKind.Absolute));
             if (info != null) using (info.Stream) return new System.Drawing.Icon(info.Stream);
         }
         catch (Exception) { /* fall back below */ }
@@ -923,7 +923,7 @@ public partial class MainWindow : Window
         var items = SelectedItems().ToList();
         if (items.Count == 0) items = _items.ToList();          // nothing selected: everything
         if (items.Count == 0) { Dlg.Show(this, "The list is empty.", "Export"); return; }
-        var dialog = new Microsoft.Win32.SaveFileDialog { Title = "Export addresses to a text file", Filter = "Text file (*.txt)|*.txt", FileName = "makan-downloads.txt" };
+        var dialog = new Microsoft.Win32.SaveFileDialog { Title = "Export addresses to a text file", Filter = "Text file (*.txt)|*.txt", FileName = "epsilon-downloads.txt" };
         if (dialog.ShowDialog(this) != true) return;
         try
         {

@@ -11,10 +11,10 @@ function Check($name, [scriptblock]$test) {
 Write-Host "Makan Download Manager $version Windows production gate" -ForegroundColor Cyan
 Check '.NET 8 runtime' { [version](dotnet --version) -ge [version]'8.0.0' }
 Check 'Windows x64' { [Environment]::Is64BitOperatingSystem }
-Check 'Main project exists' { Test-Path (Join-Path $root 'MakanDownloadManager\MakanDownloadManager.csproj') }
-Check 'Native host exists' { Test-Path (Join-Path $root 'MakanNativeHost\MakanNativeHost.csproj') }
-Check 'Installer definition exists' { Test-Path (Join-Path $root 'installer\MakanDownloadManager.iss') }
-Check 'Updater project exists' { Test-Path (Join-Path $root 'updater\MakanUpdater.csproj') }
+Check 'Main project exists' { Test-Path (Join-Path $root 'MakanDownloadManager\EpsilonDownloadManager.csproj') }
+Check 'Native host exists' { Test-Path (Join-Path $root 'MakanNativeHost\EpsilonNativeHost.csproj') }
+Check 'Installer definition exists' { Test-Path (Join-Path $root 'installer\EpsilonDownloadManager.iss') }
+Check 'Updater project exists' { Test-Path (Join-Path $root 'updater\EpsilonUpdater.csproj') }
 Check 'Browser manifests match version' {
   $a=Get-Content (Join-Path $root 'browser-extension\manifest.json') -Raw | ConvertFrom-Json
   $b=Get-Content (Join-Path $root 'browser-extension-firefox\manifest.json') -Raw | ConvertFrom-Json
@@ -24,12 +24,12 @@ Check 'Browser manifests match version' {
 $publish = Join-Path $root 'publish-test'
 if(Test-Path $publish){Remove-Item $publish -Recurse -Force}
 Write-Host 'Publishing test build...' -ForegroundColor Yellow
-dotnet publish (Join-Path $root 'MakanDownloadManager\MakanDownloadManager.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $publish
+dotnet publish (Join-Path $root 'MakanDownloadManager\EpsilonDownloadManager.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $publish
 if($LASTEXITCODE -ne 0){throw 'Desktop publish failed.'}
-dotnet publish (Join-Path $root 'MakanNativeHost\MakanNativeHost.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o $publish
+dotnet publish (Join-Path $root 'MakanNativeHost\EpsilonNativeHost.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o $publish
 if($LASTEXITCODE -ne 0){throw 'Native host publish failed.'}
-Check 'Desktop executable produced' { Test-Path (Join-Path $publish 'MakanDownloadManager.exe') }
-Check 'Native host executable produced' { Test-Path (Join-Path $publish 'MakanNativeHost.exe') }
+Check 'Desktop executable produced' { Test-Path (Join-Path $publish 'EpsilonDownloadManager.exe') }
+Check 'Native host executable produced' { Test-Path (Join-Path $publish 'EpsilonNativeHost.exe') }
 
 Write-Host 'Runtime scenarios to execute manually/with a test harness:' -ForegroundColor Cyan
 @(

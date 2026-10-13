@@ -3,7 +3,7 @@
 Run after `build-release.ps1`. Automated suites (`tests\run-all.ps1`) already cover the engine, bridge, extension logic and the full stack.
 
 ## 1. First start
-- [ ] `MakanDownloadManager.exe` opens the IDM-style window (menu, toolbar, categories, columns). Close it with X: it stays in the tray; tray > Exit really quits.
+- [ ] `EpsilonDownloadManager.exe` opens the main window (menu, toolbar, categories, columns). Close it with X: it stays in the tray; tray > Exit really quits.
 - [ ] Starting it a second time only brings the first window to the front.
 - [ ] `install-browser-integration.ps1` ends with "Everything is registered" (all lines OK, host answered).
 

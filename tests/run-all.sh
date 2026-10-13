@@ -12,12 +12,12 @@ for i in $(seq 1 30); do curl -s -m 1 localhost:18080/__reset >/dev/null && brea
 echo "### source validation"
 node ../tools/validate-source.js
 WINDOWS=0; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) WINDOWS=1;; esac
-if [ "$WINDOWS" = 1 ]; then echo "### building full solution (WPF)"; dotnet build ../MakanDownloadManager.sln -c Release -v q
+if [ "$WINDOWS" = 1 ]; then echo "### building full solution (WPF)"; dotnet build ../EpsilonDownloadManager.sln -c Release -v q
 else echo "### WPF solution and SQLite/DPAPI tests need Windows: skipped on this machine"; fi
-echo "### building test components"; dotnet build ../MakanNativeHost -c Release -v q; dotnet build ../updater -c Release -v q; dotnet build EngineTests -c Release -v q; dotnet build BridgeServer -c Release -v q
+echo "### building test components"; dotnet build ../MakanNativeHost/EpsilonNativeHost.csproj -c Release -v q; dotnet build ../updater/EpsilonUpdater.csproj -c Release -v q; dotnet build EngineTests -c Release -v q; dotnet build BridgeServer -c Release -v q
 if [ "$WINDOWS" = 1 ]; then dotnet build DatabaseTests -c Release -v q; fi
 echo "### engine / bridge / HLS / DASH / queues";   dotnet EngineTests/bin/Release/net8.0/EngineTests.dll
-if [ "$WINDOWS" = 1 ]; then echo "### SQLite / DPAPI database"; dotnet DatabaseTests/bin/Release/net8.0-windows/DatabaseTests.dll; fi
+if [ "$WINDOWS" = 1 ]; then echo "### SQLite / DPAPI database"; dotnet run --project DatabaseTests/DatabaseTests.csproj -c Release --no-build; fi
 echo "### extension logic + on-video button";        (cd extension && npm install --no-audit --no-fund --silent && npm test)
 echo "### full stack (extension -> native host -> app)"; node e2e/e2e.test.js
 echo; echo "ALL SUITES PASSED"

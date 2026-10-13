@@ -13,7 +13,7 @@ $packageVersion = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
 
 if (-not $SkipBuild) { & (Join-Path $root 'build-release.ps1') }
 $publish = Join-Path $root 'publish'
-if (-not (Test-Path (Join-Path $publish 'MakanDownloadManager.exe'))) { throw 'The release publish folder is missing. Run without -SkipBuild.' }
+if (-not (Test-Path (Join-Path $publish 'EpsilonDownloadManager.exe'))) { throw 'The release publish folder is missing. Run without -SkipBuild.' }
 
 & (Join-Path $root 'tools\generate-msix-assets.ps1')
 

@@ -1,4 +1,4 @@
-# Builds Makan Download Manager for Windows x64 into .\publish (run on Windows with the .NET 8 SDK installed).
+# Builds Epsilon Download Manager for Windows x64 into .\publish (run on Windows with the .NET 8 SDK installed).
 # -FrameworkDependent: a much smaller exe (a few MB instead of well over 100 MB), for attaching directly to a GitHub
 # Release or similar - trades that size for requiring the person running it to already have the .NET 8 Desktop Runtime
 # installed (https://dotnet.microsoft.com/download/dotnet/8.0 - "Desktop Runtime", not just the smaller base "Runtime").
@@ -6,13 +6,13 @@
 param([switch]$FrameworkDependent)
 $ErrorActionPreference = 'Stop'
 $root       = Split-Path -Parent $MyInvocation.MyCommand.Path
-$app        = Join-Path $root 'MakanDownloadManager\MakanDownloadManager.csproj'
-$nativeHost = Join-Path $root 'MakanNativeHost\MakanNativeHost.csproj'
-$updater = Join-Path $root 'updater\MakanUpdater.csproj'
+$app        = Join-Path $root 'MakanDownloadManager\EpsilonDownloadManager.csproj'
+$nativeHost = Join-Path $root 'MakanNativeHost\EpsilonNativeHost.csproj'
+$updater = Join-Path $root 'updater\EpsilonUpdater.csproj'
 $publish    = Join-Path $root 'publish'
 
 $workspacePrefix = [IO.Path]::GetFullPath($root).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
-$workspaceInstance = Get-Process -Name 'MakanDownloadManager' -ErrorAction SilentlyContinue | Where-Object {
+$workspaceInstance = Get-Process -Name 'EpsilonDownloadManager' -ErrorAction SilentlyContinue | Where-Object {
   try { $_.Path -and [IO.Path]::GetFullPath($_.Path).StartsWith($workspacePrefix, [StringComparison]::OrdinalIgnoreCase) }
   catch { $false }
 }
@@ -34,15 +34,15 @@ if ($FrameworkDependent) {
   dotnet publish $app -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o $publish
 }
-if ($LASTEXITCODE -ne 0) { throw 'Publishing MakanDownloadManager failed.' }
+if ($LASTEXITCODE -ne 0) { throw 'Publishing EpsilonDownloadManager failed.' }
 
-# Tiny native-messaging relay the browsers launch. It must sit next to MakanDownloadManager.exe.
+# Tiny native-messaging relay the browsers launch. It must sit next to EpsilonDownloadManager.exe.
 dotnet publish $nativeHost -c Release -r win-x64 --self-contained true `
   -p:PublishSingleFile=true -p:PublishTrimmed=true -p:EnableCompressionInSingleFile=true -o $publish
 if ($LASTEXITCODE -ne 0) {
-  Write-Warning 'Trimmed publish of MakanNativeHost failed; retrying without trimming (larger file, same behaviour).'
+  Write-Warning 'Trimmed publish of EpsilonNativeHost failed; retrying without trimming (larger file, same behaviour).'
   dotnet publish $nativeHost -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o $publish
-  if ($LASTEXITCODE -ne 0) { throw 'Publishing MakanNativeHost failed.' }
+  if ($LASTEXITCODE -ne 0) { throw 'Publishing EpsilonNativeHost failed.' }
 }
 
 # Secure updater. It verifies HTTPS + SHA-256 and performs staged replacement with rollback.
@@ -50,7 +50,7 @@ if ($LASTEXITCODE -ne 0) {
 # remove members that are only reached by System.Text.Json at runtime.
 dotnet publish $updater -c Release -r win-x64 --self-contained true `
   -p:PublishSingleFile=true -p:PublishTrimmed=false -p:EnableCompressionInSingleFile=true -o $publish
-if ($LASTEXITCODE -ne 0) { throw 'Publishing MakanUpdater failed.' }
+if ($LASTEXITCODE -ne 0) { throw 'Publishing EpsilonUpdater failed.' }
 
 # Browser extensions + installers travel with the app.
 Copy-Item (Join-Path $root 'browser-extension')         (Join-Path $publish 'browser-extension')         -Recurse
@@ -79,7 +79,7 @@ Compress-Archive -Path (Join-Path $storeStage '*') -DestinationPath (Join-Path $
 Remove-Item $storeStage -Recurse -Force
 
 # Sanity check: everything the installer and the browsers need is really there.
-foreach ($file in 'MakanDownloadManager.exe', 'MakanNativeHost.exe', 'MakanUpdater.exe', 'install-browser-integration.ps1', 'browser-extension\manifest.json', 'browser-extension-firefox\manifest.json') {
+foreach ($file in 'EpsilonDownloadManager.exe', 'EpsilonNativeHost.exe', 'EpsilonUpdater.exe', 'install-browser-integration.ps1', 'browser-extension\manifest.json', 'browser-extension-firefox\manifest.json') {
   if (-not (Test-Path (Join-Path $publish $file))) { throw "Build finished but $file is missing from $publish" }
 }
 $version = (Get-Content (Join-Path $root 'VERSION.txt') -Raw).Trim()

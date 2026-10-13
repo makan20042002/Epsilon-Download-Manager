@@ -2,10 +2,10 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
-using MakanUpdater;
+using EpsilonUpdater;
 
 // Secure staged updater for Epsilon Download Manager.
-// Manifest: { "version":"15.2.0", "packageUrl":"https://.../MakanDownloadManager.zip", "sha256":"..." }
+// Manifest: { "version":"15.2.0", "packageUrl":"https://.../EpsilonDownloadManager.zip", "sha256":"..." }
 // The package is downloaded (HTTPS only, redirects followed by hand and checked) and verified BEFORE the installed application is
 // stopped; files are then swapped with rollback (see FileSwap). Exit code 0 = updated, 1 = failed (the installation is unchanged).
 
@@ -46,18 +46,18 @@ try
 {
     var manifestUrl = Arg("--manifest");
     var installDir = Arg("--install-dir");
-    var processName = Arg("--process", "MakanDownloadManager");
+    var processName = Arg("--process", "EpsilonDownloadManager");
 
     if (!Uri.TryCreate(manifestUrl, UriKind.Absolute, out var manifestUri) || !IsHttps(manifestUri))
         throw new ArgumentException("Update metadata must use HTTPS (--manifest https://...).");
     if (string.IsNullOrWhiteSpace(installDir) || !Directory.Exists(installDir))
         throw new DirectoryNotFoundException("Install folder not found (--install-dir): " + installDir);
-    if (!string.Equals(processName, "MakanDownloadManager", StringComparison.OrdinalIgnoreCase))
-        throw new ArgumentException("Only the MakanDownloadManager process may be updated.");
+    if (!string.Equals(processName, "EpsilonDownloadManager", StringComparison.OrdinalIgnoreCase))
+        throw new ArgumentException("Only the EpsilonDownloadManager process may be updated.");
     installDir = Path.GetFullPath(installDir);
 
     using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromMinutes(10) };
-    http.DefaultRequestHeaders.UserAgent.ParseAdd("MakanDownloadManager-Updater/" + ProductVersion);
+    http.DefaultRequestHeaders.UserAgent.ParseAdd("EpsilonDownloadManager-Updater/" + ProductVersion);
 
     using var manifestResponse = await GetAsync(http, manifestUri);
     var manifest = JsonSerializer.Deserialize<UpdateManifest>(await manifestResponse.Content.ReadAsStringAsync(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
@@ -69,7 +69,7 @@ try
     if (!Uri.TryCreate(manifest.PackageUrl, UriKind.Absolute, out var packageUri) || !IsHttps(packageUri)) throw new InvalidDataException("Update package must use HTTPS.");
     if (!IsSha256(manifest.Sha256)) throw new InvalidDataException("Invalid SHA-256 value in the manifest.");
 
-    tempRoot = Path.Combine(Path.GetTempPath(), "MakanDownloadManager", "update-" + Guid.NewGuid().ToString("N"));
+    tempRoot = Path.Combine(Path.GetTempPath(), "EpsilonDownloadManager", "update-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(tempRoot);
     var archive = Path.Combine(tempRoot, "package.zip");
     var stage = Path.Combine(tempRoot, "stage");
@@ -89,7 +89,7 @@ try
 
     Directory.CreateDirectory(stage);
     ZipFile.ExtractToDirectory(archive, stage, overwriteFiles: true);
-    if (!File.Exists(Path.Combine(stage, "MakanDownloadManager.exe"))) throw new InvalidDataException("The update package does not contain MakanDownloadManager.exe.");
+    if (!File.Exists(Path.Combine(stage, "EpsilonDownloadManager.exe"))) throw new InvalidDataException("The update package does not contain EpsilonDownloadManager.exe.");
 
     // Only now stop the running app (it keeps unfinished downloads and resumes them when it starts again).
     foreach (var p in Process.GetProcessesByName(processName)) { try { p.CloseMainWindow(); } catch (InvalidOperationException) { } }
@@ -98,7 +98,7 @@ try
     await Task.Delay(500);
 
     FileSwap.Apply(stage, installDir);          // throws after undoing everything when a file cannot be replaced
-    Process.Start(new ProcessStartInfo(Path.Combine(installDir, "MakanDownloadManager.exe")) { UseShellExecute = true });
+    Process.Start(new ProcessStartInfo(Path.Combine(installDir, "EpsilonDownloadManager.exe")) { UseShellExecute = true });
     Console.WriteLine($"Updated to {newVersion}.");
     _ = Task.Run(() => FileSwap.CleanOld(installDir));
     await Task.Delay(1000);
@@ -110,8 +110,8 @@ catch (Exception ex)
     try
     {
         var installDir = Arg("--install-dir");
-        var exe = Path.Combine(installDir, "MakanDownloadManager.exe");
-        if (File.Exists(exe) && Process.GetProcessesByName("MakanDownloadManager").Length == 0) Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
+        var exe = Path.Combine(installDir, "EpsilonDownloadManager.exe");
+        if (File.Exists(exe) && Process.GetProcessesByName("EpsilonDownloadManager").Length == 0) Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
     }
     catch (Exception) { /* best effort: the installation itself is unchanged */ }
     return 1;

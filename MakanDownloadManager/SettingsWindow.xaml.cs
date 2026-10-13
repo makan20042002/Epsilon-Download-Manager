@@ -124,8 +124,8 @@ public partial class SettingsWindow : Window
 
     void Recheck_Click(object sender, RoutedEventArgs e) => ShowBrowserStatus();
 
-    void ChromeExtension_Click(object sender, RoutedEventArgs e) => OpenBrowserStore("https://chromewebstore.google.com/detail/epsilon-download-manager/nglldicodleblllopbkgncogljbdldpd");
-    void FirefoxExtension_Click(object sender, RoutedEventArgs e) => OpenBrowserStore("https://addons.mozilla.org/addon/epsilon-download-manager/");
+    void ChromeExtension_Click(object sender, RoutedEventArgs e) => OpenBrowserStore(Branding.ChromeExtensionUrl);
+    void FirefoxExtension_Click(object sender, RoutedEventArgs e) => OpenBrowserStore(Branding.FirefoxExtensionUrl);
 
     void OpenBrowserStore(string address)
     {

@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS  Connects Chrome, Edge, Brave and Firefox to Epsilon Download Manager (per-user, no admin rights needed).
 .DESCRIPTION
-  Registers the native-messaging host (MakanNativeHost.exe) for each browser, then CHECKS the result
-  (registry entries, manifest files, and a real round-trip with MakanNativeHost.exe) and prints what it found.
-  Run it from the published Makan folder (or the project folder that contains "publish").
+  Registers the native-messaging host (EpsilonNativeHost.exe) for each browser, then CHECKS the result
+  (registry entries, manifest files, and a real round-trip with EpsilonNativeHost.exe) and prints what it found.
+  Run it from the published Epsilon folder (or the project folder that contains "publish").
   -Check      only run the checks, change nothing
   -Uninstall  remove the registration again
 #>
@@ -17,8 +17,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $HostName = 'com.makan.downloadmanager'
 $dataDir  = Join-Path $env:LOCALAPPDATA 'MakanDownloadManager\native-host'
-$chromeManifest  = Join-Path $dataDir "$HostName.chrome.json"
-$firefoxManifest = Join-Path $dataDir "$HostName.firefox.json"
+$chromeManifest  = Join-Path $dataDir 'epsilon-download-manager.chrome.json'
+$firefoxManifest = Join-Path $dataDir 'epsilon-download-manager.firefox.json'
 $targets = @(
   @{ Name = 'Chrome';  Key = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$HostName";                 Manifest = $chromeManifest },
   @{ Name = 'Edge';    Key = "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$HostName";                 Manifest = $chromeManifest },
@@ -32,8 +32,8 @@ function Get-RegDefault([string]$key) {
 
 function Find-InstallDir {
   $cwd = (Get-Location).Path
-  $candidates = @($PSScriptRoot, (Join-Path $PSScriptRoot 'publish'), $cwd, (Join-Path $cwd 'publish'), (Join-Path $env:ProgramFiles 'Makan Download Manager'))
-  foreach ($c in $candidates) { if ($c -and (Test-Path (Join-Path $c 'MakanNativeHost.exe'))) { return $c } }
+  $candidates = @($PSScriptRoot, (Join-Path $PSScriptRoot 'publish'), $cwd, (Join-Path $cwd 'publish'), (Join-Path $env:ProgramFiles 'Epsilon Download Manager'))
+  foreach ($c in $candidates) { if ($c -and (Test-Path (Join-Path $c 'EpsilonNativeHost.exe'))) { return $c } }
   return $null
 }
 
@@ -80,8 +80,8 @@ function Show-Status {
   if ($exe -and (Test-Path $exe)) { $exe = (Get-Content -Raw $exe | ConvertFrom-Json).path } else { $exe = $null }
   if ($exe -and (Test-Path $exe)) {
     try { $reply = Test-HostExe $exe } catch { $reply = $null; Write-Host "  Host start error: $($_.Exception.Message)" -ForegroundColor Red }
-    if ($reply) { Write-Host "  [OK]      MakanNativeHost.exe answered: $reply" -ForegroundColor Green }
-    else { Write-Host '  [FAILED]  MakanNativeHost.exe started but did not answer (blocked by antivirus/SmartScreen? try right-click > Properties > Unblock).' -ForegroundColor Red; $ok = $false }
+    if ($reply) { Write-Host "  [OK]      EpsilonNativeHost.exe answered: $reply" -ForegroundColor Green }
+    else { Write-Host '  [FAILED]  EpsilonNativeHost.exe started but did not answer (blocked by antivirus/SmartScreen? try right-click > Properties > Unblock).' -ForegroundColor Red; $ok = $false }
   }
   Write-Host ''
   if ($ok) { Write-Host 'Everything is registered. Fully close and reopen the browser, then click the Epsilon toolbar icon.' -ForegroundColor Green }
@@ -100,12 +100,12 @@ if ($Check) { [void](Show-Status); return }
 
 if (-not $InstallDir) { $InstallDir = Find-InstallDir }
 if (-not $InstallDir) {
-  throw ("MakanNativeHost.exe was not found. Looked next to this script, in its 'publish' folder, in the current folder and in Program Files.`n" +
+  throw ("EpsilonNativeHost.exe was not found. Looked next to this script, in its 'publish' folder, in the current folder and in Program Files.`n" +
          "Build first with build-release.ps1, then run this script from the 'publish' folder, or pass -InstallDir <folder>.")
 }
-$hostExe = Join-Path $InstallDir 'MakanNativeHost.exe'
-if (-not (Test-Path $hostExe)) { throw "MakanNativeHost.exe was not found in $InstallDir" }
-if (-not (Test-Path (Join-Path $InstallDir 'MakanDownloadManager.exe'))) { throw "MakanDownloadManager.exe must be in the same folder as MakanNativeHost.exe ($InstallDir)." }
+$hostExe = Join-Path $InstallDir 'EpsilonNativeHost.exe'
+if (-not (Test-Path $hostExe)) { throw "EpsilonNativeHost.exe was not found in $InstallDir" }
+if (-not (Test-Path (Join-Path $InstallDir 'EpsilonDownloadManager.exe'))) { throw "EpsilonDownloadManager.exe must be in the same folder as EpsilonNativeHost.exe ($InstallDir)." }
 $hostExe = (Resolve-Path $hostExe).Path
 
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null

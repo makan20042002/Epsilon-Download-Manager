@@ -49,7 +49,7 @@ async function init() {
   else if (ping.running === false) setState("idle", t("Epsilon will start automatically on the next download"));
   else if (/not found|no such native application/i.test(err)) setState("bad", t("Native host not registered — run install-browser-integration.ps1, then restart the browser"));
   else if (/forbidden|permission/i.test(err)) setState("bad", tf("Extension ID doesn't match the installed host. This ID: {0} — run install-browser-integration.ps1 -ExtensionId {0}", myId));
-  else if (/exited|communicating|failed to start/i.test(err)) setState("bad", t("Host found but it won't start — is MakanNativeHost.exe still next to MakanDownloadManager.exe?"));
+  else if (/exited|communicating|failed to start/i.test(err)) setState("bad", t("Host found but it won't start — is EpsilonNativeHost.exe still next to EpsilonDownloadManager.exe?"));
   else setState("bad", err || t("Can't reach Epsilon"));
   if (!ping.ok && err) $("stateText").title = err; // hover for the browser's exact message
 

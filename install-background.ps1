@@ -1,11 +1,11 @@
-# Starts Makan quietly in the tray when you sign in to Windows, so the browser extension always has something to talk to.
+# Starts Epsilon quietly in the tray when you sign in to Windows, so the browser extension always has something to talk to.
 param([string]$InstallDir = $PSScriptRoot)
 $ErrorActionPreference = 'Stop'
-$exe = Join-Path $InstallDir 'MakanDownloadManager.exe'
-if (!(Test-Path $exe)) { $exe = Join-Path "$env:ProgramFiles\Makan Download Manager" 'MakanDownloadManager.exe' }
-if (!(Test-Path $exe)) { throw "MakanDownloadManager.exe was not found. Run this from the published folder or pass -InstallDir." }
+$exe = Join-Path $InstallDir 'EpsilonDownloadManager.exe'
+if (!(Test-Path $exe)) { $exe = Join-Path "$env:ProgramFiles\Epsilon Download Manager" 'EpsilonDownloadManager.exe' }
+if (!(Test-Path $exe)) { throw "EpsilonDownloadManager.exe was not found. Run this from the published folder or pass -InstallDir." }
 $startup = [Environment]::GetFolderPath('Startup')
-$shortcutPath = Join-Path $startup 'Makan Download Manager.lnk'
+$shortcutPath = Join-Path $startup 'Epsilon Download Manager.lnk'
 $wsh = New-Object -ComObject WScript.Shell
 $shortcut = $wsh.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = $exe

@@ -1,4 +1,4 @@
-// Full-stack test: the REAL extension background script -> the REAL MakanNativeHost.exe (native-messaging framing, one process per message,
+// Full-stack test: the REAL extension background script -> the REAL EpsilonNativeHost.exe (native-messaging framing, one process per message,
 // exactly like a browser) -> the REAL named pipe -> the REAL bridge + download engine -> files on disk fetched from the mock web server.
 // Only the browser API (`chrome.*`) is faked. Needs: mock server on :18080, built BridgeServer and MakanNativeHost.
 const assert = require("assert");
@@ -15,7 +15,7 @@ process.env.EPSILON_NATIVE_PIPE = `com.makan.downloadmanager.e2e.${process.pid}`
 
 const ROOT = path.join(__dirname, "..", "..");
 const BASE = "http://127.0.0.1:18080";
-const HOST_DLL = path.join(ROOT, "MakanNativeHost/bin/Release/net8.0/MakanNativeHost.dll");
+const HOST_DLL = path.join(ROOT, "MakanNativeHost/bin/Release/net8.0/EpsilonNativeHost.dll");
 const SERVER_DLL = path.join(ROOT, "tests/BridgeServer/bin/Release/net8.0/BridgeServer.dll");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const getText = (url) => new Promise((res, rej) => http.get(url, (r) => { let b = ""; r.on("data", (d) => (b += d)); r.on("end", () => res(b)); }).on("error", rej));
@@ -105,7 +105,7 @@ async function test(name, fn) {
 }
 
 (async () => {
-  for (const f of [HOST_DLL, SERVER_DLL]) if (!fs.existsSync(f)) { console.log("missing " + f + " (build MakanNativeHost and tests/BridgeServer in Release first)"); process.exit(2); }
+  for (const f of [HOST_DLL, SERVER_DLL]) if (!fs.existsSync(f)) { console.log("missing " + f + " (build EpsilonNativeHost and tests/BridgeServer in Release first)"); process.exit(2); }
   await getText(BASE + "/__reset");
 
   // =================================================== "always ask" OFF: everything starts immediately

@@ -502,7 +502,7 @@ public sealed class IntelligentCenterWindow : Window
 
     void ExportBasket()
     {
-        var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "Text (*.txt)|*.txt", FileName = "makan-download-basket.txt" };
+        var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "Text (*.txt)|*.txt", FileName = "epsilon-download-basket.txt" };
         if (dialog.ShowDialog(this) != true) return;
         try { File.WriteAllLines(dialog.FileName, App.Basket.Items); }
         catch (Exception ex) { Dlg.Show(this, ex.Message, "Basket", MessageBoxButton.OK, MessageBoxImage.Warning); }
@@ -516,7 +516,7 @@ public sealed class IntelligentCenterWindow : Window
 
     void BackupDatabase()
     {
-        var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "Makan database backup (*.db)|*.db", FileName = "makan-download-manager-backup.db" };
+        var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "Epsilon database backup (*.db)|*.db", FileName = "epsilon-download-manager-backup.db" };
         if (dialog.ShowDialog(this) != true) return;
         try
         {

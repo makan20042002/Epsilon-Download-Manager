@@ -20,6 +20,6 @@ Developer mode is only needed when testing an unpublished source build. For deve
 - Sites listed under "Don't take over these sites" always use the browser.
 
 ## Architecture
-The extension talks to `MakanNativeHost.exe` (native messaging). It forwards each request over a named pipe to the running desktop app, starting it in the background if needed. The desktop app owns the queue and the download engine.
+The extension talks to `EpsilonNativeHost.exe` (native messaging). It forwards each request over a named pipe to the running desktop app, starting it in the background if needed. The desktop app owns the queue and the download engine.
 
 `background.js`, `popup.html` and `popup.js` are identical in `browser-extension-firefox`; keep the two copies in sync.

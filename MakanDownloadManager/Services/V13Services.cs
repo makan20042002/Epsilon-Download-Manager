@@ -137,7 +137,9 @@ public static class DownloadStateManifest
 {
     sealed record State(string Url, string FilePath, long? TotalBytes, long DoneBytes, string? ETag, string? LastModified, int Connections, DateTime UpdatedUtc);
 
-    public static string PathFor(DownloadItem item) => item.FilePath + ".makan-state.json";
+    public static string PathFor(DownloadItem item) => item.FilePath + ".epsilon-state.json";
+    public static string LegacyPathFor(DownloadItem item) => item.FilePath + ".makan-state.json";
+    public static string ExistingPathFor(DownloadItem item) => File.Exists(PathFor(item)) ? PathFor(item) : LegacyPathFor(item);
 
     static bool _loggedFailure;   // this runs on every progress update of every active download, so a repeated failure (e.g. disk full) is logged once per session, not flooded
 
@@ -150,6 +152,7 @@ public static class DownloadStateManifest
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = false }));
             File.Move(tmp, path, true);
+            try { File.Delete(LegacyPathFor(item)); } catch { }
             _loggedFailure = false;
         }
         catch (Exception ex)
@@ -162,6 +165,8 @@ public static class DownloadStateManifest
     {
         try { File.Delete(PathFor(item)); } catch { }
         try { File.Delete(PathFor(item) + ".tmp"); } catch { }
+        try { File.Delete(LegacyPathFor(item)); } catch { }
+        try { File.Delete(LegacyPathFor(item) + ".tmp"); } catch { }
     }
 }
 

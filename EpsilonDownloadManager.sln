@@ -2,9 +2,9 @@
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MakanDownloadManager", "MakanDownloadManager\MakanDownloadManager.csproj", "{7C1D3D5E-8C70-4A4A-9C7A-7D9E9E8F5B11}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EpsilonDownloadManager", "MakanDownloadManager\EpsilonDownloadManager.csproj", "{7C1D3D5E-8C70-4A4A-9C7A-7D9E9E8F5B11}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MakanNativeHost", "MakanNativeHost\MakanNativeHost.csproj", "{97B8A68F-8F22-4A6A-A47F-5DE75398BBDF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EpsilonNativeHost", "MakanNativeHost\EpsilonNativeHost.csproj", "{97B8A68F-8F22-4A6A-A47F-5DE75398BBDF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
