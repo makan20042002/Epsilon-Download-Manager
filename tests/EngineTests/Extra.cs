@@ -630,7 +630,7 @@ static class Extra
     static async Task HostRelay()
     {
         var dll = FindHostDll();
-        if (dll == null) { T.Check("MakanNativeHost.dll built (run `dotnet build` in MakanNativeHost first)", false); return; }
+        if (dll == null) { T.Check("EpsilonNativeHost.dll built (run `dotnet build` in MakanNativeHost first)", false); return; }
         var dir = Sub();
         using var manager = new DownloadManager(new MemoryStore());
         using var bridge = new NativeBridge(manager, () => dir);
@@ -744,7 +744,7 @@ static class Extra
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (d != null)
         {
-            var candidate = Path.Combine(d.FullName, "MakanNativeHost", "bin", "Release", "net8.0", "MakanNativeHost.dll");
+            var candidate = Path.Combine(d.FullName, "MakanNativeHost", "bin", "Release", "net8.0", "EpsilonNativeHost.dll");
             if (File.Exists(candidate)) return candidate;
             d = d.Parent;
         }

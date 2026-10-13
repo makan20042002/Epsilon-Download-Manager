@@ -298,7 +298,7 @@ static class V15Tests
         var noDir = RunUpdater("--manifest", "https://example.invalid/m.json", "--install-dir", Path.Combine(install, "nope"));
         T.Check("a missing install folder is refused", noDir.Code == 1 && noDir.Error.Contains("Install folder"), noDir.Error);
         var otherProcess = RunUpdater("--manifest", "https://example.invalid/m.json", "--install-dir", install, "--process", "notepad");
-        T.Check("only Makan itself may be stopped", otherProcess.Code == 1 && otherProcess.Error.Contains("Only the MakanDownloadManager"), otherProcess.Error);
+        T.Check("only Epsilon itself may be stopped", otherProcess.Code == 1 && otherProcess.Error.Contains("Only the EpsilonDownloadManager"), otherProcess.Error);
         T.Check("the installation was not touched by any of them", File.ReadAllText(Path.Combine(install, "EpsilonDownloadManager.exe")) == "new app");
         return Task.CompletedTask;
     }
