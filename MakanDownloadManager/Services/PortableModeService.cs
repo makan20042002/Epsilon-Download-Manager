@@ -4,7 +4,7 @@ namespace MakanDownloadManager.Services;
 public static class PortableModeService
 {
     const string MarkerFile = "portable.mode";
-    const string EnvironmentVariable = "MAKAN_PORTABLE";
+    const string EnvironmentVariable = "EPSILON_V2_PORTABLE";
 
     public static string ApplicationDirectory => AppContext.BaseDirectory;
 
@@ -24,5 +24,8 @@ public static class PortableModeService
 
     public static string DataDirectory => IsPortable
         ? Path.Combine(ApplicationDirectory, "data")
-        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MakanDownloadManager");
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductIdentity.DataDirectoryName);
+
+    public static string LegacyDataDirectory =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductIdentity.LegacyDataDirectoryName);
 }

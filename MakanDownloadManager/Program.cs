@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows;
+using MakanDownloadManager.Services;
 
 namespace MakanDownloadManager;
 
@@ -19,7 +20,7 @@ public static class Program
         {
             try
             {
-                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MakanDownloadManager");
+                var dir = PortableModeService.DataDirectory;
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "startup_crash.txt"), ex.ToString());
             }

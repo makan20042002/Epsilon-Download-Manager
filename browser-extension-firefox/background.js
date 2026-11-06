@@ -214,7 +214,14 @@ function recordMedia(tabId, entry) {
   enqueue(async () => {
     const list = await loadTab(tabId);
     const key = entry.url.split("#")[0];
-    if (list.some((e) => e.url === key)) return;
+    const existing = list.find((e) => e.url === key);
+    if (existing) {
+      if (!existing.size && entry.size) existing.size = entry.size;
+      if (!existing.type && entry.type) existing.type = entry.type;
+      if (!existing.referrer && entry.referrer) existing.referrer = entry.referrer;
+      await saveTab(tabId);
+      return;
+    }
     list.push({ ...entry, url: key, at: Date.now() });
     if (list.length > 60) list.shift();
     menuCache.delete(tabId);
@@ -424,10 +431,17 @@ async function buildMenu(tabId, directUrl) {
   answers.forEach((r) => (r?.streams || []).forEach((st) => { if (st.url) covered.add(st.url); if (st.audioUrl) covered.add(st.audioUrl); }));
 
   const items = [];
+  const sourceHint = (entry) => {
+    try {
+      const u = new URL(entry.url), name = decodeURIComponent(u.pathname.split("/").filter(Boolean).pop() || "stream").slice(0, 48);
+      return `${u.hostname} / ${name}`;
+    } catch { return t("detected stream"); }
+  };
   media.forEach((entry) => {
+    const itemTitle = media.length > 1 ? `${title} — ${sourceHint(entry)}` : title;
     if (entry.kind === "file") {
       const extension = fileExtension(entry);
-      items.push({ text: `${title}, ${extension.toUpperCase()} ${t("file")}${sizeLabel(entry.size)}`, action: { type: "file", entry, fileName: `${title}.${extension}` } });
+      items.push({ text: `${itemTitle}, ${extension.toUpperCase()} ${t("file")}${sizeLabel(entry.size)}`, action: { type: "file", entry, fileName: `${itemTitle}.${extension}` } });
       return;
     }
     const answer = answers[lookups.indexOf(entry)];
@@ -437,8 +451,8 @@ async function buildMenu(tabId, directUrl) {
     const streams = answer.streams.slice().sort((a, b) => (a.height || 0) - (b.height || 0) || (a.bitrate || 0) - (b.bitrate || 0));
     streams.forEach((st) => (st.kind === "dash" ? ["mp4"] : ["ts", "mp4"]).forEach((format) => {   // DASH is always fragmented MP4
       const dur = durationLabel(st.duration);
-      items.push({ text: `${title}, ${format.toUpperCase()} ${t("file")}, ${dur ? dur + ", " : ""}${t("quality")} ${shownQuality(st)}${bitrateLabel(st)}${estimateLabel(st)}${st.audioUrl ? " " + t("(+ audio track)") : ""}`,
-                   action: { type: "stream", stream: st, format, entry, title } });
+      items.push({ text: `${itemTitle}, ${format.toUpperCase()} ${t("file")}, ${dur ? dur + ", " : ""}${t("quality")} ${shownQuality(st)}${bitrateLabel(st)}${estimateLabel(st)}${st.audioUrl ? " " + t("(+ audio track)") : ""}`,
+                   action: { type: "stream", stream: st, format, entry, title: itemTitle } });
     }));
   });
   if (items.length === 0 && isHttp(pageUrl)) items.push(...(await buildYtMenu(pageUrl, title, false)));   // e.g. embedded players yt-dlp knows

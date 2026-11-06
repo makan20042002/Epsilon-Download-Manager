@@ -51,18 +51,12 @@
 
             <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,16,0,6"/>
             <ComboBox x:Name="ThemeBox" Width="220" HorizontalAlignment="Left">
-              <ComboBoxItem Content="Obsidian Gold"/>
-              <ComboBoxItem Content="Platinum Blue"/>
-              <ComboBoxItem Content="Royal Amethyst"/>
-              <ComboBoxItem Content="Emerald Executive"/>
-              <ComboBoxItem Content="Champagne Minimal"/>
-              <ComboBoxItem Content="Graphite Copper"/>
-              <ComboBoxItem Content="Sapphire Noir"/>
-              <ComboBoxItem Content="Rose Titanium"/>
-              <ComboBoxItem Content="Arctic Glass"/>
-              <ComboBoxItem Content="Crystal Noir Glass"/>
-              <ComboBoxItem Content="Dracula"/>
-              <ComboBoxItem Content="Makan Lab"/>
+              <ComboBoxItem Content="Arctic Blue"/>
+              <ComboBoxItem Content="Jade Mint"/>
+              <ComboBoxItem Content="Warm Ivory"/>
+              <ComboBoxItem Content="Midnight Blue"/>
+              <ComboBoxItem Content="Graphite Gold"/>
+              <ComboBoxItem Content="Royal Plum"/>
               <ComboBoxItem Content="Follow Windows"/>
             </ComboBox>
             <TextBlock Text="The theme changes as soon as you press OK." Foreground="{DynamicResource Muted}" Margin="0,6,0,0"/>
@@ -182,7 +176,7 @@
                 <TextBlock Text="FFmpeg" FontWeight="SemiBold" Grid.Row="2" Margin="0,3"/><TextBlock x:Name="FfmpegStatus" Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" Margin="0,3"/>
               </Grid>
             </Border>
-            <CheckBox x:Name="InstallFfmpeg" Content="Also download FFmpeg (large, needed for videos above 360p and for MP3)" Margin="0,12,0,0"/>
+            <CheckBox x:Name="InstallFfmpeg" Content="Also download FFmpeg (required to combine YouTube video and sound, and for MP3)" Margin="0,12,0,0"/>
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
               <Button x:Name="InstallButton" Content="Download / update tools" Click="InstallTools_Click" Style="{StaticResource PrimaryButton}" Margin="0"/>
               <TextBlock x:Name="InstallStatus" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
@@ -217,7 +211,7 @@
             <!-- Speed limiter (moved here from the toolbar) -->
             <TextBlock Text="Speed limiter" FontWeight="SemiBold" FontSize="14" Margin="0,20,0,4"/>
             <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                       Text="Caps the speed of ordinary downloads. Torrents have their own limits in Options &gt; BitTorrent."/>
+                       Text="Caps the speed of ordinary downloads. Torrents have their own limits in Options &gt; Torrent."/>
             <CheckBox x:Name="SpeedLimitOn" Content="Limit download speed"/>
             <StackPanel Margin="26,8,0,0" IsEnabled="{Binding ElementName=SpeedLimitOn, Path=IsChecked}">
               <StackPanel Orientation="Horizontal">
@@ -252,12 +246,36 @@
               <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
               <TextBlock Text="Retry a dropped network after" VerticalAlignment="Center"/>
               <TextBox x:Name="MultiNetRetryBox" Grid.Column="1" Text="5" TextAlignment="Right"/>
-              <TextBlock Grid.Column="2" Text="minutes" Foreground="{DynamicResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="2" Text="minutes (0.5 = 30 s)" Foreground="{DynamicResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center"/>
             </Grid>
 
             <TextBlock Text="Default connections per download" Margin="0,16,0,0"/>
-            <Slider x:Name="Connections" Minimum="1" Maximum="16" Value="8" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,6,0,0"/>
+            <Slider x:Name="Connections" Minimum="1" Maximum="48" Value="8" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,6,0,0"/>
             <TextBlock Text="{Binding ElementName=Connections, Path=Value, StringFormat={}{0:0}}" FontWeight="SemiBold"/>
+            <TextBlock Text="8 is recommended. 32 is high performance; 48 is an advanced maximum and adaptive mode may lower it for throttling servers." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/>
+
+            <TextBlock Text="Automatic retry after a temporary error" FontWeight="SemiBold" Margin="0,18,0,6"/>
+            <TextBlock Text="Epsilon keeps the partial file and reconnects automatically for timeouts, dropped connections, HTTP 429 and temporary server errors. Permanent errors such as 403, 404 or a full disk are not retried." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock Text="Maximum retry attempts" VerticalAlignment="Center"/>
+              <TextBox x:Name="RetryAttemptsBox" Grid.Column="1" Text="6" TextAlignment="Right"/>
+              <TextBlock Grid.Column="2" Text="(0 = do not retry)" Foreground="{DynamicResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock Text="Stop retrying after" VerticalAlignment="Center"/>
+              <TextBox x:Name="RetryWindowBox" Grid.Column="1" Text="30" TextAlignment="Right"/>
+              <TextBlock Grid.Column="2" Text="seconds" Foreground="{DynamicResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
+
+            <CheckBox x:Name="AutoRetryLaterBox" Content="If a download still stops on a temporary problem, come back and try again by itself (like IDM)" Margin="0,16,0,0"/>
+            <Grid Margin="26,6,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="194"/><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock Text="Times to come back" VerticalAlignment="Center"/>
+              <TextBox x:Name="AutoRetryRoundsBox" Grid.Column="1" Text="5" TextAlignment="Right"/>
+              <TextBlock Grid.Column="2" Text="after 30 s, 1 min, 2 min, 5 min, 10 min" Foreground="{DynamicResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
 
             <CheckBox x:Name="AutoResume" Content="Resume unfinished downloads by themselves when Epsilon starts" Margin="0,18,0,0"/>
             <CheckBox x:Name="KeepAwake" Content="Keep the computer awake while files are downloading" Margin="0,10,0,0"/>
@@ -280,7 +298,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="BitTorrent">
+      <TabItem Header="Torrent">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="24,18">
             <TextBlock Text="Connection" FontWeight="SemiBold"/>
@@ -294,6 +312,7 @@
             <CheckBox x:Name="TorrentDht" Content="Enable DHT (find peers for a magnet link even without a working tracker)" Margin="0,4,0,0"/>
             <CheckBox x:Name="TorrentPex" Content="Enable peer exchange (learn about more peers from the ones already connected)" Margin="0,8,0,0"/>
             <CheckBox x:Name="TorrentPortMapping" Content="Automatically open the listening port with UPnP or NAT-PMP" Margin="0,8,0,0"/>
+            <CheckBox x:Name="TorrentUtp" Content="Use uTP (UDP) connections too — reaches more peers and is gentler on your internet" Margin="0,8,0,0"/>
             <TextBlock Text="Protocol encryption" Margin="0,14,0,6"/>
             <ComboBox x:Name="TorrentEncryptionBox" Width="360" HorizontalAlignment="Left">
               <ComboBoxItem Content="Prefer encrypted connections (recommended)"/>
@@ -394,6 +413,7 @@
       </TabItem>
 
       <TabItem Header="Remote">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24,18">
           <TextBlock Text="View your downloads and add new ones from a phone's browser, on the same Wi-Fi/network - without a separate app." TextWrapping="Wrap" Margin="0,0,0,4"/>
           <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,14"
@@ -402,14 +422,40 @@
           <StackPanel x:Name="RemoteDetails" Margin="26,12,0,0">
             <DockPanel Margin="0,0,0,10">
               <TextBlock Text="Port:" VerticalAlignment="Center"/>
-              <TextBox x:Name="RemotePortBox" Width="90" Margin="8,0,0,0" HorizontalAlignment="Left" DockPanel.Dock="Left"/>
+              <TextBox x:Name="RemotePortBox" Width="90" Margin="8,0,0,0" HorizontalAlignment="Left" DockPanel.Dock="Left" TextChanged="RemotePortBox_TextChanged"/>
             </DockPanel>
             <TextBlock Text="Open this on your phone's browser:" Margin="0,0,0,6"/>
             <TextBox x:Name="RemoteUrlBox" IsReadOnly="True" FontFamily="Consolas"/>
-            <Button x:Name="RemoteCopyButton" Content="Copy" Click="RemoteCopy_Click" Padding="12,5" Margin="0,8,0,0" HorizontalAlignment="Left"/>
-            <Button x:Name="RemoteNewTokenButton" Content="Get a new address (invalidates the old one)" Click="RemoteNewToken_Click" Padding="12,5" Margin="0,8,0,0" HorizontalAlignment="Left"/>
+            <Grid Margin="0,12,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Border Background="White" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="10" Padding="10" Width="210" Height="210" HorizontalAlignment="Left">
+                <Image x:Name="RemoteQrImage" Stretch="Uniform"/>
+              </Border>
+              <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="Scan this QR code with your phone's camera." FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock x:Name="RemoteQrHint" Text="The phone and this PC must be connected to the same private Wi-Fi or local network." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                <Button x:Name="RemoteCopyButton" Content="Copy address" Click="RemoteCopy_Click" Padding="12,5" Margin="0,12,0,0" HorizontalAlignment="Left"/>
+                <Button x:Name="RemoteNewTokenButton" Content="Get a new address (invalidates the old one)" Click="RemoteNewToken_Click" Padding="12,5" Margin="0,8,0,0" HorizontalAlignment="Left"/>
+              </StackPanel>
+            </Grid>
+
+            <Expander Header="Phone connection guide" IsExpanded="True" Margin="0,18,0,0">
+              <Border Style="{StaticResource CardBorder}" Padding="16" Margin="0,8,0,0">
+                <StackPanel>
+                  <TextBlock Text="1. Connect the phone and this computer to the same Wi-Fi or local network." TextWrapping="Wrap" Margin="0,0,0,7"/>
+                  <TextBlock Text="2. Turn on the remote status page above, choose a port, then press OK to start it." TextWrapping="Wrap" Margin="0,0,0,7"/>
+                  <TextBlock Text="3. If Windows Firewall asks, allow Epsilon only on Private networks. Do not allow it on public networks." TextWrapping="Wrap" Margin="0,0,0,7"/>
+                  <TextBlock Text="4. Open Options → Remote again and scan the QR code with the phone camera, or copy the address into the phone browser." TextWrapping="Wrap" Margin="0,0,0,7"/>
+                  <TextBlock Text="5. Keep Epsilon running on the computer. Closing its main window to the tray is fine." TextWrapping="Wrap"/>
+                  <Separator Margin="0,14"/>
+                  <TextBlock Text="If it does not connect" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                  <TextBlock Text="• Confirm both devices are on the same network and that mobile data or a VPN is not routing the phone elsewhere.&#x0a;• Make sure the network is marked Private in Windows.&#x0a;• Try another port if another program is already using this one.&#x0a;• Guest Wi-Fi often blocks devices from seeing each other; use the normal home Wi-Fi instead.&#x0a;• Generate a new address if you think someone else has learned the old one." Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </Expander>
           </StackPanel>
         </StackPanel>
+        </ScrollViewer>
       </TabItem>
     </TabControl>
   </DockPanel>

@@ -89,7 +89,7 @@ public static class ThemeManager
     public static void Apply(string? mode)
     {
         var resolved = ThemePalette.Resolve(mode, WindowsUsesDarkApps());
-        var dark = resolved is "obsidian-gold" or "royal-amethyst" or "emerald-executive" or "graphite-copper" or "sapphire-noir" or "rose-titanium" or "arctic-glass" or "crystal-noir" or "dracula" or "makan-lab";
+        var dark = ThemePalette.IsDarkTheme(resolved);
         var resources = Application.Current.Resources;
         var p = ThemePalette.For(resolved);
         foreach (var (name, hex) in p) resources[name] = Brush(hex);
@@ -115,7 +115,98 @@ public static class ThemeManager
 
         IsDark = dark;
         Current = resolved;
+        ApplyGlass(resources, p, dark, resolved);
         foreach (Window window in Application.Current.Windows) ApplyToWindow(window);
+    }
+
+    static Color ColorOf(string hex) { var (a, r, g, b) = ThemePalette.ParseArgb(hex); return Color.FromArgb(a, r, g, b); }
+    static Color WithAlpha(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
+
+    /// <summary>
+    /// The "frosted glass" look: panels and cards become translucent over a soft aurora background (blurred colour glows from the
+    /// theme's own accents) and get a bright glass edge. Done for every theme from the palette, so all themes stay consistent.
+    /// </summary>
+    static void ApplyGlass(ResourceDictionary resources, IReadOnlyDictionary<string, string> p, bool dark, string theme)
+    {
+        try
+        {
+            void Tint(string key, byte alpha) { var brush = new SolidColorBrush(WithAlpha(ColorOf(p[key]), alpha)); brush.Freeze(); resources[key] = brush; }
+            if (theme != "crystal-noir")   // crystal-noir already uses the real Windows acrylic backdrop
+            {
+                Tint("Surface", dark ? (byte)0xB4 : (byte)0x9C);
+                Tint("Panel", dark ? (byte)0x9A : (byte)0x74);
+                Tint("Panel2", dark ? (byte)0x8C : (byte)0x66);
+                Tint("HeaderBg", dark ? (byte)0x8A : (byte)0x6A);
+                Tint("Track", dark ? (byte)0xA0 : (byte)0xA0);
+                Tint("Input", dark ? (byte)0xB8 : (byte)0xD6);
+            }
+            Tint("Hover", dark ? (byte)0xB0 : (byte)0xC0);
+            Tint("Selected", dark ? (byte)0xC0 : (byte)0xD0);
+
+            var bg = ColorOf(p["Bg"]); var accent = ColorOf(p["Accent"]); var teal = ColorOf(p["IconTeal"]); var purple = ColorOf(p["IconPurple"]);
+            var group = new DrawingGroup();
+            group.Children.Add(new GeometryDrawing(new SolidColorBrush(bg), null, new RectangleGeometry(new Rect(0, 0, 100, 100))));
+            void Glow(Color c, byte alpha, double cx, double cy, double radius)
+            {
+                var g = new RadialGradientBrush { Center = new Point(cx, cy), GradientOrigin = new Point(cx, cy), RadiusX = radius, RadiusY = radius };
+                g.GradientStops.Add(new GradientStop(WithAlpha(c, alpha), 0));
+                g.GradientStops.Add(new GradientStop(WithAlpha(c, 0), 1));
+                group.Children.Add(new GeometryDrawing(g, null, new RectangleGeometry(new Rect(0, 0, 100, 100))));
+            }
+            if (theme == "crystal-noir") { var t = new SolidColorBrush(WithAlpha(bg, 0x30)); t.Freeze(); resources["Aurora"] = t; }
+            else
+            {
+                {
+                    try
+                    {
+                        var file = theme switch { "mint-glass" => "bg-mint-glass", "champagne-minimal" => "bg-sunrise-sand", "sapphire-noir" => "bg-midnight-blue", "graphite-copper" => "bg-graphite-cyan", "royal-amethyst" => "bg-aurora-violet", _ => "bg-glass-light" };
+                        var img = new System.Windows.Media.Imaging.BitmapImage(new Uri($"pack://application:,,,/Assets/{file}.png", UriKind.Absolute));
+                        img.Freeze();
+                        group.Children.Add(new ImageDrawing(img, new Rect(0, 0, 100, 100)));
+                    }
+                    catch (Exception) { /* the plain colour background stays */ }
+                }
+                if (theme == "platinum-blue")
+                {
+                    // Arctic Blue is the main theme: its look stays exactly as it was approved
+                    Glow(teal, (byte)0x30, 0.06, 0.0, 0.75);
+                    Glow(purple, (byte)0x28, 0.98, 1.0, 0.80);
+                    Glow(accent, (byte)0x28, 0.95, 0.0, 0.55);
+                    Glow(teal, (byte)0x28, 0.0, 1.0, 0.55);
+                }
+                else
+                {
+                    // the other themes glow only in their OWN accent (teal + purple glows on every theme made them muddy)
+                    var accentDark = ColorOf(p["AccentDark"]);
+                    Glow(accent, dark ? (byte)0x34 : (byte)0x1C, 0.04, 0.0, 0.70);
+                    Glow(accentDark, dark ? (byte)0x30 : (byte)0x16, 0.98, 1.0, 0.75);
+                }
+                group.ClipGeometry = new RectangleGeometry(new Rect(0, 0, 100, 100));   // nothing may stick out and change the stretch
+                group.Freeze();
+                var brush = new DrawingBrush(group) { Stretch = Stretch.Fill }; brush.Freeze();
+                resources["Aurora"] = brush;
+            }
+
+            var edge = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+            if (dark)
+            {
+                edge.GradientStops.Add(new GradientStop(Color.FromArgb(0x70, 255, 255, 255), 0));
+                edge.GradientStops.Add(new GradientStop(Color.FromArgb(0x1C, 255, 255, 255), 0.45));
+                edge.GradientStops.Add(new GradientStop(WithAlpha(teal, 0x50), 1));
+            }
+            else
+            {
+                edge.GradientStops.Add(new GradientStop(Color.FromArgb(0xFF, 255, 255, 255), 0));
+                edge.GradientStops.Add(new GradientStop(Color.FromArgb(0x90, 255, 255, 255), 0.35));
+                edge.GradientStops.Add(new GradientStop(WithAlpha(ColorOf(p["Border"]), 0x80), 0.7));
+                edge.GradientStops.Add(new GradientStop(WithAlpha(ColorOf(p["Border"]), 0xC0), 1));
+            }
+            edge.Freeze();
+            resources["GlassEdge"] = edge;
+            var track = new SolidColorBrush(dark ? Color.FromArgb(0x30, 255, 255, 255) : Color.FromArgb(0x30, 0x30, 0x58, 0x90)); track.Freeze();
+            resources["BarTrack"] = track;
+        }
+        catch (Exception) { /* cosmetic only: the plain theme colours stay in place */ }
     }
 
     static void Override(ResourceDictionary resources, object key, string hex) => resources[key] = Brush(hex);

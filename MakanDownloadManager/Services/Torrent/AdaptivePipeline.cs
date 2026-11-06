@@ -41,7 +41,7 @@ public sealed class AdaptivePipeline
     readonly object _rttLock = new();
 
     public double SmoothedRttMs { get; private set; } = 150.0; // default 150ms initial estimate
-    public int DynamicTargetDepth { get; private set; } = 16;
+    public int DynamicTargetDepth { get; private set; } = 24;
     public int RequestsFulfilled { get; set; }
     public int RequestsTimedOut { get; set; }
     public int RequestsCanceled { get; set; }
@@ -108,7 +108,7 @@ public sealed class AdaptivePipeline
     /// Calculates the optimal request depth for this peer based on throughput, RTT, and health.
     /// Formula: TargetDepth = Clamp( (Throughput * (RTT + 100ms)) / BlockSize, Min, Max )
     /// </summary>
-    public int CalculateOptimalDepth(long currentDownloadBytesPerSec, int minDepth = 8, int maxDepth = 128)
+    public int CalculateOptimalDepth(long currentDownloadBytesPerSec, int minDepth = 16, int maxDepth = 256)
     {
         if (currentDownloadBytesPerSec <= 0)
         {

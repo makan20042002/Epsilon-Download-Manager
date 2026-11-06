@@ -18,8 +18,10 @@ public enum SpeedLimitScope
 /// </summary>
 public sealed partial class DownloadManager : IDisposable
 {
-    public const int MaxConnectionsPerDownload = 16;
-    const int MaxRetries = RetryPolicy.MaxAttempts - 1;
+    // V2 keeps the normal default conservative, but lets advanced users select the
+    // requested 32/48-way modes. The adaptive controller can still reduce this on
+    // servers that throttle or do not benefit from many ranges.
+    public const int MaxConnectionsPerDownload = 48;
 
     enum Intent { None, Pause, Cancel }
 
@@ -51,6 +53,15 @@ public sealed partial class DownloadManager : IDisposable
 
     public int MaxActive { get => Volatile.Read(ref _maxActive); set => Volatile.Write(ref _maxActive, Math.Clamp(value, 1, 16)); }
     public int DefaultConnections { get => Volatile.Read(ref _defaultConnections); set => Volatile.Write(ref _defaultConnections, Math.Clamp(value, 1, MaxConnectionsPerDownload)); }
+    public int RetryAttempts { get; set; } = 6;
+    /// <summary>IDM-style: a download that stopped on a temporary problem comes back by itself after a pause (30 s, 1 min, 2 min, 5 min ...), this many times.</summary>
+    public bool AutoRetryLater { get; set; } = true;
+    public int AutoRetryRounds { get; set; } = 5;
+    static readonly int[] AutoRetryDelaysSeconds = { 30, 60, 120, 300, 600 };
+    /// <summary>Tests only: replaces the 30 s, 1 min, 2 min ... pauses.</summary>
+    public TimeSpan[]? AutoRetryDelays { get; set; }
+    internal TimeSpan AutoRetryDelay(int round) => AutoRetryDelays is { Length: > 0 } d ? d[Math.Clamp(round, 0, d.Length - 1)] : TimeSpan.FromSeconds(AutoRetryDelaysSeconds[Math.Clamp(round, 0, AutoRetryDelaysSeconds.Length - 1)]);
+    public TimeSpan RetryWindow { get; set; } = TimeSpan.FromSeconds(30);
     /// <summary>Where partial files (.part / .seg) live while downloading; empty = next to the final file. A download that already has parts keeps using them.</summary>
     public string? TempDirectory { get; set; }
     /// <summary>After a download completes, give the file the server's Last-Modified date (IDM: "Set file creation date as provided by the server").</summary>
@@ -68,9 +79,13 @@ public sealed partial class DownloadManager : IDisposable
     internal int SuggestConnections(DownloadItem item, int wanted)
     {
         if (!AdaptiveConnectionsEnabled || !Uri.TryCreate(item.Url, UriKind.Absolute, out var uri)) return wanted;
-        var count = AdaptiveConnections.Suggest(uri, wanted);
-        if (SmartController != null) count = Math.Min(count, SmartController.Suggest(uri, wanted));
-        return Math.Clamp(count, 1, wanted);
+        var count = AdaptiveConnections.Suggest(uri, wanted);                       // may be MORE than asked once this server has proven it can take it
+        if (SmartController != null)
+        {
+            var careful = SmartController.Suggest(uri, wanted);                   // never more than asked; lower when the server throttled before
+            count = count > wanted ? (careful >= wanted ? count : careful) : Math.Min(count, careful);
+        }
+        return Math.Clamp(count, 1, Math.Max(wanted, AdaptiveConnectionService.SmartMaxConnections));
     }
     /// <summary>Optional V13 rule engine applied immediately before a new item is persisted.</summary>
     public DownloadRuleEngine? RuleEngine { get; set; }
@@ -166,6 +181,26 @@ public sealed partial class DownloadManager : IDisposable
 
         foreach (var item in _store.Load())
         {
+            // v1.8.0 briefly accepted yt-dlp's video-only .f399-sr.mp4 as a completed movie when FFmpeg was
+            // missing. Repair that persisted row so Resume can reuse both component files and merge them.
+            if (Is(item, DownloadStatus.Complete) && YtDlpService.TryGetSelection(item.Url, out _, out var ytKey))
+            {
+                try
+                {
+                    var repaired = YtDlpService.ExpectedFinalPath(item.FilePath, YtDlpService.PlanFor(ytKey));
+                    if (!string.Equals(repaired, item.FilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        item.FilePath = repaired;
+                        item.DiskLoadedBytes = YtDlpService.ExistingPartialBytes(Path.ChangeExtension(repaired, null));
+                        item.DoneBytes = item.DiskLoadedBytes;
+                        Set(item, DownloadStatus.Failed);
+                        item.FinishedAt = null;
+                        item.LastError = YtDlpService.FfmpegRequiredMessage;
+                        _store.Save(item);
+                    }
+                }
+                catch (ArgumentException) { /* damaged old selection: leave it visible exactly as stored */ }
+            }
             if (Is(item, DownloadStatus.Downloading))
             {
                 Set(item, _autoResume ? DownloadStatus.Queued : DownloadStatus.Paused);
@@ -277,7 +312,7 @@ public sealed partial class DownloadManager : IDisposable
         lock (_stateGate)
         {
             if (_jobs.ContainsKey(item.Id)) return;
-            item.RetryCount = 0;
+            item.RetryCount = 0; item.AutoRetryRound = 0; item.AutoRetryAt = null;
             item.LastError = null;
             item.FinishedAt = null;
             Set(item, DownloadStatus.Queued);
@@ -378,6 +413,16 @@ public sealed partial class DownloadManager : IDisposable
             var now = DateTime.UtcNow;
             // MaxActive limits downloads started on their own; a queue decides how many of ITS files run at once.
             var loose = _jobs.Keys.Count(id => !(_items.TryGetValue(id, out var running) && running.QueueName != null));
+            // Failed on a temporary problem and its pause is over: queue it again (items of a running queue are handled by that queue).
+            foreach (var failed in _items.Values.Where(x => Is(x, DownloadStatus.Failed) && x.AutoRetryAt.HasValue && x.AutoRetryAt.Value <= now).ToList())
+            {
+                failed.AutoRetryAt = null;
+                if (failed.QueueName != null && (QueueControlled?.Invoke(failed) ?? false)) continue;
+                failed.AutoRetryRound++;
+                failed.LastError = null; failed.FinishedAt = null;
+                Set(failed, DownloadStatus.Queued);
+                _store.Save(failed);
+            }
             foreach (var item in _items.Values
                          .Where(x => Is(x, DownloadStatus.Queued))
                          .OrderByDescending(x => x.Priority)
@@ -413,7 +458,8 @@ public sealed partial class DownloadManager : IDisposable
             _store.Save(item);
 
             Exception? last = null;
-            for (var attempt = 0; attempt <= MaxRetries; attempt++)
+            Stopwatch? retryClock = null;
+            for (var attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -439,14 +485,19 @@ public sealed partial class DownloadManager : IDisposable
                     item.LastError = null;
                     attempt--;
                 }
-                catch (Exception ex) when (attempt < MaxRetries && RetryPolicy.IsTransient(ex))
+                catch (Exception ex) when (RetryPolicy.IsTransient(ex) || (ex is OperationCanceledException && !ct.IsCancellationRequested))   // a timeout nobody asked for is a temporary problem, never "Stop"
                 {
                     last = ex;
+                    retryClock ??= Stopwatch.StartNew();
+                    var delay = RetryPolicy.DelayFor(ex, attempt);
+                    var remaining = RetryWindow - retryClock.Elapsed;
+                    if (attempt >= RetryAttempts || remaining <= TimeSpan.Zero) break;
+                    if (delay > remaining) delay = remaining;
                     item.RetryCount = attempt + 1;
-                    item.LastError = $"Retrying: {ex.Message}";
+                    item.LastError = Loc.F("Retrying in {0} s ({1}/{2}): {3}", Math.Max(1, (int)Math.Ceiling(delay.TotalSeconds)), attempt + 1, RetryAttempts, ex.Message);
                     _store.Save(item);
                     _diagnostics.Error($"Transient download error for #{item.Id}, retry {attempt + 1}", ex);
-                    await Task.Delay(RetryPolicy.DelayFor(ex, attempt), ct);
+                    await Task.Delay(delay, ct);
                 }
                 catch (Exception ex)
                 {
@@ -455,9 +506,11 @@ public sealed partial class DownloadManager : IDisposable
                 }
             }
 
+            // A timeout that nobody asked for must not leave here as a cancellation: the catch below would show it as "Stopped".
+            if (last is OperationCanceledException && !ct.IsCancellationRequested) last = new TimeoutException("The server did not answer in time.");
             if (last != null) ExceptionDispatchInfo.Capture(last).Throw();
 
-            if (AdaptiveConnectionsEnabled && Uri.TryCreate(item.Url, UriKind.Absolute, out var successUri)) AdaptiveConnections.ReportSuccess(successUri);
+            if (AdaptiveConnectionsEnabled && Uri.TryCreate(item.Url, UriKind.Absolute, out var successUri)) AdaptiveConnections.ReportSuccess(successUri, item.TotalBytes ?? item.DoneBytes, item.StartedAt.HasValue ? DateTime.UtcNow - item.StartedAt.Value : TimeSpan.Zero, item.UsedConnections);
             SmartController?.ReportSuccess(item, item.StartedAt.HasValue ? DateTime.UtcNow - item.StartedAt.Value : TimeSpan.FromSeconds(1));
             Set(item, DownloadStatus.Complete);
             item.DoneBytes = item.TotalBytes ?? item.DoneBytes;
@@ -506,10 +559,18 @@ public sealed partial class DownloadManager : IDisposable
             item.EtaText = "—";
             item.FinishedAt = DateTime.UtcNow;
             item.LastError = ex.Message;
+            // Like IDM: a temporary problem is not the end. The download waits a while and starts again by itself.
+            var comeBack = AutoRetryLater && item.AutoRetryRound < AutoRetryRounds && (RetryPolicy.IsTransient(ex) || RetryPolicy.IsNetworkFailure(ex));
+            if (comeBack)
+            {
+                var wait = AutoRetryDelay(item.AutoRetryRound);
+                item.AutoRetryAt = DateTime.UtcNow + wait;
+                item.LastError = Loc.F("Will try again in {0} s ({1}/{2}): {3}", (int)wait.TotalSeconds, item.AutoRetryRound + 1, AutoRetryRounds, ex.Message);
+            }
             _store.Save(item);
             _store.AddHistory(item, "Failed", ex.Message);
             _diagnostics.Error($"Download #{item.Id} failed", ex);
-            Notification?.Invoke(item, "Download failed");
+            if (!comeBack) Notification?.Invoke(item, "Download failed");
         }
         finally
         {

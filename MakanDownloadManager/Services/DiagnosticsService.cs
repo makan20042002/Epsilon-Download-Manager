@@ -10,7 +10,7 @@ public sealed class DiagnosticsService
 
     public DiagnosticsService()
     {
-        DirectoryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MakanDownloadManager", "logs");
+        DirectoryPath = Path.Combine(PortableModeService.DataDirectory, "logs");
         Directory.CreateDirectory(DirectoryPath);
     }
 

@@ -8,7 +8,7 @@ public static class ThemePalette
     public static readonly string[] Names =
     [
         "obsidian-gold", "platinum-blue", "royal-amethyst", "emerald-executive", "champagne-minimal",
-        "graphite-copper", "sapphire-noir", "rose-titanium", "arctic-glass", "crystal-noir", "dracula", "makan-lab"
+        "graphite-copper", "sapphire-noir", "rose-titanium", "arctic-glass", "crystal-noir", "dracula", "makan-lab", "mint-glass"
     ];
 
     public static readonly IReadOnlyDictionary<string, string> ObsidianGold = Palette(
@@ -16,15 +16,20 @@ public static class ThemePalette
         "#E0B75A", "#A97822", "#120E05", "#28231A", "#3A2F1C", "#64D68A", "#FF6B6B", "#F4C66A", "#13251A",
         "#11100D", "#181611", "#0D0C09", "#4A3B22", "#181611", "#D8C7A0", "#C69CFF", "#63D6C5", "#E0B75A", "#4A3B22", "#E0B75A", "#6E634E");
 
+    public static readonly IReadOnlyDictionary<string, string> MintGlass = Palette(
+        "#EAF9F2", "#F3FCF8", "#D8F1E6", "#FFFFFF", "#C6E8DB", "#14392F", "#476F63", "#7A9C92", "#FFFFFF",
+        "#0A8268", "#066350", "#FFFFFF", "#E1F5EE", "#CBEBDF", "#197347", "#B4233E", "#9A5700", "#DDF3E8",
+        "#F3FCF8", "#D8F1E6", "#FFFFFF", "#B5DACE", "#FFFFFF", "#4D6B62", "#5B6BD6", "#1FB5A0", "#9A5700", "#B5DACE", "#0A8268", "#8AA39B");
+
     public static readonly IReadOnlyDictionary<string, string> PlatinumBlue = Palette(
-        "#EAF4FF", "#F4F9FF", "#DCEBFA", "#FFFFFF", "#B7CEE6", "#12263F", "#4D6680", "#7890A8", "#FFFFFF",
-        "#1467D8", "#0C4FAE", "#FFFFFF", "#E2EFFC", "#C8DFFF", "#197347", "#B4233E", "#9A5700", "#E1F3EA",
-        "#F4F9FF", "#DCEBFA", "#FFFFFF", "#AFC8E2", "#FFFFFF", "#536B84", "#7047B8", "#08798A", "#9A5700", "#AFC8E2", "#1467D8", "#8B9DB0");
+        "#EFF7FF", "#F5FAFF", "#E3F0FC", "#FFFFFF", "#D5E5F5", "#173456", "#52708F", "#7E98B4", "#FFFFFF",
+        "#0772EA", "#1554AD", "#FFFFFF", "#E7F3FF", "#DCEEFF", "#197347", "#B4233E", "#9A5700", "#E1F3EA",
+        "#F5FAFF", "#E3F0FC", "#FFFFFF", "#BFD6EC", "#FFFFFF", "#536B84", "#4F6BED", "#26B3FF", "#9A5700", "#BFD6EC", "#0772EA", "#8B9DB0");
 
     public static readonly IReadOnlyDictionary<string, string> RoyalAmethyst = Palette(
-        "#0C081A", "#150D2C", "#211343", "#2A1854", "#54338B", "#F8F2FF", "#C7B5E5", "#856AAA", "#180A2A",
-        "#A873F0", "#6C2CC1", "#FFFFFF", "#321E61", "#432777", "#55DDA6", "#FF668C", "#F4C96B", "#142A24",
-        "#150D2C", "#211343", "#100921", "#54338B", "#211343", "#C7B5E5", "#C794FF", "#63D8EA", "#F4C96B", "#54338B", "#A873F0", "#6E5C86");
+        "#21162D", "#2A1C3A", "#35244A", "#3A284F", "#53396F", "#F4EDFB", "#C0B0D6", "#8E7AA8", "#1B0F2B",
+        "#B98AF5", "#9566DD", "#1B0F2B", "#45305E", "#50367A", "#55D9A6", "#FF7392", "#FFBE55", "#123027",
+        "#2A1C3A", "#35244A", "#1A1024", "#53396F", "#35244A", "#C0B0D6", "#D6A8FF", "#5ADBE6", "#FFBE55", "#53396F", "#B98AF5", "#7A6A92");
 
     public static readonly IReadOnlyDictionary<string, string> EmeraldExecutive = Palette(
         "#061412", "#08221D", "#0D3029", "#123B32", "#245C4E", "#EDFFF9", "#A7D7C8", "#5E9B89", "#041410",
@@ -32,19 +37,19 @@ public static class ThemePalette
         "#08221D", "#0D3029", "#071A17", "#245C4E", "#0D3029", "#A7D7C8", "#BD91FF", "#45D8AE", "#F1C75B", "#245C4E", "#45D8AE", "#52796E");
 
     public static readonly IReadOnlyDictionary<string, string> ChampagneMinimal = Palette(
-        "#F6F0E7", "#FBF7F1", "#EDE2D2", "#FFFFFF", "#D7C2A4", "#2D241A", "#6F5E49", "#9C8870", "#FFFFFF",
-        "#9B682D", "#754817", "#FFFFFF", "#F1E7D8", "#E6D3B7", "#287546", "#B52D3E", "#965400", "#E5F1E8",
-        "#FBF7F1", "#EDE2D2", "#FFFFFF", "#CFB999", "#FFFFFF", "#6F5E49", "#724AA2", "#1F7480", "#9B682D", "#CFB999", "#9B682D", "#A2927D");
+        "#FFF7ED", "#FFFBF5", "#F9EAD6", "#FFFFFF", "#EBD7BC", "#3A2412", "#74553A", "#A58A70", "#FFFFFF",
+        "#C2531A", "#9A3E10", "#FFFFFF", "#FCEBD8", "#F8DDBF", "#197347", "#B4233E", "#8A5200", "#E3F1E4",
+        "#FFFBF5", "#F9EAD6", "#FFFFFF", "#DFC6A5", "#FFFFFF", "#7A5B3F", "#7E57C2", "#1E9C95", "#8A5200", "#DFC6A5", "#C2531A", "#A99B8A");
 
     public static readonly IReadOnlyDictionary<string, string> GraphiteCopper = Palette(
-        "#0C0C0C", "#151311", "#201A16", "#29211B", "#5A3C28", "#FFF4EC", "#D6B9A5", "#8D6D58", "#180B04",
-        "#E28A4D", "#9B4D20", "#FFFFFF", "#32251D", "#463020", "#66D796", "#FF6B64", "#F2B95C", "#14271C",
-        "#151311", "#201A16", "#100E0D", "#5A3C28", "#201A16", "#D6B9A5", "#C59BFF", "#60D1C0", "#E28A4D", "#5A3C28", "#E28A4D", "#745E50");
+        "#191B21", "#20232A", "#292D36", "#2D313B", "#434955", "#F5F1E8", "#B4B0A6", "#7F8088", "#1A1406",
+        "#E9AD4B", "#C48A2C", "#1A1406", "#353A45", "#43391F", "#5BD88F", "#FF7080", "#F4C66A", "#17291F",
+        "#20232A", "#292D36", "#15171C", "#434955", "#2D313B", "#B4B0A6", "#B79CFF", "#5ADBE6", "#E9AD4B", "#434955", "#E9AD4B", "#7F8088");
 
     public static readonly IReadOnlyDictionary<string, string> SapphireNoir = Palette(
-        "#030A17", "#071429", "#0B2140", "#102B50", "#1B477A", "#EFF7FF", "#A7C4E5", "#5C83AD", "#030A17",
-        "#2E86FF", "#1558C0", "#FFFFFF", "#123561", "#174474", "#51DBA3", "#FF657A", "#F4C65B", "#0C2A22",
-        "#071429", "#0B2140", "#050F20", "#1B477A", "#0B2140", "#A7C4E5", "#A98CFF", "#45CFEA", "#F4C65B", "#1B477A", "#2E86FF", "#4E6B8B");
+        "#050E1F", "#0A1A33", "#10264A", "#122E55", "#23497D", "#EAF3FF", "#A5C0E3", "#6A8CB4", "#06142B",
+        "#4BA0FF", "#2E86FF", "#06142B", "#17376A", "#1D4682", "#4ED6A8", "#FF6B7D", "#FFB44A", "#0E2D28",
+        "#0A1A33", "#10264A", "#081428", "#23497D", "#10264A", "#A5C0E3", "#A98CFF", "#45CFEA", "#FFB44A", "#23497D", "#4BA0FF", "#5A7596");
 
     public static readonly IReadOnlyDictionary<string, string> IvoryLuxe = Palette(
         "#F8F4EC", "#FFFDF8", "#ECE5D8", "#FFFFFF", "#D8CBB8", "#2A241B", "#6B604F", "#9B8C75", "#FFFFFF",
@@ -78,6 +83,9 @@ public static class ThemePalette
         "#58A6FF", "#2F81F7", "#07111F", "#152238", "#1B3150", "#4ED6A8", "#FF6B7D", "#FFB44A", "#102A24",
         "#0A0E17", "#111A28", "#080C14", "#293A55", "#101724", "#A9B6C8", "#B79CFF", "#55D6E8", "#FFB44A", "#293A55", "#58A6FF", "#59677A");
 
+    /// <summary>True for the themes with a dark window.</summary>
+    public static bool IsDarkTheme(string resolved) => resolved is not ("platinum-blue" or "mint-glass" or "champagne-minimal");
+
     public static string Normalize(string? theme)
     {
         var value = (theme ?? "").Trim().ToLowerInvariant();
@@ -103,6 +111,7 @@ public static class ThemePalette
     {
         "obsidian-gold" => ObsidianGold,
         "platinum-blue" => PlatinumBlue,
+        "mint-glass" => MintGlass,
         "royal-amethyst" => RoyalAmethyst,
         "emerald-executive" => EmeraldExecutive,
         "champagne-minimal" => ChampagneMinimal,

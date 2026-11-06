@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS  Connects Chrome, Edge, Brave and Firefox to Epsilon Download Manager (per-user, no admin rights needed).
 .DESCRIPTION
-  Registers the native-messaging host (EpsilonNativeHost.exe) for each browser, then CHECKS the result
+  Registers the V2 native-messaging host (EpsilonNativeHost.exe) for each browser, then CHECKS the result
   (registry entries, manifest files, and a real round-trip with EpsilonNativeHost.exe) and prints what it found.
   Run it from the published Epsilon folder (or the project folder that contains "publish").
   -Check      only run the checks, change nothing
@@ -16,9 +16,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $HostName = 'com.makan.downloadmanager'
-$dataDir  = Join-Path $env:LOCALAPPDATA 'MakanDownloadManager\native-host'
+$dataDir  = Join-Path $env:LOCALAPPDATA 'EpsilonDownloadManager2\native-host'
 $chromeManifest  = Join-Path $dataDir 'epsilon-download-manager.chrome.json'
 $firefoxManifest = Join-Path $dataDir 'epsilon-download-manager.firefox.json'
+$backupFile = Join-Path $dataDir 'previous-registration.json'
 $targets = @(
   @{ Name = 'Chrome';  Key = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$HostName";                 Manifest = $chromeManifest },
   @{ Name = 'Edge';    Key = "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$HostName";                 Manifest = $chromeManifest },
@@ -74,6 +75,7 @@ function Show-Status {
     try { $m = Get-Content -Raw -Path $value | ConvertFrom-Json } catch { Write-Host ("  [BROKEN]  {0,-8} manifest is not valid JSON: {1}" -f $t.Name, $value) -ForegroundColor Red; $ok = $false; continue }
     if ($m.name -ne $HostName) { Write-Host ("  [BROKEN]  {0,-8} manifest name is '{1}', expected '{2}'" -f $t.Name, $m.name, $HostName) -ForegroundColor Red; $ok = $false; continue }
     if (-not (Test-Path $m.path)) { Write-Host ("  [BROKEN]  {0,-8} host program not found: {1}" -f $t.Name, $m.path) -ForegroundColor Red; $ok = $false; continue }
+    if ([IO.Path]::GetFileName([string]$m.path) -ne 'EpsilonNativeHost.exe') { Write-Host ("  [V1 ACTIVE] {0,-8} is still connected to {1}" -f $t.Name, $m.path) -ForegroundColor Yellow; $ok = $false; continue }
     Write-Host ("  [OK]      {0,-8} -> {1}" -f $t.Name, $m.path) -ForegroundColor Green
   }
   $exe = (Get-RegDefault $targets[0].Key)
@@ -90,9 +92,19 @@ function Show-Status {
 }
 
 if ($Uninstall) {
-  foreach ($t in $targets) { if (Test-Path $t.Key) { Remove-Item $t.Key -Recurse -Force } }
+  $previous = $null
+  if (Test-Path $backupFile) { try { $previous = @(Get-Content -Raw $backupFile | ConvertFrom-Json) } catch { $previous = $null } }
+  foreach ($t in $targets) {
+    $current = Get-RegDefault $t.Key
+    if ($current -notin @($chromeManifest, $firefoxManifest)) { continue }
+    $saved = @($previous | Where-Object { $_.Key -eq $t.Key } | Select-Object -First 1)
+    if ($saved.Count -gt 0 -and $saved[0].Value) {
+      New-Item -Path $t.Key -Force | Out-Null
+      Set-ItemProperty -Path $t.Key -Name '(Default)' -Value ([string]$saved[0].Value)
+    } elseif (Test-Path $t.Key) { Remove-Item $t.Key -Recurse -Force }
+  }
   if (Test-Path $dataDir) { Remove-Item $dataDir -Recurse -Force }
-  Write-Host 'Browser integration removed.'
+  Write-Host 'V2 browser integration removed; the previous V1 registration was restored when available.'
   return
 }
 
@@ -109,6 +121,11 @@ if (-not (Test-Path (Join-Path $InstallDir 'EpsilonDownloadManager.exe'))) { thr
 $hostExe = (Resolve-Path $hostExe).Path
 
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+# Save the exact browser registration V2 is about to replace. This makes V2 uninstall reversible and keeps V1 intact.
+if (-not (Test-Path $backupFile)) {
+  $previous = @($targets | ForEach-Object { [pscustomobject]@{ Key = $_.Key; Value = Get-RegDefault $_.Key } })
+  [IO.File]::WriteAllText($backupFile, ($previous | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
+}
 $exeJson = $hostExe.Replace('\', '\\')
 # Written without a byte-order mark: browsers reject native-host manifests that start with one.
 $utf8 = New-Object System.Text.UTF8Encoding($false)

@@ -97,6 +97,7 @@
   let host = null, shadow = null, bar = null, menu = null;
   let canAll = true;
   let hiddenForPage = false, menuOpen = false, mediaCount = 0, anchorVideo = null, mode = null;
+  let manualPosition = null, dragState = null;
   let timer = null, tickCount = 0, shadowVideos = [], lastChildActive = 0, lastReport = "";
 
   const CSS = `
@@ -127,6 +128,8 @@
     .tool { width: var(--tool-size); height: var(--tool-size); line-height: calc(var(--tool-size) - 2px); text-align: center; border: 1px solid var(--tool-border);
             border-radius: 2px; background: var(--tool-bg); color: var(--tool-fg); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .12s ease; }
     .tool:hover { background: var(--tool-hover); }
+    .drag { cursor: grab; touch-action: none; color: var(--accent); }
+    .drag.active { cursor: grabbing; background: var(--tool-hover); }
     .menu { position: absolute; top: 100%; left: 0; margin-top: 6px; min-width: 250px; max-width: min(92vw, 760px); max-height: 64vh; overflow: auto;
             background: var(--menu-bg); color: var(--menu-fg); border: 1px solid var(--menu-border); border-radius: var(--radius); box-shadow: var(--menu-shadow);
             font-size: 13px; padding: 6px; }
@@ -159,15 +162,33 @@
     const arrow = document.createElement("span"); arrow.className = "arrow"; arrow.textContent = "▶";
     const label = document.createElement("span"); label.textContent = t("Download this video");
     main.append(arrow, label);
+    const drag = document.createElement("div"); drag.className = "tool drag"; drag.textContent = "⠿"; drag.title = t("Drag to move this button");
     const help = document.createElement("div"); help.className = "tool"; help.textContent = "?"; help.title = t("Open Epsilon Download Manager");
     const close = document.createElement("div"); close.className = "tool"; close.textContent = "✕"; close.title = t("Hide this button on this page");
-    bar.append(main, help, close);
+    bar.append(drag, main, help, close);
     menu = document.createElement("div"); menu.className = "menu"; menu.hidden = true;
     shadow.append(style, bar, menu);
     mount();
     applyTheme();
 
     main.addEventListener("click", (e) => { e.stopPropagation(); menuOpen ? closeMenu() : openMenu(); });
+    drag.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const left = parseFloat(host.style.left) || 0, top = parseFloat(host.style.top) || 0;
+      dragState = { id: e.pointerId, x: e.clientX, y: e.clientY, left, top };
+      drag.classList.add("active");
+      try { drag.setPointerCapture(e.pointerId); } catch { /* capture is best effort */ }
+    });
+    drag.addEventListener("pointermove", (e) => {
+      if (!dragState || dragState.id !== e.pointerId) return;
+      const width = bar?.offsetWidth || 190, height = bar?.offsetHeight || 34;
+      const left = Math.max(4, Math.min(window.innerWidth - width - 4, dragState.left + e.clientX - dragState.x));
+      const top = Math.max(4, Math.min(window.innerHeight - height - 4, dragState.top + e.clientY - dragState.y));
+      manualPosition = { left, top };
+      host.style.left = left + "px"; host.style.top = top + "px"; placeMenu();
+    });
+    const finishDrag = (e) => { if (!dragState || dragState.id !== e.pointerId) return; dragState = null; drag.classList.remove("active"); };
+    drag.addEventListener("pointerup", finishDrag); drag.addEventListener("pointercancel", finishDrag);
     help.addEventListener("click", (e) => { e.stopPropagation(); send({ type: "open" }); });
     close.addEventListener("click", (e) => { e.stopPropagation(); hiddenForPage = true; closeMenu(); host.style.display = "none"; });
     document.addEventListener("mousedown", (e) => { if (menuOpen && !e.composedPath().includes(host)) closeMenu(); }, true);
@@ -303,7 +324,13 @@
     if (!host) build();
     mount();
     host.style.display = "block";
-    if (mode === "anchored") {
+    if (manualPosition) {
+      const width = bar?.offsetWidth || 190, height = bar?.offsetHeight || 34;
+      manualPosition.left = Math.max(4, Math.min(window.innerWidth - width - 4, manualPosition.left));
+      manualPosition.top = Math.max(4, Math.min(window.innerHeight - height - 4, manualPosition.top));
+      host.style.left = manualPosition.left + "px";
+      host.style.top = manualPosition.top + "px";
+    } else if (mode === "anchored") {
       const r = video.getBoundingClientRect();
       host.style.left = Math.max(4, Math.min(window.innerWidth - 60, r.left + 8)) + "px";
       host.style.top = Math.max(4, r.top + 8) + "px";

@@ -15,6 +15,7 @@ public partial class SchedulerWindow : Window
     public SchedulerWindow(int? selectQueueId = null)
     {
         InitializeComponent();
+        GridColumnLimit.Attach(FilesList);
         RefreshList(selectQueueId ?? App.Queues.Main.Id);
         App.Queues.Changed += OnQueuesChanged;
         Closed += (_, _) => App.Queues.Changed -= OnQueuesChanged;
@@ -134,7 +135,7 @@ public partial class SchedulerWindow : Window
         s.OnceDate = OnceDate.SelectedDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         s.LastStartedOn = null;   // a changed schedule may fire again today
         s.StopAtEnabled = StopAt.IsChecked == true; s.StopTime = stop;
-        s.RetriesEnabled = RetriesOn.IsChecked == true; s.Retries = retries;
+        s.RetriesEnabled = RetriesOn.IsChecked == true; s.Retries = retries; s.RetryRulesVersion = 1;
         s.OpenFileEnabled = OpenOn.IsChecked == true; s.OpenFile = string.IsNullOrWhiteSpace(OpenPath.Text) ? null : OpenPath.Text.Trim();
         s.ExitWhenDone = ExitOn.IsChecked == true;
         s.PowerOffWhenDone = PowerOn.IsChecked == true; s.PowerAction = (PowerAction)Math.Max(0, PowerBox.SelectedIndex); s.ForcePowerOff = ForceOn.IsChecked == true;

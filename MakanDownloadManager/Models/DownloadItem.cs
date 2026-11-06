@@ -25,19 +25,26 @@ public sealed class DownloadItem : INotifyPropertyChanged
     long? _total;
     public long? TotalBytes { get => _total; set { _total = value; Changed(); Changed(nameof(SizeDisplay)); Changed(nameof(StatusText)); } }
     long _doneBytes;
-    public long DoneBytes { get => _doneBytes; set { _doneBytes = value; Changed(); Changed(nameof(SizeDisplay)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
+    public long DoneBytes { get => _doneBytes; set { _doneBytes = value; Changed(); Changed(nameof(SizeDisplay)); Changed(nameof(DownloadedDisplay)); Changed(nameof(RemainingDisplay)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
     long _diskLoadedBytes;
     /// <summary>In-memory only: bytes recovered from existing partial files when this run resumed.</summary>
     public long DiskLoadedBytes { get => _diskLoadedBytes; set { _diskLoadedBytes = Math.Max(0, value); Changed(); Changed(nameof(DiskLoadPercent)); Changed(nameof(DiskLoadText)); } }
     public double DiskLoadPercent => TotalBytes is > 0 ? Math.Clamp(DiskLoadedBytes * 100.0 / TotalBytes.Value, 0, 100) : 0;
     public string DiskLoadText => DiskLoadedBytes > 0 ? Loc.F("Loaded {0} from disk", FormatBytes(DiskLoadedBytes)) : Loc.T("No saved data loaded from disk");
     /// <summary>Configured (maximum) connections for this download.</summary>
-    public int Connections { get; set; } = 4;
+    int _connections = 4;
+    public int Connections { get => _connections; set { _connections = Math.Clamp(value, 1, DownloadManager.MaxConnectionsPerDownload); Changed(); Changed(nameof(ConnectionsDisplay)); } }
     public long SpeedLimitBytesPerSec { get; set; }
     public int StatusCode { get; set; }
-    DateTime? _started, _finished;
+    DateTime? _created, _started, _finished;
+    public DateTime? CreatedAt { get => _created; set { _created = value; Changed(); Changed(nameof(DateAddedDisplay)); } }
     public DateTime? StartedAt { get => _started; set { _started = value; Changed(); Changed(nameof(LastTry)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
     public DateTime? FinishedAt { get => _finished; set { _finished = value; Changed(); Changed(nameof(LastTry)); Changed(nameof(FinishedDisplay)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
+    /// <summary>In-memory only: automatic "come back later" rounds already used, and when the next one is due (IDM-style).</summary>
+    public int AutoRetryRound { get; set; }
+    public DateTime? AutoRetryAt { get; set; }
+    /// <summary>In-memory only: connections the engine actually opened on the last start (for the smart increase).</summary>
+    public int UsedConnections { get; set; }
     int _retryCount;
     public int RetryCount { get => _retryCount; set { _retryCount = value; Changed(); } }
 
@@ -78,12 +85,12 @@ public sealed class DownloadItem : INotifyPropertyChanged
     string _peers = "";
     int _activeConnections;
 
-    public string FilePath { get => _filePath; set { _filePath = value; Changed(); Changed(nameof(FileName)); Changed(nameof(CategoryName)); Changed(nameof(TypeLabel)); Changed(nameof(TypeBadge)); Changed(nameof(TypeKind)); Changed(nameof(Glyph)); } }
+    public string FilePath { get => _filePath; set { _filePath = value; Changed(); Changed(nameof(FileName)); Changed(nameof(CategoryName)); Changed(nameof(TypeLabel)); Changed(nameof(TypeBadge)); Changed(nameof(TypeKind)); Changed(nameof(Glyph)); Changed(nameof(TileGlyph)); Changed(nameof(TileColor)); } }
     public string FileName => Path.GetFileName(_filePath);
     public string Category { get => _category; set { _category = value; Changed(); } }
     public string? LastError { get => _lastError; set { _lastError = value; Changed(); Changed(nameof(Description)); } }
     /// <summary>Connections actually in use right now (0 when idle).</summary>
-    public int ActiveConnections { get => _activeConnections; set { _activeConnections = value; Changed(); } }
+    public int ActiveConnections { get => _activeConnections; set { _activeConnections = value; Changed(); Changed(nameof(ConnectionsDisplay)); Changed(nameof(NetworkDisplay)); } }
 
     public double Progress { get => _progress; set { _progress = Math.Clamp(value, 0, 100); Changed(); Changed(nameof(StatusText)); Changed(nameof(RowStatusText)); } }
     public string Status { get => _status; set { _status = value; Changed(); Changed(nameof(StatusText)); Changed(nameof(RowStatusText)); Changed(nameof(TimeLeft)); Changed(nameof(Rate)); Changed(nameof(FinishedDisplay)); Changed(nameof(AverageSpeedText)); Changed(nameof(CompletionDetails)); } }
@@ -95,7 +102,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public string UpSpeedText { get => _upSpeed; set { _upSpeed = value; Changed(); } }
     /// <summary>Torrents only - "connected seeds (known peers)", the same format uTorrent/qBittorrent use. Blank for
     /// an ordinary HTTP download, which has no concept of peers.</summary>
-    public string PeersText { get => _peers; set { _peers = value; Changed(); } }
+    public string PeersText { get => _peers; set { _peers = value; Changed(); Changed(nameof(ConnectionsDisplay)); } }
 
     // ---- IDM-style list columns (read-only, derived) -------------------------------------------------------------
     public string CategoryName => CategoryService.For(FileName);
@@ -103,11 +110,14 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public string TypeBadge => TypeLabel.ToUpperInvariant();
     public string TypeKind => DownloadManager.IsTorrentUrl(Url) ? "torrent" : CategoryName == "Video" ? "video" : "file";
     public string TypeLabel => DownloadManager.IsTorrentUrl(Url) ? Loc.T("Torrent") : CategoryName == "Video" ? Loc.T("Video") : Loc.T("File");
+    /// <summary>Segoe MDL2 icon and colour for the file tile in the downloads table.</summary>
+    public string TileGlyph => DownloadManager.IsTorrentUrl(Url) ? "\uE8B7" : CategoryName switch { "Video" => "\uE714", "Music" => "\uE8D6", "Documents" => "\uE8A5", "Programs" => "\uE7B8", "Compressed" => "\uE8B7", _ => "\uE8A5" };
+    public string TileColor => DownloadManager.IsTorrentUrl(Url) ? "#7856D8" : CategoryName switch { "Video" => "#D3578D", "Music" => "#E8A33C", "Documents" => "#2E86E8", "Programs" => "#3E7BE0", "Compressed" => "#8A6BD6", _ => "#2AA6A0" };
     public string Glyph => CategoryName switch { "Video" => "🎞", "Music" => "🎵", "Documents" => "📄", "Programs" => "💿", "Compressed" => "🗜", "General" => "📁", _ => "📂" };
     string? _queueName;
     /// <summary>Name of the queue (scheduler) this download belongs to, if any. Set by <see cref="Services.QueueService"/>.</summary>
     public string? QueueName { get => _queueName; set { _queueName = value; Changed(); Changed(nameof(QueueMark)); } }
-    public string QueueMark => QueueName ?? "";
+    public string QueueMark => QueueName ?? "—";
     string? _note;
     /// <summary>A line of live information shown in the Description column while there is no error (torrents: speeds, peers, ratio).</summary>
     public string? Note { get => _note; set { _note = value; Changed(); Changed(nameof(Description)); Changed(nameof(RowStatusText)); } }
@@ -129,6 +139,13 @@ public sealed class DownloadItem : INotifyPropertyChanged
     }
     public string CompletionDetails => FinishedDisplay.Length == 0 ? "" : Loc.F("Finished {0} · Average {1}", FinishedDisplay, AverageSpeedText.Length > 0 ? AverageSpeedText : "—");
     public string SizeDisplay => TotalBytes is > 0 ? FormatBytes(TotalBytes.Value) : (DoneBytes > 0 ? FormatBytes(DoneBytes) : "");
+    public string DownloadedDisplay => FormatBytes(Math.Max(0, DoneBytes));
+    public string RemainingDisplay => TotalBytes is > 0 ? FormatBytes(Math.Max(0, TotalBytes.Value - DoneBytes)) : "—";
+    public string ConnectionsDisplay => DownloadManager.IsTorrentUrl(Url)
+        ? (string.IsNullOrWhiteSpace(PeersText) ? "—" : PeersText)
+        : ActiveConnections > 0 ? $"{ActiveConnections} / {Connections}" : $"0 / {Connections}";
+    public string NetworkDisplay => DownloadManager.IsTorrentUrl(Url) ? "P2P" : ActiveConnections > 0 ? "Internet" : "—";
+    public string DateAddedDisplay => CreatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture) ?? "—";
     public string StatusText
     {
         get

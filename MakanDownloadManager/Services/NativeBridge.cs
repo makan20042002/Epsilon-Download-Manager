@@ -89,8 +89,9 @@ public sealed class BridgeResponse
 /// </summary>
 public sealed class NativeBridge : IDisposable
 {
-    public const string PipeName = "com.makan.downloadmanager";
-    public const string Version = "1.7.1";
+    public const string HostName = ProductIdentity.NativeHostName;
+    public const string PipeName = ProductIdentity.NativePipeName;
+    public const string Version = ProductIdentity.Version;
     public static string EffectivePipeName => Environment.GetEnvironmentVariable("EPSILON_NATIVE_PIPE") is { Length: > 0 } value ? value : PipeName;
 
     static readonly JsonSerializerOptions In = new() { PropertyNameCaseInsensitive = true };
@@ -383,6 +384,9 @@ public sealed class NativeBridge : IDisposable
         if (!IsHttpUrl(r.Url)) return Fail("Only HTTP/HTTPS URLs are accepted.");
         YtPlan plan;
         try { plan = YtDlpService.PlanFor(r.Format ?? ""); } catch (ArgumentException ex) { return Fail(ex.Message); }
+        var yt = YtDlpProvider?.Invoke();
+        if (YtDlpService.RequiresFfmpeg(plan) && (string.IsNullOrWhiteSpace(yt?.FfmpegPath) || !File.Exists(yt.FfmpegPath)))
+            return new BridgeResponse { Ok = false, NeedsSetup = true, Error = YtDlpService.FfmpegRequiredMessage };
         var request = new StreamRequest(YtDlpService.WithSelection(r.Url!, plan.Key), null, Blank(r.Title) ?? "video", plan.OutputExtension, Blank(r.Cookie), Blank(r.Referrer), Blank(r.UserAgent), r.Size > 0 ? r.Size : null);
         return AddStreamRequest(request, r);
     }

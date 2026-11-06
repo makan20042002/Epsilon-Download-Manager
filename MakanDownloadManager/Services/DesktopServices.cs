@@ -91,7 +91,7 @@ public static class V15DiagnosticReport
             }, options),
             ["browser-status.json"] = JsonSerializer.Serialize(new
             {
-                nativeHostPresent = File.Exists(Path.Combine(AppContext.BaseDirectory, "EpsilonNativeHost.exe")),
+                nativeHostPresent = File.Exists(Path.Combine(AppContext.BaseDirectory, ProductIdentity.NativeHostExecutableName)),
                 browsers = WindowsIntegration.Browsers().Select(b => new { b.Name, b.Registered })
             }, options),
             ["database-status.json"] = JsonSerializer.Serialize(new

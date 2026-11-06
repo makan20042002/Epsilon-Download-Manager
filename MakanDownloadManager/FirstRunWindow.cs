@@ -18,6 +18,8 @@ public sealed class FirstRunWindow : Window
     readonly TextBlock _folderStatus = Stat();
     readonly Button _installToolsButton = new() { Content = Loc.T("Install now"), Padding = new Thickness(12, 5, 12, 5) };
     readonly ProgressBar _installBar = new() { Height = 4, Margin = new Thickness(0, 8, 0, 0), Visibility = Visibility.Collapsed, IsIndeterminate = true };
+    readonly TextBlock _migrationStatus = Stat();
+    readonly Button _importHistoryButton = new() { Content = "Import completed history", Padding = new Thickness(12, 5, 12, 5) };
 
     public FirstRunWindow(Window owner)
     {
@@ -41,6 +43,14 @@ public sealed class FirstRunWindow : Window
         headerText.Children.Add(Muted(Loc.T("Connect your browser, choose a download folder, and optionally install the video tools."), new Thickness(0)));
         header.Child = headerText;
         root.Children.Add(header);
+
+        if (V1MigrationService.IsAvailable)
+        {
+            _importHistoryButton.Click += ImportHistory_Click;
+            root.Children.Add(Section("✓", "Keep V1 safe",
+                "V2 uses its own database. Your safe preferences were copied once; active and incomplete V1 downloads are never imported.",
+                _migrationStatus, _importHistoryButton));
+        }
 
         var browserButtons = new WrapPanel { Margin = new Thickness(0, 11, 0, 0) };
         browserButtons.Children.Add(StoreButton("◉  " + Loc.T("Chrome Web Store"), Branding.ChromeExtensionUrl));
@@ -115,12 +125,35 @@ public sealed class FirstRunWindow : Window
         var connected = WindowsIntegration.Browsers().Any(b => b.Registered);
         _browserStatus.Text = Loc.T(connected ? "Desktop connection ready. Install the extension from your browser's official store." : "Browser connection needs repair. Reinstall Epsilon, then install the official extension.");
 
-        var ready = App.Manager.YtDlp is { } yt && File.Exists(yt.ExePath);
+        var ready = App.Manager.YtDlp is { } yt && File.Exists(yt.ExePath) &&
+                    !string.IsNullOrWhiteSpace(yt.FfmpegPath) && File.Exists(yt.FfmpegPath);
         _toolsStatus.Text = Loc.T(ready ? "Ready." : "Not installed yet - needed only for YouTube-style sites.");
         _installToolsButton.IsEnabled = !ready;
         _installToolsButton.Visibility = ready ? Visibility.Collapsed : Visibility.Visible;
 
         _folderStatus.Text = App.Settings.DefaultFolder;
+
+        if (V1MigrationService.IsAvailable)
+        {
+            var historyDone = V1MigrationService.HistoryAlreadyImported(App.Db);
+            _migrationStatus.Text = historyDone
+                ? "Completed V1 history has been copied. The V1 database was not changed."
+                : V1MigrationService.SettingsWereCopied
+                    ? $"Copied {V1MigrationService.CopiedSettingCount} preferences. Completed history is optional."
+                    : "V2 is separate from V1. Completed history can be copied once if you want it here.";
+            _importHistoryButton.IsEnabled = !historyDone;
+            _importHistoryButton.Visibility = historyDone ? Visibility.Collapsed : Visibility.Visible;
+        }
+    }
+
+    void ImportHistory_Click(object sender, RoutedEventArgs e)
+    {
+        _importHistoryButton.IsEnabled = false;
+        var count = V1MigrationService.ImportCompletedHistory(App.Db);
+        _migrationStatus.Text = count < 0
+            ? "The import could not be completed. V1 was not changed; see diagnostics for details."
+            : $"Imported {count} completed history entries. V1 was not changed.";
+        Refresh();
     }
 
     static void OpenUrl(string address)
@@ -138,6 +171,7 @@ public sealed class FirstRunWindow : Window
             var progress = new Progress<string>(_ => { });
             await installer.InstallYtDlpAsync(progress, System.Threading.CancellationToken.None);
             if (!File.Exists(installer.DenoPath)) await installer.InstallDenoAsync(progress, System.Threading.CancellationToken.None);
+            if (!File.Exists(installer.FfmpegPath)) await installer.InstallFfmpegAsync(progress, System.Threading.CancellationToken.None);
         }
         catch (Exception ex) { new DiagnosticsService().Error("Installing the video tools failed (from the first-run checklist)", ex); }
         finally { _installBar.Visibility = Visibility.Collapsed; App.RefreshYtDlp(); Refresh(); }

@@ -16,7 +16,7 @@ public static class DuplicateDetector
     {
         var url = items.FirstOrDefault(x => x.Id != candidate.Id && !string.IsNullOrWhiteSpace(candidate.Url) &&
             string.Equals(x.Url, candidate.Url, StringComparison.OrdinalIgnoreCase) && x.Status != nameof(DownloadStatus.Cancelled));
-        if (url != null) return new(MatchKind.SameUrl, url, "The same URL already exists in Makan.");
+        if (url != null) return new(MatchKind.SameUrl, url, "The same URL already exists in Epsilon.");
         var path = items.FirstOrDefault(x => x.Id != candidate.Id && !string.IsNullOrWhiteSpace(candidate.FilePath) &&
             string.Equals(Path.GetFullPath(x.FilePath), Path.GetFullPath(candidate.FilePath), StringComparison.OrdinalIgnoreCase) && x.Status != nameof(DownloadStatus.Cancelled));
         if (path != null) return new(MatchKind.SamePath, path, "Another download uses the same destination file.");
@@ -83,7 +83,14 @@ public sealed class DownloadStatisticsService
 /// </summary>
 public sealed class AdaptiveConnectionService
 {
-    sealed class Profile { public int Connections = 8; public int Max = 8; public DateTime LastChange = DateTime.UtcNow; public int Throttles; }
+    /// <summary>The smart increase never goes past this many connections (the user can still choose up to 48 by hand).</summary>
+    public const int SmartMaxConnections = 32;
+    sealed class Profile
+    {
+        public int Connections = 8; public int Max = 8; public DateTime LastChange = DateTime.UtcNow; public int Throttles;
+        public int Boost;               // extra connections this server has proven it can take
+        public int BestUsed; public double BestMbps; public bool BoostLocked;   // the best (connections, speed) seen so far
+    }
     readonly object _gate = new();
     readonly Dictionary<string, Profile> _profiles = new(StringComparer.OrdinalIgnoreCase);
 
@@ -97,20 +104,33 @@ public sealed class AdaptiveConnectionService
             if (p.Max != configured)
             {
                 if (p.Throttles == 0 || configured < p.Max) p.Connections = configured;
-                p.Max = configured;
+                p.Max = configured; p.Boost = 0; p.BestUsed = 0; p.BestMbps = 0; p.BoostLocked = false;
             }
             p.Connections = Math.Clamp(p.Connections, 1, p.Max);
-            return p.Connections;
+            var count = p.Connections;
+            if (p.Throttles == 0 && p.Connections >= p.Max && p.Boost > 0) count = Math.Min(SmartMaxConnections, Math.Max(p.Max, p.Max + p.Boost));
+            return count;
         }
     }
 
-    public void ReportSuccess(Uri uri)
+    /// <summary>A finished download. Big files that ran well on a server teach it to use a few more connections next time,
+    /// but only while more connections really gave more speed; as soon as they do not, the increase stops where it was best.</summary>
+    public void ReportSuccess(Uri uri, long bytes = 0, TimeSpan elapsed = default, int used = 0)
     {
         lock (_gate)
         {
             if (!_profiles.TryGetValue(uri.Host, out var p)) return;
             p.Throttles = Math.Max(0, p.Throttles - 1);
             if (DateTime.UtcNow - p.LastChange > TimeSpan.FromMinutes(2) && p.Connections < p.Max) { p.Connections++; p.LastChange = DateTime.UtcNow; }
+            if (bytes < 48L << 20 || elapsed.TotalSeconds < 8 || used < 2 || p.Throttles > 0) return;   // too small to learn anything from
+            var mbps = bytes * 8d / elapsed.TotalSeconds / 1_000_000d;
+            if (p.BestUsed > 0 && used > p.BestUsed && mbps < p.BestMbps * 1.08)
+            {
+                p.BoostLocked = true; p.Boost = Math.Max(0, p.BestUsed - p.Max);    // more connections did not help: go back to the best count
+                return;
+            }
+            if (used >= p.BestUsed) { p.BestUsed = used; p.BestMbps = Math.Max(p.BestMbps, mbps); }
+            if (!p.BoostLocked && used >= p.Max && used < SmartMaxConnections) p.Boost = Math.Min(SmartMaxConnections - p.Max, Math.Max(p.Boost, used - p.Max) + 4);
         }
     }
 
@@ -120,6 +140,7 @@ public sealed class AdaptiveConnectionService
         {
             if (!_profiles.TryGetValue(uri.Host, out var p)) p = _profiles[uri.Host] = new Profile();
             p.Throttles++; p.Connections = Math.Max(1, p.Connections / 2); p.LastChange = DateTime.UtcNow;
+            p.Boost = 0; p.BoostLocked = true;
         }
     }
 }

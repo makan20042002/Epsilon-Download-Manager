@@ -394,7 +394,8 @@ static class Extra
         var torrentDir = Sub();
         using var manager = new DownloadManager(new MemoryStore());
         using var server = new RemoteStatusServer(manager, () => dir, () => torrentDir);
-        var port = 39000 + Random.Shared.Next(2000);
+        int port;
+        { var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0); probe.Start(); port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port; probe.Stop(); }   // a port that is free right now, not a random guess
         server.Start(port, "secret-token");
         using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}/") };
 
@@ -514,7 +515,7 @@ static class Extra
         using var bridge = new NativeBridge(manager, () => dir);
         var chrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
         var firefox = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0";
-        var rules = new CaptureRules { FileTypes = "ZIP", ExcludedSites = "", Browsers = "chrome,edge" };
+        var rules = new CaptureRules { FileTypes = "ZIP", ExcludedSites = "", Browsers = "chrome,edge", LeaveLocalToBrowser = false };
         bridge.CaptureRulesProvider = () => rules;
         bridge.LanguageProvider = () => "fa";
         string Req(string path, string? file, string ua, string extra = "") => $"{{\"url\":\"{Base}{path}\",{(file != null ? $"\"filePath\":\"{file}\"," : "")}\"userAgent\":\"{ua}\"{extra}}}";

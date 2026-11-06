@@ -11,7 +11,7 @@ public sealed class SiteGrabber
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var baseUri) || baseUri.Scheme is not ("http" or "https")) throw new ArgumentException("Only HTTP/HTTPS pages are supported.");
         using var request = new HttpRequestMessage(HttpMethod.Get, baseUri);
-        request.Headers.TryAddWithoutValidation("User-Agent", "MakanDownloadManager/10");
+        request.Headers.TryAddWithoutValidation("User-Agent", "EpsilonDownloadManager/2");
         using var response = await _http.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
         var html = await response.Content.ReadAsStringAsync(ct);

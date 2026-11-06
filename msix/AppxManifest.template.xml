@@ -30,7 +30,7 @@
 
   <Applications>
     <Application
-      Id="EpsilonDownloadManager"
+      Id="EpsilonDownloadManager2"
       Executable="EpsilonDownloadManager.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
@@ -65,7 +65,7 @@
           Executable="EpsilonDownloadManager.exe"
           EntryPoint="Windows.FullTrustApplication">
           <desktop:StartupTask
-            TaskId="EpsilonDownloadManagerStartup"
+            TaskId="EpsilonDownloadManager2Startup"
             Enabled="false"
             DisplayName="Epsilon Download Manager" />
         </desktop:Extension>

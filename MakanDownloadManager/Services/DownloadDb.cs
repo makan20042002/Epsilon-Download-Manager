@@ -52,7 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_history_finished ON history(finished_at DESC);";
             integrity.CommandText = "PRAGMA integrity_check";
             var result = integrity.ExecuteScalar()?.ToString();
             if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("Makan's download database failed SQLite integrity_check: " + result);
+                throw new InvalidDataException("Epsilon's download database failed SQLite integrity_check: " + result);
             TryCreateBackup();
         }
     }
@@ -122,7 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_history_finished ON history(finished_at DESC);";
         Referrer = NullableStr(r,"referrer"), UserAgent = NullableStr(r,"user_agent"), ExpectedSha256 = NullableStr(r,"expected_sha256"),
         ETag = NullableStr(r,"etag"), LastModified = NullableStr(r,"last_modified"), Connections = I32(r,"connections",4),
         SpeedLimitBytesPerSec = I64(r,"speed_limit"), StatusCode = I32(r,"status_code"), StartedAt = Date(r,"started_at"),
-        FinishedAt = Date(r,"finished_at"), RetryCount = I32(r,"retry_count"), LastError = NullableStr(r,"last_error")
+        CreatedAt = Date(r,"created_at"), FinishedAt = Date(r,"finished_at"), RetryCount = I32(r,"retry_count"), LastError = NullableStr(r,"last_error")
         };
     }
 
@@ -137,9 +137,10 @@ CREATE INDEX IF NOT EXISTS idx_history_finished ON history(finished_at DESC);";
     {
         lock (_gate)
         {
+            x.CreatedAt ??= DateTime.UtcNow;
             using var c = _connection.CreateCommand();
             c.CommandText = @"INSERT INTO downloads(url,file_path,category,priority,status,scheduled_at,total_bytes,done_bytes,cookie,referrer,user_agent,expected_sha256,etag,last_modified,connections,speed_limit,status_code,started_at,finished_at,retry_count,last_error,created_at,updated_at)
-VALUES($u,$f,$cat,$p,$s,$sch,$t,$d,$co,$ref,$ua,$sha,$etag,$lm,$n,$lim,$code,$start,$finish,$retry,$err,$now,$now);SELECT last_insert_rowid();";
+VALUES($u,$f,$cat,$p,$s,$sch,$t,$d,$co,$ref,$ua,$sha,$etag,$lm,$n,$lim,$code,$start,$finish,$retry,$err,$created,$now);SELECT last_insert_rowid();";
             Bind(c,x);
             return Convert.ToInt64(c.ExecuteScalar());
         }
@@ -174,10 +175,11 @@ VALUES($u,$f,$cat,$p,$s,$sch,$t,$d,$co,$ref,$ua,$sha,$etag,$lm,$n,$lim,$code,$st
         c.Parameters.AddWithValue("$d",Math.Max(0,x.DoneBytes)); c.Parameters.AddWithValue("$co",(object?)(string.IsNullOrEmpty(x.Cookie) ? x.Cookie : SecretProtector.Protect(x.Cookie!))??DBNull.Value);
         c.Parameters.AddWithValue("$ref",(object?)x.Referrer??DBNull.Value); c.Parameters.AddWithValue("$ua",(object?)x.UserAgent??DBNull.Value);
         c.Parameters.AddWithValue("$sha",(object?)x.ExpectedSha256??DBNull.Value); c.Parameters.AddWithValue("$etag",(object?)x.ETag??DBNull.Value);
-        c.Parameters.AddWithValue("$lm",(object?)x.LastModified??DBNull.Value); c.Parameters.AddWithValue("$n",Math.Clamp(x.Connections,1,16));
+        c.Parameters.AddWithValue("$lm",(object?)x.LastModified??DBNull.Value); c.Parameters.AddWithValue("$n",Math.Clamp(x.Connections,1,DownloadManager.MaxConnectionsPerDownload));
         c.Parameters.AddWithValue("$lim",Math.Max(0,x.SpeedLimitBytesPerSec)); c.Parameters.AddWithValue("$code",x.StatusCode);
         c.Parameters.AddWithValue("$start",(object?)x.StartedAt?.ToString("O")??DBNull.Value); c.Parameters.AddWithValue("$finish",(object?)x.FinishedAt?.ToString("O")??DBNull.Value);
         c.Parameters.AddWithValue("$retry",Math.Max(0,x.RetryCount)); c.Parameters.AddWithValue("$err",(object?)x.LastError??DBNull.Value);
+        c.Parameters.AddWithValue("$created",(x.CreatedAt ?? DateTime.UtcNow).ToString("O"));
         c.Parameters.AddWithValue("$now",DateTime.UtcNow.ToString("O"));
     }
 
@@ -211,6 +213,26 @@ VALUES($u,$f,$cat,$p,$s,$sch,$t,$d,$co,$ref,$ua,$sha,$etag,$lm,$n,$lim,$code,$st
             c.Parameters.AddWithValue("$id",x.Id); c.Parameters.AddWithValue("$u",x.Url); c.Parameters.AddWithValue("$f",x.FilePath); c.Parameters.AddWithValue("$s",status);
             c.Parameters.AddWithValue("$st",(object?)x.StartedAt?.ToString("O")??DateTime.UtcNow.ToString("O"));
             c.Parameters.AddWithValue("$fi",(object?)x.FinishedAt?.ToString("O")??DateTime.UtcNow.ToString("O")); c.Parameters.AddWithValue("$e",(object?)error??DBNull.Value); c.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Adds a copied V1 history entry to V2. It never touches the V1 database or creates a live download.</summary>
+    public void AddImportedHistory(string url, string filePath, string status, string? startedAt, string? finishedAt, string? error)
+    {
+        lock (_gate)
+        {
+            var fallback = DateTime.UtcNow.ToString("O");
+            startedAt = string.IsNullOrWhiteSpace(startedAt) ? (string.IsNullOrWhiteSpace(finishedAt) ? fallback : finishedAt) : startedAt;
+            finishedAt = string.IsNullOrWhiteSpace(finishedAt) ? startedAt : finishedAt;
+            using var c = _connection.CreateCommand();
+            c.CommandText = "INSERT INTO history(download_id,url,file_path,status,started_at,finished_at,error) VALUES(0,$u,$f,$s,$st,$fi,$e)";
+            c.Parameters.AddWithValue("$u", url);
+            c.Parameters.AddWithValue("$f", filePath);
+            c.Parameters.AddWithValue("$s", status);
+            c.Parameters.AddWithValue("$st", startedAt);
+            c.Parameters.AddWithValue("$fi", finishedAt);
+            c.Parameters.AddWithValue("$e", (object?)error ?? DBNull.Value);
+            c.ExecuteNonQuery();
         }
     }
 

@@ -200,8 +200,8 @@ class H(BaseHTTPRequestHandler):
         if path.startswith("/tools/"):
             import zipfile as _zf, io as _io
             exe = b"MZ fake yt-dlp executable " + b"x" * 5000
-            deno_zip = _io.BytesIO(); z = _zf.ZipFile(deno_zip, "w"); z.writestr("deno.exe", b"MZ fake deno"); z.close(); deno_zip = deno_zip.getvalue()
-            ff_zip = _io.BytesIO(); z = _zf.ZipFile(ff_zip, "w"); z.writestr("ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe", b"MZ fake ffmpeg"); z.writestr("ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe", b"MZ fake ffprobe"); z.close(); ff_zip = ff_zip.getvalue()
+            deno_zip = _io.BytesIO(); z = _zf.ZipFile(deno_zip, "w"); z.writestr(_zf.ZipInfo("deno.exe", (2020, 1, 1, 0, 0, 0)), b"MZ fake deno"); z.close(); deno_zip = deno_zip.getvalue()
+            ff_zip = _io.BytesIO(); z = _zf.ZipFile(ff_zip, "w"); z.writestr(_zf.ZipInfo("ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe", (2020, 1, 1, 0, 0, 0)), b"MZ fake ffmpeg"); z.writestr(_zf.ZipInfo("ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe", (2020, 1, 1, 0, 0, 0)), b"MZ fake ffprobe"); z.close(); ff_zip = ff_zip.getvalue()
             table = {
                 "/tools/yt-dlp.exe": exe,
                 "/tools/SHA2-256SUMS": (sha(exe) + "  yt-dlp.exe\n" + "0" * 64 + "  yt-dlp\n").encode(),
@@ -216,6 +216,7 @@ class H(BaseHTTPRequestHandler):
         if path == "/ua.bin":
             with LOCK: STATS["ua"][self.path] = self.headers.get("User-Agent") or ""
             return self._data(SMALL, head)
+        if path == "/down503.bin": return self._plain(503, b"always unavailable")   # for the retry-setting tests: never recovers
         if path == "/notfound": return self._plain(404, b"nope")
         if path == "/forbidden": return self._plain(403, b"no")
         if path == "/html": return self._plain(200, b"<html>please log in</html>", "text/html")

@@ -31,7 +31,7 @@ public sealed class SpeedTestService
         // Low upload speeds can legitimately need much longer than the old 35-second limit.
         // Each transfer is still bounded by its payload and the caller's cancellation token.
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(90) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("EpsilonDownloadManager/1.7.1 SpeedTest");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("EpsilonDownloadManager/2.0 SpeedTest");
         return client;
     }
 

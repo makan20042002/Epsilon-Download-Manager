@@ -8,17 +8,17 @@ function Check($name, [scriptblock]$test) {
   try { if (& $test) { Write-Host "PASS  $name" -ForegroundColor Green } else { Write-Host "FAIL  $name" -ForegroundColor Red; $script:fail++ } }
   catch { Write-Host "FAIL  $name :: $($_.Exception.Message)" -ForegroundColor Red; $script:fail++ }
 }
-Write-Host "Makan Download Manager $version Windows production gate" -ForegroundColor Cyan
+Write-Host "Epsilon Download Manager $version Windows production gate" -ForegroundColor Cyan
 Check '.NET 8 runtime' { [version](dotnet --version) -ge [version]'8.0.0' }
 Check 'Windows x64' { [Environment]::Is64BitOperatingSystem }
 Check 'Main project exists' { Test-Path (Join-Path $root 'MakanDownloadManager\EpsilonDownloadManager.csproj') }
 Check 'Native host exists' { Test-Path (Join-Path $root 'MakanNativeHost\EpsilonNativeHost.csproj') }
 Check 'Installer definition exists' { Test-Path (Join-Path $root 'installer\EpsilonDownloadManager.iss') }
 Check 'Updater project exists' { Test-Path (Join-Path $root 'updater\EpsilonUpdater.csproj') }
-Check 'Browser manifests match version' {
+Check 'Published browser manifests remain matched at 1.8.0' {
   $a=Get-Content (Join-Path $root 'browser-extension\manifest.json') -Raw | ConvertFrom-Json
   $b=Get-Content (Join-Path $root 'browser-extension-firefox\manifest.json') -Raw | ConvertFrom-Json
-  $a.version -eq $version -and $b.version -eq $version
+  $a.version -eq '1.8.0' -and $b.version -eq '1.8.0'
 }
 
 $publish = Join-Path $root 'publish-test'

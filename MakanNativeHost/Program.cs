@@ -9,7 +9,7 @@ namespace MakanNativeHost;
 public static class Program
 {
     // Must match NativeBridge.PipeName in the desktop app.
-    public const string PipeName = "com.makan.downloadmanager";
+    public const string PipeName = "com.makan.downloadmanager.v2";
     static string EffectivePipeName => Environment.GetEnvironmentVariable("EPSILON_NATIVE_PIPE") is { Length: > 0 } value ? value : PipeName;
     const int MaxMessageBytes = 8 * 1024 * 1024;
     static readonly TimeSpan ReplyTimeout = TimeSpan.FromSeconds(25);

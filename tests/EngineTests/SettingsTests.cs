@@ -90,6 +90,16 @@ static class SettingsTests
         T.Check("wildcard types like R0* (.r00 .r01 …)", rules.Evaluate("https://x.example/a.r05", null, null).Capture && rules.Evaluate("https://x.example/a.r15", null, null).Capture && !rules.Evaluate("https://x.example/a.r99z", null, null).Capture);
         T.Check("no extension at all: taken over (a browser download without a type is still a download)", rules.Evaluate("https://x.example/download", null, null).Capture);
         T.Check("the browser's file name beats the address", !rules.Evaluate("https://x.example/a.zip", "report.docx", null).Capture);
+        T.Check("a file from localhost (XAMPP, a local site) is never taken over", !rules.Evaluate("http://localhost/site/export.zip", null, null).Capture && !rules.Evaluate("http://127.0.0.1:8080/a.zip", null, null).Capture && !rules.Evaluate("http://[::1]/a.zip", null, null).Capture && !rules.Evaluate("http://mysite.test/a.zip", null, null).Capture && !rules.Evaluate("http://shop.local/a.zip", null, null).Capture);
+        T.Check("a normal site or a LAN address still is", rules.Evaluate("http://192.168.1.5/a.zip", null, null).Capture && rules.Evaluate("https://localhost.example.com/a.zip", null, null).Capture && rules.Evaluate("https://x.example/a.zip", null, null).Capture);
+        T.Check("cPanel downloads (port 2083, /cpsess path, even with no or an unknown file type) are left to the browser", !rules.Evaluate("https://2997019446.cloudylink.com:2083/cpsess4148927171/download?skipencode=1&file=.htaccess", ".htaccess", null).Capture && !rules.Evaluate("https://host.example:2083/cpsess1/download?file=x", "public_html.zip", null).Capture && !rules.Evaluate("https://host.example/cpsess9/download?file=a", null, null).Capture && !rules.Evaluate("https://host.example:2096/x.zip", null, null).Capture);
+        T.Check("a normal https site on another port is still taken over", rules.Evaluate("https://host.example:8443/a.zip", null, null).Capture);
+        rules.LeaveControlPanelsToBrowser = false;
+        T.Check("the control-panel rule can be switched off", rules.Evaluate("https://host.example:2083/a.zip", null, null).Capture);
+        rules.LeaveControlPanelsToBrowser = true;
+        rules.LeaveLocalToBrowser = false;
+        T.Check("the local-address rule can be switched off", rules.Evaluate("http://localhost/a.zip", null, null).Capture);
+        rules.LeaveLocalToBrowser = true;
         rules.FileTypes = "";
         T.Check("an empty type list means everything", rules.Evaluate("https://x.example/page.html", null, null).Capture);
         rules.FileTypes = CaptureRules.DefaultFileTypes;
@@ -114,8 +124,13 @@ static class SettingsTests
         var store = new MemSettings(); var s = new AppSettings(store);
         T.Check("defaults: ask first, complete dialog on, queue choosers on, duplicate = ask, language English", s.AskBeforeDownload && !s.OnlyAddToQueue && s.ShowCompleteDialog && s.AskQueueOnLater && s.AskQueueOnBatch && s.DuplicateAction == "ask" && s.Language == "en" && !s.AutoResume && !s.ClipboardWatch);
         T.Check("defaults: file types and sites are IDM's, user agent looks like a browser, Defender command", s.FileTypes.Contains("MKV") && s.ExcludedSites.Contains("windowsupdate") && s.UserAgent.StartsWith("Mozilla/5.0") && s.AntivirusProgram.EndsWith("MpCmdRun.exe") && s.AntivirusArguments.Contains("%1"));
+        T.Check("defaults: temporary errors retry for about 30 seconds and playlists prefer 1080p MP4", s.RetryAttempts == 6 && s.RetryWindowSeconds == 30 && s.PlaylistPreferredHeight == 1080 && s.PlaylistPreferredFormat == "mp4");
         s.Language = "fa"; s.AskBeforeDownload = false; s.OnlyAddToQueue = true; s.DuplicateAction = "overwrite"; s.TempDirectory = @"D:\tmp"; s.SetFileDateFromServer = true; s.MaxActive = 99; s.Connections = 0; s.Language = "xx";
         T.Check("values round trip; clamps and unknown languages are handled", store.Values["ask_before_download"] == "0" && s.OnlyAddToQueue && s.DuplicateAction == "overwrite" && s.TempDirectory == @"D:\tmp" && s.SetFileDateFromServer && s.MaxActive == 16 && s.Connections == 1 && s.Language == "en");
+        s.Connections = 99;
+        T.Check("V2 advanced connection mode is capped safely at 48", s.Connections == 48);
+        s.RetryAttempts = 99; s.RetryWindowSeconds = 0; s.PlaylistPreferredHeight = 720; s.PlaylistPreferredFormat = "mkv";
+        T.Check("retry and playlist preferences round trip and clamp safely", s.RetryAttempts == 50 && s.RetryWindowSeconds == 1 && s.PlaylistPreferredHeight == 720 && s.PlaylistPreferredFormat == "mkv");
         s.CaptureBrowsers = "edge"; s.FileTypes = "ZIP"; s.ExcludedAddresses = "http://a/*";
         var rules = s.BuildCaptureRules();
         T.Check("capture rules are built from the settings", rules.Browsers == "edge" && rules.FileTypes == "ZIP" && rules.ExcludedAddresses == "http://a/*");
@@ -125,9 +140,11 @@ static class SettingsTests
         return Task.CompletedTask;
     }
 
+    public static Task ThemesOnly() => Themes();
+
     static Task Themes()
     {
-        var all = new[] { ("obsidian-gold", ThemePalette.ObsidianGold), ("platinum-blue", ThemePalette.PlatinumBlue), ("royal-amethyst", ThemePalette.RoyalAmethyst), ("emerald-executive", ThemePalette.EmeraldExecutive), ("champagne-minimal", ThemePalette.ChampagneMinimal), ("graphite-copper", ThemePalette.GraphiteCopper), ("sapphire-noir", ThemePalette.SapphireNoir), ("rose-titanium", ThemePalette.RoseTitanium), ("arctic-glass", ThemePalette.ArcticGlass), ("crystal-noir", ThemePalette.CrystalNoir), ("dracula", ThemePalette.Dracula) };
+        var all = new[] { ("obsidian-gold", ThemePalette.ObsidianGold), ("platinum-blue", ThemePalette.PlatinumBlue), ("royal-amethyst", ThemePalette.RoyalAmethyst), ("emerald-executive", ThemePalette.EmeraldExecutive), ("champagne-minimal", ThemePalette.ChampagneMinimal), ("graphite-copper", ThemePalette.GraphiteCopper), ("sapphire-noir", ThemePalette.SapphireNoir), ("rose-titanium", ThemePalette.RoseTitanium), ("arctic-glass", ThemePalette.ArcticGlass), ("crystal-noir", ThemePalette.CrystalNoir), ("dracula", ThemePalette.Dracula), ("mint-glass", ThemePalette.MintGlass) };
         T.Check("all palettes define the same colours", all.Skip(1).All(p => ThemePalette.ObsidianGold.Keys.OrderBy(k => k).SequenceEqual(p.Item2.Keys.OrderBy(k => k))), string.Join(" | ", all.Skip(1).Select(p => p.Item1 + ": " + string.Join(",", ThemePalette.ObsidianGold.Keys.Except(p.Item2.Keys).Concat(p.Item2.Keys.Except(ThemePalette.ObsidianGold.Keys))))));
         T.Check("every value is a #RRGGBB or #AARRGGBB colour", all.SelectMany(p => p.Item2.Values).All(v => System.Text.RegularExpressions.Regex.IsMatch(v, "^#(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$")));
         foreach (var (name, p) in all)
@@ -140,7 +157,7 @@ static class SettingsTests
             T.Check($"{name}: status colours are readable on cards (>= 3.5)", new[] { "Success", "Danger", "Warning", "Accent" }.All(k => ThemePalette.Contrast(p[k], p["Surface"]) >= 3.5), string.Join(" ", new[] { "Success", "Danger", "Warning", "Accent" }.Select(k => ThemePalette.Contrast(p[k], p["Surface"]).ToString("0.0"))));
             T.Check($"{name}: selected rows keep the text readable (>= 4.5)", ThemePalette.Contrast(p["Text"], p["Selected"]) >= 4.5 && ThemePalette.Contrast(p["Text"], p["Hover"]) >= 7, ThemePalette.Contrast(p["Text"], p["Selected"]).ToString("0.0"));
         }
-        T.Check("dark and light palettes are classified correctly", new[] { ThemePalette.ObsidianGold, ThemePalette.RoyalAmethyst, ThemePalette.EmeraldExecutive, ThemePalette.GraphiteCopper, ThemePalette.SapphireNoir, ThemePalette.RoseTitanium, ThemePalette.ArcticGlass, ThemePalette.CrystalNoir, ThemePalette.Dracula }.All(p => ThemePalette.Contrast("#000000", p["Bg"]) < 3) && new[] { ThemePalette.PlatinumBlue, ThemePalette.ChampagneMinimal }.All(p => ThemePalette.Contrast("#FFFFFF", p["Bg"]) < 1.2));
+        T.Check("dark and light palettes are classified correctly", new[] { ThemePalette.ObsidianGold, ThemePalette.RoyalAmethyst, ThemePalette.EmeraldExecutive, ThemePalette.GraphiteCopper, ThemePalette.SapphireNoir, ThemePalette.RoseTitanium, ThemePalette.ArcticGlass, ThemePalette.CrystalNoir, ThemePalette.Dracula }.All(p => ThemePalette.Contrast("#000000", p["Bg"]) < 3) && new[] { ThemePalette.PlatinumBlue, ThemePalette.ChampagneMinimal, ThemePalette.MintGlass }.All(p => ThemePalette.Contrast("#FFFFFF", p["Bg"]) < 1.2));
         T.Check("auto follows Windows; every named theme resolves", ThemePalette.Resolve("auto", true) == "sapphire-noir" && ThemePalette.Resolve("auto", false) == "platinum-blue" && ThemePalette.Names.All(name => ThemePalette.Resolve(name, false) == name));
 
         var settings = new AppSettings(new MemSettings());
@@ -192,7 +209,7 @@ static class SettingsTests
         return Task.CompletedTask;
     }
 
-    static Task Localization()
+    internal static Task Localization()
     {
         Loc.SetLanguage("en");
         T.Check("English: text is returned unchanged", Loc.T("OK") == "OK" && Loc.T("Something new") == "Something new" && Loc.F("Added {0} download(s)", 3) == "Added 3 download(s)");

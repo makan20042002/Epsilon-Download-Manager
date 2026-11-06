@@ -173,11 +173,11 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     await tick(50);
     const { items } = await ask(env, { type: "menu", tabId: 7 });
     assert.deepStrictEqual(items.map((i) => i.text), [
-      "Some Video | Site, TS file, quality 360p, 800 kbps",
-      "Some Video | Site, MP4 file, quality 360p, 800 kbps",
-      "Some Video | Site, TS file, quality 720p HD, 2800 kbps (+ audio track)",
-      "Some Video | Site, MP4 file, quality 720p HD, 2800 kbps (+ audio track)",
-      "Some Video | Site, MP4 file, size 50.0 MB" ]);
+      "Some Video | Site — cdn.example.com / master.m3u8, TS file, quality 360p, 800 kbps",
+      "Some Video | Site — cdn.example.com / master.m3u8, MP4 file, quality 360p, 800 kbps",
+      "Some Video | Site — cdn.example.com / master.m3u8, TS file, quality 720p HD, 2800 kbps (+ audio track)",
+      "Some Video | Site — cdn.example.com / master.m3u8, MP4 file, quality 720p HD, 2800 kbps (+ audio track)",
+      "Some Video | Site — cdn.example.com / movie.mp4, MP4 file, size 50.0 MB" ]);
     const streamCalls = env.sent.filter((s) => s.msg.kind === "streams");
     assert.strictEqual(streamCalls.length, 3, "one playlist lookup per detected playlist");
     assert.strictEqual(streamCalls[0].msg.cookie, "sid=s1; pref=dark"); assert.strictEqual(streamCalls[0].msg.referrer, "https://example.com/watch");
@@ -208,7 +208,7 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     const sent = env.sent.slice(before).map((s) => s.msg);
     assert.strictEqual(r.ok, true); assert.match(r.message, /3 downloads/);
     const streams = sent.filter((m) => m.kind === "stream");
-    assert.deepStrictEqual(streams.map((m) => m.title), ["Some Video | Site 360p", "Some Video | Site 720p HD"]);
+    assert.deepStrictEqual(streams.map((m) => m.title), ["Some Video | Site — cdn.example.com / master.m3u8 360p", "Some Video | Site — cdn.example.com / master.m3u8 720p HD"]);
     assert.ok(streams.every((m) => m.noPrompt === true && m.format === "mp4"));
     assert.strictEqual(sent.filter((m) => m.kind === undefined && m.url.endsWith("movie.mp4")).length, 1);
   });
@@ -447,10 +447,11 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
     assert.strictEqual((await ask(env, { type: "pageMedia" }, { tab: { id: 7, url: "https://example.com/" } })).count, 0);
   });
 
-  await test("manifests: both browsers have their toolbar popup, the same version as VERSION.txt, and every file they name exists", async () => {
+  await test("manifests: both browsers have their toolbar popup, the same version as each other (the published store version, independent of the desktop app version), and every file they name exists", async () => {
     const fs = require("fs"), path = require("path");
     const root = path.join(__dirname, "..", "..");
-    const version = fs.readFileSync(path.join(root, "VERSION.txt"), "utf8").trim();
+    // The store extensions keep their published version (1.8.0) while the desktop app moves to 2.0.0, so they are compared with each other.
+    const version = JSON.parse(fs.readFileSync(path.join(root, "browser-extension", "manifest.json"), "utf8")).version;
     for (const dir of ["browser-extension", "browser-extension-firefox"]) {
       const m = JSON.parse(fs.readFileSync(path.join(root, dir, "manifest.json"), "utf8"));
       assert.strictEqual(m.version, version, dir + " version");

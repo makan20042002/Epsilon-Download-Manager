@@ -15,6 +15,8 @@ if (-not (Test-Path (Join-Path $publish 'EpsilonDownloadManager.exe'))) { throw 
 
 $candidates = @(
   (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
+  (Join-Path $env:USERPROFILE 'AppData\Local\Programs\Inno Setup 7\ISCC.exe'),
+  (Join-Path $env:USERPROFILE 'AppData\Local\Programs\Inno Setup 6\ISCC.exe'),
   (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
   (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
 )
@@ -32,4 +34,4 @@ if ($LASTEXITCODE -ne 0) { throw 'Inno Setup reported an error (see above).' }
 $setup = Join-Path $root "installer-output\EpsilonDownloadManager-$version-Setup.exe"
 Write-Host ''
 Write-Host "Installer ready: $setup" -ForegroundColor Green
-Write-Host 'This one file installs Epsilon, connects the browsers and adds Start menu entries. Sign it before public distribution (tools\sign-release.ps1).'
+Write-Host 'This one file installs Epsilon V2 and adds Start menu entries. Browser connection is an optional setup choice. Sign it before public distribution (tools\sign-release.ps1).'

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -43,6 +44,7 @@ public partial class MainWindow : Window
     Point _marqueeCurrent;
     List<DownloadItem> _pendingDelete = new();
     string _activeFilterTag = "all";
+    bool _restoringGridWidths = true;
 
     static bool AskFirst => App.Db.Get("ask_before_download") != "0";
 
@@ -53,7 +55,22 @@ public partial class MainWindow : Window
         UpdateStatusPills();
         UpdateMultiNetButton();
         UpdateSpeedLimiterButton();
-        CompactRowsItem.IsChecked = App.Settings.CompactRows; Downloads.Tag = App.Settings.CompactRows ? "compact" : null;
+        GridColumnLimit.SetRule(GridNameColumn, "FileName", extra: 56, fontSize: 12.5);
+        GridColumnLimit.SetRule(GridTypeColumn, "TypeBadge", extra: 22);
+        GridColumnLimit.SetRule(GridSizeColumn, "SizeDisplay");
+        GridColumnLimit.SetRule(GridSpeedColumn, "Rate");
+        GridColumnLimit.SetRule(GridConnectionsColumn, "ConnectionsDisplay");
+        GridColumnLimit.SetRule(GridNetworkColumn, "NetworkDisplay", extra: 50);
+        GridColumnLimit.SetRule(GridStatusColumn, "RowStatusText", extra: 44);
+        GridColumnLimit.SetRule(GridTimeColumn, "TimeLeft");
+        GridColumnLimit.SetRule(GridDateColumn, "DateAddedDisplay");
+        GridColumnLimit.SetRule(GridQueueColumn, "QueueMark", extra: 24);
+        GridColumnLimit.SetRule(GridDownloadedColumn, "DownloadedDisplay");
+        GridColumnLimit.SetRule(GridRemainingColumn, "RemainingDisplay");
+        GridColumnLimit.SetRule(GridFinishedColumn, "FinishedDisplay");
+        GridColumnLimit.SetRule(GridAverageColumn, "AverageSpeedText");
+        GridColumnLimit.Attach(Downloads);
+        RestoreSortWidths();
         try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/Assets/epsilon.ico", UriKind.Absolute)); } catch (Exception) { /* the default icon is fine */ }
         BuildCategoryTree();
         _tray = CreateTray();
@@ -143,6 +160,38 @@ public partial class MainWindow : Window
             if ((string?)node.Tag == selectedTag) node.IsSelected = true;
         }
         UpdateCounts();
+        RebuildSideQueues();
+    }
+
+    void RebuildSideQueues()
+    {
+        if (SideQueueList == null) return;
+        SideQueueList.Children.Clear();
+        var colours = new[] { "#2E7FE9", "#A85EBD", "#22A878", "#E08B3E", "#EC5D73", "#149FB3" };
+        var index = 0;
+        foreach (var queue in App.Queues.Queues)
+        {
+            var running = App.Queues.IsRunning(queue.Id);
+            var colour = (Brush)new BrushConverter().ConvertFromString(colours[index++ % colours.Length])!;
+            var line = new Border { Width = 3, CornerRadius = new CornerRadius(2), Background = colour, Margin = new Thickness(0, 2, 8, 2) };
+            var glyph = new TextBlock { Text = running ? "▶" : "◆", FontSize = 9, Foreground = colour, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0) };
+            var name = new TextBlock { Text = queue.Name, FontSize = 11.5, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+            name.SetResourceReference(TextBlock.ForegroundProperty, "Text");
+            var count = new TextBlock { Text = $"{queue.ItemIds.Count}", FontSize = 10, Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            count.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(line, 0); Grid.SetColumn(glyph, 1); Grid.SetColumn(name, 2); Grid.SetColumn(count, 3);
+            row.Children.Add(line); row.Children.Add(glyph); row.Children.Add(name); row.Children.Add(count);
+            var button = new Button { Content = row, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(5, 4, 6, 4), Margin = new Thickness(0, 1, 0, 1), Cursor = Cursors.Hand, HorizontalContentAlignment = HorizontalAlignment.Stretch, ToolTip = Loc.F("Show downloads in {0}", queue.Name) };
+            button.SetResourceReference(Button.ForegroundProperty, "Text");
+            var id = queue.Id;
+            button.Click += (_, _) => { _activeFilterTag = "queue:" + id; _view?.Refresh(); Footer.Text = Loc.F("Showing queue: {0}", queue.Name); };
+            SideQueueList.Children.Add(button);
+        }
     }
 
     /// <summary>Same as Node(), but with its own inline Start/Stop toggle - the direct alternative to picking a queue
@@ -184,6 +233,29 @@ public partial class MainWindow : Window
         _view?.Refresh();
     }
 
+    void SidebarFilter_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string tag }) return;
+        _activeFilterTag = tag;
+        var node = Tree.Items.OfType<TreeViewItem>().FirstOrDefault(x => string.Equals(x.Tag as string, tag, StringComparison.Ordinal));
+        if (node != null) node.IsSelected = true;
+        FilterAll.IsChecked = tag == "all";
+        FilterFiles.IsChecked = tag == "files";
+        FilterTorrents.IsChecked = tag == "torrents";
+        FilterActive.IsChecked = tag == "unfinished";
+        FilterFinished.IsChecked = tag == "finished";
+        _view?.Refresh();
+        Footer.Text = tag switch
+        {
+            "all" => Loc.T("Showing all downloads"),
+            "finished" => Loc.T("Showing completed downloads"),
+            "cat:Compressed" => Loc.T("Showing archives"),
+            "cat:Video" => Loc.T("Showing videos"),
+            "cat:Music" => Loc.T("Showing music"),
+            _ => Loc.T("Library filter applied")
+        };
+    }
+
     void UpdateCounts()
     {
         var byCategory = _items.GroupBy(x => x.CategoryName).ToDictionary(g => g.Key, g => g.Count());
@@ -195,11 +267,14 @@ public partial class MainWindow : Window
         Set("torrents", _items.Count(x => DownloadManager.IsTorrentUrl(x.Url)));
         Set("queues", _items.Count(x => x.QueueName != null));
         foreach (var q in App.Queues.Queues) Set("queue:" + q.Id, q.ItemIds.Count);
-        FilterAll.Content = Loc.F("All  {0}", _items.Count);
-        FilterFiles.Content = Loc.F("Files  {0}", _items.Count(x => !DownloadManager.IsTorrentUrl(x.Url)));
-        FilterTorrents.Content = Loc.F("Torrents  {0}", _items.Count(x => DownloadManager.IsTorrentUrl(x.Url)));
-        FilterActive.Content = Loc.F("Active  {0}", _items.Count(x => x.Status != nameof(DownloadStatus.Complete)));
-        FilterFinished.Content = Loc.F("Finished  {0}", _items.Count(x => x.Status == nameof(DownloadStatus.Complete)));
+        FilterAll.Content = Loc.F("All ({0})", _items.Count);
+        FilterFiles.Content = Loc.F("Files ({0})", _items.Count(x => !DownloadManager.IsTorrentUrl(x.Url)));
+        FilterTorrents.Content = Loc.F("Torrents ({0})", _items.Count(x => DownloadManager.IsTorrentUrl(x.Url)));
+        FilterActive.Content = Loc.F("Active ({0})", _items.Count(x => x.Status != nameof(DownloadStatus.Complete)));
+        FilterFinished.Content = Loc.F("Finished ({0})", _items.Count(x => x.Status == nameof(DownloadStatus.Complete)));
+        SideAllCount.Text = Loc.F("{0} items", _items.Count);
+        SideBadgeAll.Text = _items.Count.ToString(); SideBadgeQueues.Text = App.Queues.Queues.Count().ToString(); SideBadgeTorrents.Text = _items.Count(x => DownloadManager.IsTorrentUrl(x.Url)).ToString();
+        SideFinishedCount.Text = Loc.F("{0} finished", _items.Count(x => x.Status == nameof(DownloadStatus.Complete)));
     }
 
     void ToggleCategories_Click(object sender, RoutedEventArgs e)
@@ -245,10 +320,58 @@ public partial class MainWindow : Window
             nameof(DownloadItem.TotalBytes) => Loc.T("Size"),
             nameof(DownloadItem.Status) => Loc.T("Status"),
             nameof(DownloadItem.SpeedBytesPerSec) => Loc.T("Speed"),
+            nameof(DownloadItem.FinishedAt) => Loc.T("Finished"),
+            nameof(DownloadItem.AverageSpeedText) => Loc.T("Average"),
             _ => Loc.T("Date added")
         };
         button.Content = label + (direction == ListSortDirection.Ascending ? " ↑" : " ↓");
         Footer.Text = Loc.T("Downloads sorted") + ": " + label;
+    }
+
+    void GridHeader_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not GridViewColumnHeader { Tag: string property } header) return;
+        var current = _view.SortDescriptions.FirstOrDefault();
+        var direction = current.PropertyName == property
+            ? (current.Direction == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending)
+            : property == nameof(DownloadItem.FileName) ? ListSortDirection.Ascending : ListSortDirection.Descending;
+        using (_view.DeferRefresh())
+        {
+            _view.SortDescriptions.Clear();
+            _view.SortDescriptions.Add(new SortDescription(property, direction));
+            if (property != nameof(DownloadItem.Id)) _view.SortDescriptions.Add(new SortDescription(nameof(DownloadItem.Id), ListSortDirection.Descending));
+        }
+        var clean = header.Content?.ToString()?.TrimEnd(' ', '↑', '↓') ?? property;
+        header.Content = clean + (direction == ListSortDirection.Ascending ? " ↑" : " ↓");
+        Footer.Text = Loc.T("Downloads sorted") + ": " + Loc.T(clean);
+    }
+
+    void RestoreSortWidths()
+    {
+        var parsed = ColumnWidths.Parse(App.Settings.SortTabWidths);
+        var columns = GridColumns();
+        for (var i = 0; i < columns.Length; i++) columns[i].Width = parsed[i];
+        // Match the reference design: these detail columns stay out of the default view.
+        foreach (var hidden in new[] { GridDownloadedColumn, GridRemainingColumn, GridFinishedColumn, GridAverageColumn }) hidden.Width = 0;
+        Dispatcher.BeginInvoke(() => _restoringGridWidths = false, DispatcherPriority.Loaded);
+    }
+
+    void SortWidth_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        SaveGridWidths();
+    }
+
+    GridViewColumn[] GridColumns() => new[] { GridNameColumn, GridTypeColumn, GridSizeColumn, GridProgressColumn, GridSpeedColumn, GridConnectionsColumn, GridNetworkColumn, GridStatusColumn, GridTimeColumn, GridQueueColumn, GridDownloadedColumn, GridRemainingColumn, GridDateColumn, GridFinishedColumn, GridAverageColumn };
+
+    void GridHeader_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_restoringGridWidths || !IsLoaded) return;
+        SaveGridWidths();
+    }
+
+    void SaveGridWidths()
+    {
+        App.Settings.SortTabWidths = ColumnWidths.Serialize(GridColumns().Select(x => x.ActualWidth));
     }
 
     // ---------------------------------------------------------------- tray / lifetime
@@ -680,7 +803,9 @@ public partial class MainWindow : Window
             if (picker.Choice == PlaylistChoice.Cancel) return;
             if (picker.Choice == PlaylistChoice.DownloadAll)
             {
-                var folder = FolderFor("video.mp4");
+                if (!EnsureYouTubeTools(picker.SelectedKey)) return;
+                var output = YtDlpService.PlanFor(picker.SelectedKey).OutputExtension;
+                var folder = FolderFor("playlist." + output);
                 try { Directory.CreateDirectory(folder); }
                 catch (Exception ex) { Dlg.Show(this, $"Can't use the folder \"{folder}\":\n{ex.Message}", "Epsilon Download Manager"); return; }
                 int added = 0, skipped = 0;
@@ -694,9 +819,24 @@ public partial class MainWindow : Window
         var dialog = new YouTubeDialog(url, FolderFor("video.mp4")) { Owner = this };
         dialog.ShowDialog();
         if (dialog.Choice == DownloadChoice.Cancel || dialog.Selected is not { } option) return;
+        if (!EnsureYouTubeTools(option.Key)) return;
         try { Directory.CreateDirectory(dialog.Folder); }
         catch (Exception ex) { Dlg.Show(this, $"Can't use the folder \"{dialog.Folder}\":\n{ex.Message}", "Epsilon Download Manager"); return; }
         PlaceYouTubeSelection(url, dialog.ChosenTitle, option.Key, dialog.Folder, dialog.Choice, quiet: false, option.ApproxBytes, dialog.QueueId);
+    }
+
+    bool EnsureYouTubeTools(string key)
+    {
+        var plan = YtDlpService.PlanFor(key);
+        var yt = App.Manager.YtDlp;
+        if (!YtDlpService.RequiresFfmpeg(plan) || (!string.IsNullOrWhiteSpace(yt?.FfmpegPath) && File.Exists(yt.FfmpegPath))) return true;
+
+        Dlg.Show(this, Loc.T(YtDlpService.FfmpegRequiredMessage), "Epsilon Download Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+        var settings = new SettingsWindow { Owner = this };
+        settings.ShowYouTubeTab();
+        settings.ShowDialog();
+        yt = App.Manager.YtDlp;
+        return !string.IsNullOrWhiteSpace(yt?.FfmpegPath) && File.Exists(yt.FfmpegPath);
     }
 
     /// <summary>Builds one yt-dlp download from a chosen quality and places it in the queue. Returns false (and does
@@ -752,6 +892,7 @@ public partial class MainWindow : Window
 
     void MainWindow_PreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Q && Keyboard.Modifiers == ModifierKeys.Control) { e.Handled = true; ExitApplication(); return; }   // Ctrl+Q quits for real (the window's X only hides to the tray)
         if (DeleteActionPopup.IsOpen)
         {
             if (e.Key == Key.Escape) { CloseDeleteBar(); e.Handled = true; }
@@ -1105,7 +1246,7 @@ public partial class MainWindow : Window
             MultiNetKeepOneFreeBox.IsChecked = App.Settings.MultiNetKeepOneFree;
             MultiNetAskNewBox.IsChecked = App.Settings.MultiNetAskNewNetwork;
             MultiNetDailyBox.Text = App.Settings.MultiNetDailyLimitMb.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            MultiNetRetryBox.Text = App.Settings.MultiNetRetryMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            MultiNetRetryBox.Text = AppSettings.FormatMinutes(App.Settings.MultiNetRetryMinutes);
         }
         finally { _multiNetFilling = false; }
     }
@@ -1136,7 +1277,7 @@ public partial class MainWindow : Window
         App.Settings.MultiNetKeepOneFree = MultiNetKeepOneFreeBox.IsChecked == true; App.Manager.MultiNetworkKeepOneFree = App.Settings.MultiNetKeepOneFree;
         App.Settings.MultiNetAskNewNetwork = MultiNetAskNewBox.IsChecked == true; App.Manager.MultiNetworkAskNewNetwork = App.Settings.MultiNetAskNewNetwork;
         if (int.TryParse(MultiNetDailyBox.Text.Trim(), out var daily) && daily >= 0) { App.Settings.MultiNetDailyLimitMb = daily; App.Manager.MultiNetworkDailyLimitBytes = daily * 1024L * 1024L; }
-        if (int.TryParse(MultiNetRetryBox.Text.Trim(), out var retry) && retry > 0) { App.Settings.MultiNetRetryMinutes = retry; App.Manager.MultiNetworkRetryMinutes = retry; }
+        if (AppSettings.TryParseMinutes(MultiNetRetryBox.Text, out var retry)) { App.Settings.MultiNetRetryMinutes = retry; App.Manager.MultiNetworkRetryMinutes = App.Settings.MultiNetRetryMinutes; }
         MultiNetMinBox.Text = App.Settings.MultiNetMinMb.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
@@ -1312,12 +1453,6 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    void CompactRows_Click(object sender, RoutedEventArgs e)
-    {
-        App.Settings.CompactRows = CompactRowsItem.IsChecked;
-        Downloads.Tag = CompactRowsItem.IsChecked ? "compact" : null;
-    }
-
     void StartQueue_Click(object sender, RoutedEventArgs e) => ShowQueueMenu((FrameworkElement)sender, start: true);
     void StopQueue_Click(object sender, RoutedEventArgs e) => ShowQueueMenu((FrameworkElement)sender, start: false);
 
@@ -1338,6 +1473,48 @@ public partial class MainWindow : Window
         scheduler.Click += (_, _) => Scheduler_Click(this, null);
         menu.Items.Add(scheduler);
         menu.IsOpen = true;
+    }
+
+    readonly Queue<double> _downHistory = new(Enumerable.Repeat(0.0, 60)), _upHistory = new(Enumerable.Repeat(0.0, 60));
+
+    /// <summary>A live speed curve for the last minute inside a header card: the line plus a soft filled area under it.</summary>
+    static void DrawSpark(Queue<double> history, double value, Grid host, System.Windows.Shapes.Polyline line, System.Windows.Shapes.Polygon area)
+    {
+        history.Enqueue(value);
+        while (history.Count > 60) history.Dequeue();
+        double w = host.ActualWidth, h = host.ActualHeight;
+        if (w < 4 || h < 4) return;
+        var max = Math.Max(history.Max(), 1.0);
+        var step = w / (history.Count - 1);
+        var points = new PointCollection(history.Count);
+        var i = 0;
+        foreach (var v in history) points.Add(new Point(i++ * step, h - 2 - (h - 4) * v / max));
+        line.Points = points;
+        var fill = new PointCollection(points) { new Point(w, h), new Point(0, h) };
+        area.Points = fill;
+    }
+
+    void OpenButtonMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { ContextMenu: { } menu } button)
+        {
+            menu.PlacementTarget = button;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
+    void RowMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: DownloadItem item }) return;
+        if (!Downloads.SelectedItems.Contains(item)) { Downloads.SelectedItems.Clear(); Downloads.SelectedItem = item; }
+        Downloads_ContextMenuOpening(this, null!);
+        if (Downloads.ContextMenu is { } menu) { menu.PlacementTarget = (UIElement)sender; menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom; menu.IsOpen = true; }
+    }
+
+    void FilterBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (SearchBox.Text != FilterBox.Text) SearchBox.Text = FilterBox.Text;
     }
 
     void Downloads_ContextMenuOpening(object sender, ContextMenuEventArgs e)
@@ -1535,22 +1712,27 @@ public partial class MainWindow : Window
         try { Clipboard.SetText(text); _lastClipboard = text; } catch (Exception) { /* clipboard busy */ }
     }
     void Media_Click(object sender, RoutedEventArgs e) => new MediaWindow { Owner = this }.ShowDialog();
+    void RemoteSidebar_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var window = new SettingsWindow { Owner = this };
+            window.SelectRemoteTab();
+            window.ShowDialog();
+        }
+        catch (Exception ex) { ReportError("The Remote options", ex); }
+        UpdateStatusPills();
+    }
     // ---- Themes panel: every theme as a card with a three-colour swatch, in one panel under the toolbar ----------------
 
     static readonly (string Id, string Name, string P1, string P2, string P3, bool Light)[] ThemeCardList =
     {
-        ("platinum-blue", "Platinum Blue", "#F3F8FF", "#176ED6", "#7DB7F2", true),
-        ("makan-lab", "Makan Lab", "#0A1019", "#2D83FF", "#42D7CF", false),
-        ("dracula", "Dracula", "#282A36", "#BD93F9", "#50FA7B", false),
-        ("obsidian-gold", "Obsidian Gold", "#14110B", "#E0B75A", "#FFF0C4", false),
-        ("emerald-executive", "Emerald", "#071B17", "#45D8AE", "#A8F1DC", false),
-        ("sapphire-noir", "Sapphire Noir", "#061327", "#2E86FF", "#8DC1FF", false),
-        ("royal-amethyst", "Royal Amethyst", "#150D2C", "#A873F0", "#D8B9FF", false),
-        ("arctic-glass", "Arctic Glass", "#0B2133", "#45C7FF", "#B9ECFF", false),
-        ("crystal-noir", "Crystal Noir Glass", "#101421", "#B89CFF", "#65D9E8", false),
-        ("graphite-copper", "Graphite Copper", "#151311", "#E28A4D", "#FFD0AD", false),
-        ("rose-titanium", "Rose Titanium", "#20111B", "#E187B1", "#FFD1E7", false),
-        ("champagne-minimal", "Champagne", "#FBF7F1", "#9B682D", "#E6D3B7", true),
+        ("platinum-blue", "Arctic Blue", "#EFF7FF", "#0772EA", "#26B3FF", true),
+        ("mint-glass", "Jade Mint", "#EAF9F2", "#0A8268", "#1FB5A0", true),
+        ("champagne-minimal", "Warm Ivory", "#FFF7ED", "#C2531A", "#F0A070", true),
+        ("sapphire-noir", "Midnight Blue", "#050E1F", "#4BA0FF", "#45CFEA", false),
+        ("graphite-copper", "Graphite Gold", "#191B21", "#E9AD4B", "#B4B0A6", false),
+        ("royal-amethyst", "Royal Plum", "#21162D", "#B98AF5", "#D6A8FF", false),
     };
 
     void Themes_Click(object? sender, RoutedEventArgs? e)
@@ -1565,7 +1747,7 @@ public partial class MainWindow : Window
     {
         static Color C(string hex) => (Color)ColorConverter.ConvertFromString(hex);
         ThemeCards.Children.Clear();
-        ThemeCards.Columns = ActualWidth < 900 ? 3 : ActualWidth < 1150 ? 4 : 6;
+        ThemeCards.Columns = ActualWidth < 900 ? 2 : 3;
         foreach (var theme in ThemeCardList)
         {
             var current = ThemeManager.Current == theme.Id;
@@ -1640,7 +1822,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var path = new DiagnosticsService().ExportReport(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MakanDownloadManager", "downloads.db"));
+            var path = new DiagnosticsService().ExportReport(Path.Combine(PortableModeService.DataDirectory, "downloads.db"));
             Footer.Text = Loc.T("Diagnostic report: " + path);
             Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
         }
@@ -1842,6 +2024,16 @@ public partial class MainWindow : Window
 
     void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => _view?.Refresh();
 
+    void SearchBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        var urls = ExtractUrls(SearchBox.Text);
+        if (urls.Count == 0) return;
+        e.Handled = true;
+        SearchBox.Clear();
+        AddUrls(urls);
+    }
+
     bool Matches(object o)
     {
         if (o is not DownloadItem x) return false;
@@ -1889,7 +2081,13 @@ public partial class MainWindow : Window
         CanvasSummary.Text = Loc.F("{0} active · {1} total", active, _items.Count);
         HeaderDownloadSpeed.Text = $"{Format(total)}/s";
         HeaderUploadSpeed.Text = $"{Format(upload)}/s";
-        HeaderActiveCount.Text = Loc.F("{0} items", active);
+        DrawSpark(_downHistory, total, DownSparkHost, DownSparkLine, DownSparkArea);
+        DrawSpark(_upHistory, upload, UpSparkHost, UpSparkLine, UpSparkArea);
+        HeaderActiveCount.Text = $"{active} / {App.Manager.MaxActive}";
+        ActiveBar.Value = 100.0 * active / Math.Max(1, App.Manager.MaxActive);
+        QueueBar.Value = Math.Min(100, 100.0 * _items.Count(x => x.Status == nameof(DownloadStatus.Queued)) / Math.Max(1, App.Manager.MaxActive * 4));
+        HeaderQueueCount.Text = Loc.F("{0} waiting", _items.Count(x => x.Status == nameof(DownloadStatus.Queued)));
+        HeaderMultiNet.Text = App.Settings.MultiNetwork ? Loc.F("On · {0}", Math.Max(1, App.Manager.CurrentLinks().Count)) : Loc.T("Off");
         FooterMultiNet.Text = App.Settings.MultiNetwork ? Loc.F("On · {0}", Math.Max(1, App.Manager.CurrentLinks().Count)) : Loc.T("Off");
         FooterLimiter.Text = App.Settings.SpeedKbps > 0 ? FormatSpeedLimit(App.Settings.SpeedKbps, App.Settings.SpeedLimitScope == "per_file") : Loc.T("Off");
         try

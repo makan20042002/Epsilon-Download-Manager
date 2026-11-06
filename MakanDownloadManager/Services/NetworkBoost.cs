@@ -36,7 +36,7 @@ public sealed class NetworkBoost
         LastError = null;
         if (!_isElevated())
         {
-            LastError = "This needs administrator rights - right-click Makan.exe and choose \"Run as administrator\", or turn this off.";
+            LastError = $"This needs administrator rights - right-click {ProductIdentity.ExecutableName} and choose \"Run as administrator\", or turn this off.";
             return false;
         }
         var allOk = true;

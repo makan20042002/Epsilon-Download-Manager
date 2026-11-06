@@ -17,7 +17,7 @@
 
     <TextBlock Grid.Row="2" Text="Connections" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
     <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,10">
-      <Slider x:Name="ConnSlider" Minimum="1" Maximum="16" Value="4" Width="220" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"/>
+      <Slider x:Name="ConnSlider" Minimum="1" Maximum="48" Value="8" Width="220" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center"/>
       <TextBlock Text="{Binding ElementName=ConnSlider, Path=Value, StringFormat={}{0:0}}" Margin="12,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
       <TextBlock Text="  (more connections = faster on most servers)" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
     </StackPanel>

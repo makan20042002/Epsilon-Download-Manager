@@ -10,6 +10,9 @@
     <RootNamespace>MakanDownloadManager</RootNamespace>
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationIcon>Assets\epsilon.ico</ApplicationIcon>
+    <Version>2.0.0</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
     <LangVersion>latest</LangVersion>
     <StartupObject>MakanDownloadManager.Program</StartupObject>
   </PropertyGroup>
@@ -24,6 +27,12 @@
   <ItemGroup>
     <Resource Include="Assets\epsilon.ico" />
     <Resource Include="Assets\epsilon-logo-hq.png" />
+    <Resource Include="Assets\bg-glass-light.png" />
+    <Resource Include="Assets\bg-aurora-violet.png" />
+    <Resource Include="Assets\bg-graphite-cyan.png" />
+    <Resource Include="Assets\bg-midnight-blue.png" />
+    <Resource Include="Assets\bg-sunrise-sand.png" />
+    <Resource Include="Assets\bg-mint-glass.png" />
     <!-- Epsilon UI kit fonts (Inter, JetBrains Mono, Space Grotesk - all SIL Open Font License, free to bundle).
          Referenced as e.g. FontFamily="pack://application:,,,/Assets/Fonts/#Inter" once windows are updated to use them. -->
     <Resource Include="Assets\Fonts\Inter-Regular.ttf" />
@@ -41,5 +50,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <PackageReference Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
 </Project>

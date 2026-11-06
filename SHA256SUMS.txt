@@ -1,0 +1,2 @@
+54bcf6cec8dd34f33afa7976cbf3bf318a61a7f68c9a61cb2cd7694b93a43b93  EpsilonDownloadManager-2.0.0-Setup.exe
+93aefaafffefa314a864ebfad192c981183d745a7b1fe518a4f6ed1d1f9806e5  EpsilonDownloadManager-2.0.0-Portable.zip

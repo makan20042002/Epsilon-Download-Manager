@@ -43,6 +43,23 @@ const click = (win, el) => el.dispatchEvent(new win.MouseEvent("click", { bubble
     win.close();
   });
 
+  await test("the video button can be dragged and keeps its chosen page position", async () => {
+    const { win } = page({ replies: { pageMedia: { count: 2 } } });
+    await win.__makanTick(); await tick();
+    const host = win.document.querySelector('[data-makan="overlay"]');
+    const drag = sh(win, ".drag");
+    const pointer = (type, x, y) => {
+      const event = new win.Event(type, { bubbles: true, composed: true, cancelable: true });
+      Object.defineProperties(event, { pointerId: { value: 7 }, clientX: { value: x }, clientY: { value: y } });
+      drag.dispatchEvent(event);
+    };
+    pointer("pointerdown", 110, 60); pointer("pointermove", 310, 210); pointer("pointerup", 310, 210);
+    assert.strictEqual(host.style.left, "308px"); assert.strictEqual(host.style.top, "208px");
+    await win.__makanTick(); await tick();
+    assert.strictEqual(host.style.left, "308px"); assert.strictEqual(host.style.top, "208px", "a page tick does not snap it back onto the video");
+    win.close();
+  });
+
   await test("no media and no direct source => no button; a tiny video is not anchored (media found => floating button)", async () => {
     const { win } = page({ replies: { pageMedia: { count: 0 } } });
     await win.__makanTick(); await tick();
@@ -118,9 +135,9 @@ const click = (win, el) => el.dispatchEvent(new win.MouseEvent("click", { bubble
     click(win, sh(win, ".main")); await tick(30);
     const item = sh(win, ".item");
     assert.strictEqual(item.textContent.includes("<img"), true); assert.strictEqual(win.__shadow.querySelector("img"), null, "rendered as text, not HTML");
-    click(win, [...win.__shadow.querySelectorAll(".tool")][0]); await tick();
+    click(win, [...win.__shadow.querySelectorAll(".tool")].find((x) => x.textContent === "?")); await tick();
     assert.ok(sent.some((m) => m.type === "open"));
-    click(win, [...win.__shadow.querySelectorAll(".tool")][1]); await tick();
+    click(win, [...win.__shadow.querySelectorAll(".tool")].find((x) => x.textContent === "✕")); await tick();
     assert.strictEqual(win.document.querySelector('[data-makan="overlay"]').style.display, "none");
     await win.__makanTick(); await tick();
     assert.strictEqual(win.document.querySelector('[data-makan="overlay"]').style.display, "none", "stays hidden");

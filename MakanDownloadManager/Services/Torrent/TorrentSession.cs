@@ -8,7 +8,7 @@ namespace MakanDownloadManager.Services.Torrent;
 public enum TorrentState { Stopped, Metadata, Checking, Downloading, Seeding, Paused, Error, Finished }
 public enum FilePriority { Skip = 0, Normal = 1, High = 2 }
 
-public sealed record PeerInfo(string Address, string Client, string Flags, double Progress, long DownRate, long UpRate, long Downloaded, long Uploaded, bool Incoming, bool Encrypted = false);
+public sealed record PeerInfo(string Address, string Client, string Flags, double Progress, long DownRate, long UpRate, long Downloaded, long Uploaded, bool Incoming, bool Encrypted = false, string Transport = "TCP");
 public sealed record TrackerInfo(string Url, string Status, int? Seeders, int? Leechers, DateTime? LastAnnounce, int Tier);
 public sealed record TorrentFileInfo(int Index, string Path, long Length, long Done, FilePriority Priority);
 
@@ -543,13 +543,44 @@ public sealed partial class TorrentSession
         }
     }
 
+    /// <summary>
+    /// Opens the connection to a peer. With uTP on, TCP and uTP are started together and the first one that connects wins
+    /// (the other is dropped): many peers answer only one of them. Without uTP, or for IPv6 peers, it is plain TCP.
+    /// </summary>
+    async Task<PeerConnection> ConnectTransportAsync(IPEndPoint ep, CancellationToken ct)
+    {
+        var utp = _engine.Utp;
+        if (utp == null || ep.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+            return await PeerConnection.ConnectAsync(ep, ConnectTimeout, ct).ConfigureAwait(false);
+        using var race = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var attempts = new List<Task<PeerConnection>>();
+        if (!_engine.Options.UtpOnly) attempts.Add(PeerConnection.ConnectAsync(ep, ConnectTimeout, race.Token));
+        attempts.Add(
+            Task.Run(async () => new PeerConnection(await utp.ConnectAsync(ep, ConnectTimeout, race.Token).ConfigureAwait(false), ep, false, "uTP"), race.Token));
+        PeerConnection? winner = null; Exception? last = null;
+        while (attempts.Count > 0)
+        {
+            var done = await Task.WhenAny(attempts).ConfigureAwait(false);
+            attempts.Remove(done);
+            try { winner = await done.ConfigureAwait(false); break; } catch (Exception ex) { last = ex; }
+        }
+        race.Cancel();
+        foreach (var loser in attempts) _ = loser.ContinueWith(t => { if (t.IsCompletedSuccessfully) t.Result.Dispose(); }, TaskScheduler.Default);
+        if (winner == null) { ct.ThrowIfCancellationRequested(); throw last ?? new IOException("Could not connect."); }
+        return winner;
+    }
+
+    int _connectAttempts, _connectReached; string _lastConnectError = "";
+
     async Task ConnectPeerAsync(IPEndPoint ep, CancellationToken ct)
     {
         var connected = false;
+        Interlocked.Increment(ref _connectAttempts);
         try
         {
-            var conn = await PeerConnection.ConnectAsync(ep, ConnectTimeout, ct).ConfigureAwait(false);
+            var conn = await ConnectTransportAsync(ep, ct).ConfigureAwait(false);
             connected = true;
+            Interlocked.Increment(ref _connectReached);
             var encryption = _engine.Options.Encryption;
             if (encryption != EncryptionMode.Off)
             {
@@ -563,13 +594,13 @@ public sealed partial class TorrentSession
                 {
                     // this peer does not speak encryption (or something in between broke it): once more, plainly
                     conn.Dispose();
-                    conn = await PeerConnection.ConnectAsync(ep, ConnectTimeout, ct).ConfigureAwait(false);
+                    conn = await ConnectTransportAsync(ep, ct).ConfigureAwait(false);
                 }
                 catch (Exception) { conn.Dispose(); throw; }
             }
             await RunPeerAsync(conn, null, ct).ConfigureAwait(false);
         }
-        catch (Exception) when (!ct.IsCancellationRequested) { /* unreachable or misbehaving: try again later */ }
+        catch (Exception ex) when (!ct.IsCancellationRequested) { _lastConnectError = (connected ? "after connecting: " : "") + ex.GetType().Name + ": " + ex.Message; /* unreachable or misbehaving: try again later */ }
         catch (OperationCanceledException) { }
         finally
         {
@@ -611,15 +642,21 @@ public sealed partial class TorrentSession
             }
             if (!hs.InfoHash.AsSpan().SequenceEqual(_hash) || hs.PeerId.AsSpan().SequenceEqual(_engine.PeerId)) return;
             peer.PeerId = hs.PeerId; peer.Client = PeerState.ClientFromPeerId(hs.PeerId);
-            peer.SupportsExtensions = hs.SupportsExtensions; peer.SupportsDht = hs.SupportsDht;
+            peer.SupportsExtensions = hs.SupportsExtensions; peer.SupportsDht = hs.SupportsDht; peer.SupportsFast = hs.SupportsFast;
             lock (_sync)
             {
                 if (_peers.Any(p => p.PeerId.AsSpan().SequenceEqual(peer.PeerId))) return;
                 _peers.Add(peer); added = true;
             }
             if (peer.SupportsExtensions) await SendExtendedHandshakeAsync(peer, ct).ConfigureAwait(false);
-            byte[]? bitfield = null;
-            lock (_sync) { if (_meta != null && _have.Count > 0) bitfield = _have.ToBytes(); }
+            byte[]? bitfield = null; byte fastMessage = 0;
+            lock (_sync)
+            {
+                if (_meta != null && _have.Count > 0) bitfield = _have.ToBytes();
+                if (peer.SupportsFast && _meta != null) { fastMessage = _have.IsComplete ? PeerConnection.HaveAll : _have.Count == 0 ? PeerConnection.HaveNone : (byte)0; if (fastMessage != 0) bitfield = null; }
+                else if (peer.SupportsFast && _meta == null) fastMessage = PeerConnection.HaveNone;   // magnet link: nothing yet
+            }
+            if (fastMessage != 0) await conn.SendAsync(fastMessage, ReadOnlySpan<byte>.Empty, ct).ConfigureAwait(false);
             if (bitfield != null) await conn.SendAsync(PeerConnection.BitfieldId, bitfield, ct).ConfigureAwait(false);
             if (peer.SupportsDht && _engine.Dht != null) await conn.SendAsync(PeerConnection.Port, new[] { (byte)(_engine.Dht.Port >> 8), (byte)_engine.Dht.Port }, ct).ConfigureAwait(false);
 
@@ -697,6 +734,33 @@ public sealed partial class TorrentSession
                 await UpdateInterestAsync(peer, ct).ConfigureAwait(false);
                 await RequestMoreAsync(peer, ct).ConfigureAwait(false);
                 break;
+            case PeerConnection.HaveAll:
+            case PeerConnection.HaveNone:
+                if (!peer.SupportsFast) throw new IOException("A peer used the Fast Extension without announcing it.");
+                lock (_sync)
+                {
+                    peer.RawBitfield = null;
+                    if (_meta == null) { peer.AllPieces = id == PeerConnection.HaveAll; break; }
+                    peer.AllPieces = false;
+                    var all = new Bitfield(_meta.PieceCount);
+                    if (id == PeerConnection.HaveAll) for (var i = 0; i < _meta.PieceCount; i++) all.Set(i);
+                    if (peer.Have != null) for (var i = 0; i < _availability.Length; i++) if (peer.Have[i] && _availability[i] > 0) _availability[i]--;
+                    peer.Have = all;
+                    for (var i = 0; i < _availability.Length; i++) if (all[i]) _availability[i]++;
+                }
+                await UpdateInterestAsync(peer, ct).ConfigureAwait(false);
+                await RequestMoreAsync(peer, ct).ConfigureAwait(false);
+                break;
+            case PeerConnection.Reject:
+                if (payload.Length != 12) throw new IOException("Bad reject message.");
+                lock (_sync)
+                {
+                    var rp = PeerConnection.ReadInt(payload, 0); var ro = PeerConnection.ReadInt(payload, 4);
+                    if (peer.Outstanding.Remove((rp, ro))) UnmarkRequested(peer, rp, ro);
+                }
+                await RequestMoreAsync(peer, ct).ConfigureAwait(false);
+                break;
+            case PeerConnection.Suggest: case PeerConnection.AllowedFast: break;   // optional hints: ignored
             case PeerConnection.Request: await QueueUploadAsync(peer, payload, ct).ConfigureAwait(false); break;
             case PeerConnection.Piece: await HandlePieceAsync(peer, payload, ct).ConfigureAwait(false); break;
             case PeerConnection.Port:
@@ -711,9 +775,10 @@ public sealed partial class TorrentSession
     /// <summary>Called with the lock held.</summary>
     void ApplyRawBitfield(PeerState peer)
     {
-        if (_meta == null || peer.RawBitfield == null) return;
+        if (_meta == null || (peer.RawBitfield == null && !peer.AllPieces)) return;
         var bits = new Bitfield(_meta.PieceCount);
-        if (!bits.TryLoad(peer.RawBitfield)) throw new IOException("A peer sent a damaged bitfield.");
+        if (peer.RawBitfield == null) { for (var i = 0; i < _meta.PieceCount; i++) bits.Set(i); peer.AllPieces = false; }
+        else if (!bits.TryLoad(peer.RawBitfield)) throw new IOException("A peer sent a damaged bitfield.");
         if (peer.Have != null) for (var i = 0; i < _availability.Length; i++) if (peer.Have[i] && _availability[i] > 0) _availability[i]--;
         peer.Have = bits;
         for (var i = 0; i < _availability.Length; i++) if (bits[i]) _availability[i]++;
@@ -750,6 +815,7 @@ public sealed partial class TorrentSession
         {
             if (_meta == null || _state != TorrentState.Downloading || peer.PeerChoking || !peer.AmInterested || peer.Have == null) return;
             var depth = peer.Pipeline.CalculateOptimalDepth(peer.Down.BytesPerSecond);
+            depth = Math.Min(depth, Math.Max(1, peer.Reqq));
             while (peer.Outstanding.Count + requests.Count < depth)
             {
                 var next = NextBlock(peer);
@@ -762,6 +828,20 @@ public sealed partial class TorrentSession
             peer.Pipeline.TrackRequest(piece, offset, length);
             await peer.Connection.SendAsync(PeerConnection.Request, PeerConnection.RequestPayload(piece, offset, length), ct).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Sequential download (for watching while it downloads): the first and last two pieces first - players read the start
+    /// and often the end of a file for its index - then everything in order.
+    /// </summary>
+    public bool Sequential { get; set; }
+
+    int SequentialRank(int piece)
+    {
+        var count = _wanted.Length;
+        if (piece < 2) return piece;
+        if (piece >= count - 2) return 2 + (count - 1 - piece);
+        return 4 + piece;
     }
 
     /// <summary>Picks the next block for this peer and records the request. Called with the lock held.</summary>
@@ -779,13 +859,14 @@ public sealed partial class TorrentSession
         if (chosen == null)
         {
             var best = -1; var bestScore = int.MaxValue;
-            var start = Random.Shared.Next(Math.Max(1, _wanted.Length));
+            var sequential = Sequential;
+            var start = sequential ? 0 : Random.Shared.Next(Math.Max(1, _wanted.Length));
             for (var n = 0; n < _wanted.Length; n++)
             {
                 var i = (start + n) % _wanted.Length;
                 if (!_wanted[i] || _have[i] || !peer.Have![i] || _active.ContainsKey(i) || _verifying.Contains(i)) continue;
-                var score = (_high[i] ? 0 : 1_000_000) + _availability[i];
-                if (score < bestScore) { bestScore = score; best = i; if (score <= 1) break; }
+                var score = (_high[i] ? 0 : 1_000_000) + (sequential ? SequentialRank(i) : _availability[i]);
+                if (score < bestScore) { bestScore = score; best = i; if (!sequential && score <= 1) break; }
             }
             if (best >= 0)
             {
@@ -987,24 +1068,31 @@ public sealed partial class TorrentSession
     {
         if (payload.Length != 12) throw new IOException("Bad request message.");
         var piece = PeerConnection.ReadInt(payload, 0); var offset = PeerConnection.ReadInt(payload, 4); var length = PeerConnection.ReadInt(payload, 8);
-        long start;
+        long start = 0; var rejected = false;
         lock (_sync)
         {
-            if (_meta == null || peer.AmChoking || (uint)piece >= (uint)_meta.PieceCount || !_have[piece]) return;
+            if (_meta == null || peer.AmChoking || (uint)piece >= (uint)_meta.PieceCount || !_have[piece]) { rejected = true; goto done; }
             if (offset < 0 || length <= 0 || length > 128 * 1024 || (long)offset + length > _meta.PieceSize(piece)) throw new IOException("A peer asked for an impossible block.");
             start = _meta.PieceOffset(piece) + offset;
+        done:;
         }
+        if (rejected) { await RejectAsync(peer, payload, ct).ConfigureAwait(false); return; }
         await TokenBucket.WaitAllAsync(length, ct, _engine.UploadLimit, UploadLimit).ConfigureAwait(false);
-        lock (_sync) { if (peer.AmChoking) return; }   // choked while it waited for the upload limit
+        bool nowChoked; lock (_sync) nowChoked = peer.AmChoking;   // choked while it waited for the upload limit
+        if (nowChoked) { await RejectAsync(peer, payload, ct).ConfigureAwait(false); return; }
         var message = new byte[8 + length];
         PeerConnection.U32(piece).CopyTo(message, 0); PeerConnection.U32(offset).CopyTo(message, 4);
         bool read;
         try { read = await Task.Run(() => _storage!.TryRead(start, message.AsSpan(8)), ct).ConfigureAwait(false); }
         catch (ObjectDisposedException) { return; }
-        if (!read) return;
+        if (!read) { await RejectAsync(peer, payload, ct).ConfigureAwait(false); return; }
         await peer.Connection.SendAsync(PeerConnection.Piece, message, ct).ConfigureAwait(false);
         Interlocked.Add(ref _uploadedTotal, length); _up.Add(length); peer.Up.Add(length);
     }
+
+    /// <summary>With the Fast Extension a request that will not be served must be answered with a Reject; otherwise the other side waits for it forever.</summary>
+    static Task RejectAsync(PeerState peer, byte[] requestPayload, CancellationToken ct) =>
+        peer.SupportsFast ? peer.Connection.SendAsync(PeerConnection.Reject, requestPayload, ct) : Task.CompletedTask;
 
     async Task MaybeUnchokeAsync(PeerState peer, CancellationToken ct)
     {
@@ -1112,24 +1200,28 @@ public sealed partial class TorrentSession
         }
     }
 
-    /// <summary>Announces to one tier: its trackers in order until one answers (BEP 12). Returns that tracker's interval, or null.</summary>
+    /// <summary>
+    /// Announces to every tracker of one tier at the same time (trackers in one tier are equals), so one dead tracker never
+    /// holds up the others and we collect peers from every tracker that answers. Returns the shortest interval of those that answered, or null.
+    /// </summary>
     async Task<int?> AnnounceTierAsync(List<TrackerEntry> tier, string eventName, CancellationToken ct)
     {
-        foreach (var entry in tier.ToList())
+        var results = await Task.WhenAll(tier.ToList().Select(async entry =>
         {
             try
             {
                 var response = await TrackerClient.AnnounceAsync(entry.Url, MakeAnnounce(eventName), ct, _engine.Options.UdpTrackerTimeout).ConfigureAwait(false);
                 lock (_sync) { entry.Status = response.Warning is { } w ? "Working (" + w + ")" : "Working"; entry.Seeders = response.Seeders; entry.Leechers = response.Leechers; entry.Last = DateTime.UtcNow; }
                 foreach (var ep in response.Peers) AddCandidate(ep);
-                lock (_sync) { tier.Remove(entry); tier.Insert(0, entry); }
-                return response.IntervalSeconds;
+                return (int?)response.IntervalSeconds;
             }
             catch (TrackerException ex) { lock (_sync) { entry.Status = ex.Message; entry.Last = DateTime.UtcNow; } }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-            catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or InvalidOperationException or OperationCanceledException) { lock (_sync) entry.Status = ex.Message; }
-        }
-        return null;
+            catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or InvalidOperationException or OperationCanceledException) { lock (_sync) { entry.Status = ex.Message; entry.Last = DateTime.UtcNow; } }
+            return (int?)null;
+        })).ConfigureAwait(false);
+        var answered = results.Where(r => r.HasValue).Select(r => r!.Value).ToList();
+        return answered.Count == 0 ? null : answered.Min();
     }
 
     async Task AnnounceStoppedAsync()
@@ -1166,7 +1258,7 @@ public sealed partial class TorrentSession
         var d = new Dictionary<string, object>
         {
             ["m"] = new Dictionary<string, object> { ["ut_metadata"] = (long)OurUtMetadata, ["ut_pex"] = (long)OurUtPex },
-            ["v"] = "Makan 16", ["reqq"] = 250L, ["p"] = (long)_engine.ListenPort
+            ["v"] = "Epsilon 2.0", ["reqq"] = 250L, ["p"] = (long)_engine.ListenPort
         };
         if (_meta != null) d["metadata_size"] = (long)_meta.RawInfo.Length;
         return peer.Connection.SendAsync(PeerConnection.Extended, new byte[] { 0 }.Concat(Bencode.Encode(d)).ToArray(), ct);

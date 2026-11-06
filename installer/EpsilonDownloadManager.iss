@@ -1,7 +1,7 @@
 ; Epsilon Download Manager - one-file installer (Inno Setup 6.3 or newer; free: https://jrsoftware.org/isdl.php)
 ; Build with build-installer.ps1 (it publishes first, then runs this script).
 #define MyAppName "Epsilon Download Manager"
-#define MyAppVersion "1.7.1"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "Makan A.D."
 #define MyAppURL "https://makanlab.tech"
 #define MyAppExeName "EpsilonDownloadManager.exe"
@@ -38,11 +38,12 @@ UsePreviousTasks=yes
 UsePreviousPrivileges=yes
 CloseApplications=force
 RestartApplications=no
-VersionInfoVersion=1.7.1.0
+VersionInfoVersion=2.0.0.0
 
 [Tasks]
-Name: "startup";     Description: "Start Epsilon quietly in the tray when I sign in to Windows (the browser extension always finds it)"
+Name: "startup";     Description: "Start Epsilon quietly in the tray when I sign in to Windows"
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
+Name: "browser";     Description: "Connect the Chrome/Firefox extensions to Epsilon (replaces the old connection automatically)"
 
 [Files]
 ; The public extensions now come from their official stores. The installer only needs the desktop app,
@@ -59,39 +60,22 @@ Name: "{autoprograms}\{#MyAppName} - check the browser connection"; Filename: "{
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [InstallDelete]
-; Remove the obsolete pre-Epsilon executable names during an in-place upgrade.
-Type: files; Name: "{app}\MakanDownloadManager.exe"
-Type: files; Name: "{app}\MakanNativeHost.exe"
-Type: files; Name: "{app}\MakanUpdater.exe"
+; V2 has a separate folder and never removes or replaces V1 files.
 
 [Registry]
 ; the same entry that Options > General > "start with Windows" writes
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "EpsilonDownloadManager"; ValueData: """{app}\{#MyAppExeName}"" --background"; Flags: uninsdeletevalue; Tasks: startup
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "MakanDownloadManager"; Flags: deletevalue
 
-; magnet: link protocol - lets Epsilon appear as an option (and, on many Windows versions, become the app that opens automatically)
-; for a magnet link clicked anywhere: another program, a torrent search site the browser extension does not run on, etc.
-; Per-user (HKCU) to match "no administrator needed"; Windows may still ask the person to confirm the choice once (its own
-; anti-hijacking protection for URL/file associations - this is expected and cannot be skipped by an installer).
-Root: HKCU; Subkey: "Software\Classes\magnet"; ValueType: string; ValueName: ""; ValueData: "URL:Magnet Link"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\magnet"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\magnet\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
-Root: HKCU; Subkey: "Software\Classes\magnet\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-
-; .torrent files - same idea, as a normal file type association (its own ProgId, so it does not disturb any other app's file types)
-Root: HKCU; Subkey: "Software\Classes\.torrent"; ValueType: string; ValueName: ""; ValueData: "EpsilonDownloadManager.torrent"; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Classes\EpsilonDownloadManager.torrent"; ValueType: string; ValueName: ""; ValueData: "BitTorrent file"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\EpsilonDownloadManager.torrent\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
-Root: HKCU; Subkey: "Software\Classes\EpsilonDownloadManager.torrent\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-Root: HKCU; Subkey: "Software\Classes\MakanDownloadManager.torrent"; ValueType: none; Flags: deletekey
+; V2 deliberately does not take over magnet: or .torrent associations during installation.
+; V1 remains the handler until the user explicitly changes the Windows default application.
 
 [Run]
-Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -InstallDir ""{app}"""; StatusMsg: "Connecting the browsers to Epsilon..."; Flags: runhidden runasoriginaluser waituntilterminated
+Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -InstallDir ""{app}"""; StatusMsg: "Connecting the browsers to Epsilon..."; Flags: runhidden runasoriginaluser waituntilterminated; Tasks: browser
 Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden runasoriginaluser skipifdoesntexist; StatusMsg: "Refreshing file associations..."
 Filename: "{app}\{#MyAppExeName}"; Description: "Start {#MyAppName}"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
-Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -Uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveBrowserIntegration"
+Filename: "{#PowerShell}"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\install-browser-integration.ps1"" -Uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveBrowserIntegration"; Tasks: browser
 
 [Code]
 // Epsilon lives in the tray (closing its window does not end it), so it is stopped explicitly before files are replaced or removed.
@@ -103,10 +87,6 @@ begin
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im EpsilonDownloadManager.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im EpsilonNativeHost.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im EpsilonUpdater.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  // Also stop the old names during the first upgrade to this build.
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im MakanDownloadManager.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im MakanNativeHost.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im MakanUpdater.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -122,7 +102,7 @@ begin
   if CurUninstallStep = usUninstall then StopEpsilon;
   if CurUninstallStep = usPostUninstall then
   begin
-    Data := ExpandConstant('{localappdata}\MakanDownloadManager');
+    Data := ExpandConstant('{localappdata}\EpsilonDownloadManager2');
     if DirExists(Data) then
       if MsgBox('Also delete Epsilon''s settings, its download list and the YouTube tools?' + #13#10 + Data + #13#10#13#10 +
                 'Files you downloaded are never deleted.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then

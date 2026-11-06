@@ -45,7 +45,7 @@ static class YtDlpTests
         try { await body(); } catch (Exception ex) { T.Check("no unexpected exception", false, ex.ToString()); }
     }
 
-    static Task Parsing()
+    static async Task Parsing()
     {
         foreach (var good in new[] { "https://www.youtube.com/watch?v=abcdefghijk&t=5s", "https://youtu.be/abcdefghijk?si=x", "https://m.youtube.com/shorts/abcdefghijk", "https://music.youtube.com/watch?v=abcdefghijk", "https://www.youtube.com/live/abcdefghijk", "https://www.youtube-nocookie.com/embed/abcdefghijk" })
             T.Check("recognised as a YouTube video: " + good, YtDlpService.IsYouTubeUrl(good));
@@ -58,6 +58,7 @@ static class YtDlpTests
         T.Check("subtitle keys survive escaping", YtDlpService.TryGetSelection(YtDlpService.WithSelection(Watch, "s:en"), out _, out var sk) && sk == "s:en");
 
         T.Check("video plan: best mp4 up to that height, merged", YtDlpService.PlanFor("v720") is { Selector: var sel, OutputExtension: "mp4", AudioOnly: false } && sel.Contains("height<=720") && sel.Contains("+ba"));
+        T.Check("playlist MKV plan: chosen height is kept and output is MKV", YtDlpService.PlanFor("v1080-mkv") is { Selector: var mkv, OutputExtension: "mkv", AudioOnly: false } && mkv.Contains("height<=1080"));
         T.Check("audio plans", YtDlpService.PlanFor("a") is { AudioOnly: true, OutputExtension: "m4a" } && YtDlpService.PlanFor("a-mp3") is { AudioFormat: "mp3", OutputExtension: "mp3" });
         T.Check("subtitle plan", YtDlpService.PlanFor("s:fa") is { SubtitleLanguage: "fa", OutputExtension: "srt" });
         foreach (var evil in new[] { "v1080; calc", "--exec x", "../a", "", "v", "s:", "a b" })
@@ -70,7 +71,7 @@ static class YtDlpTests
         var args = yt.BuildDownloadArguments(Watch + "#makan-ytdl=v720", "v720", @"C:\Videos\100% Title [720p]");
         T.Check("command line: no user config, template, output path with % escaped, ffmpeg, cookies, merge, address last",
             args[0] == "--ignore-config" && args.Contains("--progress-template") && args.Contains(@"C:\Videos\100%% Title [720p].%(ext)s") && args.Contains("--ffmpeg-location") &&
-            args.Contains("--cookies-from-browser") && args.Contains("mp4/mkv") && args[^1] == Watch, string.Join(" ", args));
+            args.Contains("--cookies-from-browser") && args.Contains("--merge-output-format") && args.Contains("mp4") && args[^1] == Watch, string.Join(" ", args));
         T.Check("subtitle command line skips the video", yt.BuildDownloadArguments(Watch, "s:en", "x").Contains("--skip-download"));
         T.Check("audio mp3 command line extracts audio", yt.BuildDownloadArguments(Watch, "a-mp3", "x").Contains("--audio-format"));
 
@@ -99,7 +100,33 @@ static class YtDlpTests
         T.Check("progress line with unknown values", YtDlpService.ParseProgressLine("MAKAN|downloading|500|NA|1000|None|NA|18") is { Total: null, TotalEstimate: 1000, Speed: null, Eta: null });
         T.Check("other output is not progress", YtDlpService.ParseProgressLine("[download] 50%") == null && YtDlpService.ParseProgressLine(null) == null);
         T.Check("error text is cleaned", YtDlpService.CleanError("ERROR: [youtube] abcdefghijk: Video unavailable") == "Video unavailable" && YtDlpService.CleanError("") .Length > 0);
-        return Task.CompletedTask;
+
+        var resultDir = Path.Combine(Dir, "yt-results-" + Guid.NewGuid().ToString("N")[..6]); Directory.CreateDirectory(resultDir);
+        var resultBase = Path.Combine(resultDir, "Movie [1080p]");
+        File.WriteAllBytes(resultBase + ".f399-sr.mp4", new byte[17]);
+        File.WriteAllBytes(resultBase + ".f140.m4a", new byte[11]);
+        T.Check("unmerged yt-dlp streams are never mistaken for a completed movie", YtDlpService.FindResult(resultBase, YtDlpService.PlanFor("v1080")) == null);
+        T.Check("unmerged streams count as data already loaded from disk", YtDlpService.ExistingPartialBytes(resultBase) == 28);
+        var mergeParts = YtDlpService.FindMergeComponents(resultBase, YtDlpService.PlanFor("v1080"));
+        T.Check("a complete video/audio component pair is available for Epsilon's direct FFmpeg fallback",
+            mergeParts != null && mergeParts.Video.EndsWith(".f399-sr.mp4") && mergeParts.Audio.EndsWith(".f140.m4a"));
+        T.Check("audio-only downloads are never treated as a video/audio merge pair",
+            YtDlpService.FindMergeComponents(resultBase, YtDlpService.PlanFor("a")) == null);
+        T.Check("a previously accepted video-only component is repaired to the intended final path", YtDlpService.ExpectedFinalPath(resultBase + ".f399-sr.mp4", YtDlpService.PlanFor("v1080")) == resultBase + ".mp4");
+        var recoveryStore = new MemoryStore();
+        recoveryStore.Add(new DownloadItem { Url = YtDlpService.WithSelection(Watch, "v1080"), FilePath = resultBase + ".f399-sr.mp4", Status = "Complete", TotalBytes = 100 });
+        using (var recoveryManager = new DownloadManager(recoveryStore, autoResumeUnfinished: false))
+        {
+            var repaired = recoveryManager.Items.Single();
+            T.Check("an old false-Complete row becomes resumable and keeps its downloaded component bytes", repaired.Status == "Failed" && repaired.FilePath == resultBase + ".mp4" && repaired.DiskLoadedBytes == 28 && (repaired.LastError ?? "").Contains("FFmpeg"));
+        }
+        File.WriteAllBytes(resultBase + ".mp4", new byte[29]);
+        T.Check("the real merged file is selected when it exists", YtDlpService.FindResult(resultBase, YtDlpService.PlanFor("v1080")) == resultBase + ".mp4");
+
+        var needsFfmpeg = "";
+        try { await new YtDlpService(Path.Combine(Dir, "unused-yt-dlp.exe")).DownloadAsync(Watch, "v1080", resultBase + "-missing", _ => { }, _ => { }, CancellationToken.None); }
+        catch (YtDlpNotReadyException ex) { needsFfmpeg = ex.Message; }
+        T.Check("a video download without FFmpeg stops before downloading separate streams and explains Resume", needsFfmpeg.Contains("FFmpeg") && needsFfmpeg.Contains("Resume"), needsFfmpeg);
     }
 
     static async Task Resolving(string fake)
@@ -143,7 +170,7 @@ static class YtDlpTests
     static async Task Downloads(string fake)
     {
         var dir = Path.Combine(Dir, "yt" + Guid.NewGuid().ToString("N")[..6]); Directory.CreateDirectory(dir);
-        using var m = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false) { YtDlp = new YtDlpService(fake) };
+        using var m = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false) { YtDlp = new YtDlpService(fake) { FfmpegPath = fake } };
         DownloadItem Make(string url, string key, string name) => new() { Url = YtDlpService.WithSelection(url, key), FilePath = Path.Combine(dir, name), AutoName = false, Connections = 1 };
 
         // ---- 720p: video + audio downloaded separately, then merged
@@ -202,7 +229,7 @@ static class YtDlpTests
     static async Task Bridge(string fake)
     {
         var dir = Path.Combine(Dir, "yb" + Guid.NewGuid().ToString("N")[..6]); Directory.CreateDirectory(dir);
-        using var manager = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false) { YtDlp = new YtDlpService(fake) };
+        using var manager = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false) { YtDlp = new YtDlpService(fake) { FfmpegPath = fake } };
         using var bridge = new NativeBridge(manager, () => dir);
         YtDlpService? provided = null;
         bridge.YtDlpProvider = () => provided;
@@ -211,7 +238,7 @@ static class YtDlpTests
         var notReady = await pipeless(new BridgeRequest { Kind = "ytformats", Url = Watch });
         T.Check("not set up: the extension is told to explain it", !notReady.Ok && notReady.NeedsSetup && (notReady.Error ?? "").Contains("yt-dlp"));
 
-        provided = new YtDlpService(fake);
+        provided = new YtDlpService(fake) { FfmpegPath = fake };
         var formats = await pipeless(new BridgeRequest { Kind = "ytformats", Url = Watch });
         T.Check("choices for the menu", formats.Ok && formats.Title!.StartsWith("The #1") && formats.Options!.Select(o => o.Key).Take(2).SequenceEqual(new[] { "v1080", "v720" }) && formats.DurationSeconds == 100);
         var bad = await pipeless(new BridgeRequest { Kind = "ytformats", Url = "https://example.com/unsupported" });

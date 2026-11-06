@@ -1,3 +1,4 @@
+using System.Globalization;
 namespace MakanDownloadManager.Services;
 
 public interface ISettingsStore { string? Get(string key); void Set(string key, string value); }
@@ -74,6 +75,10 @@ public sealed class AppSettings
     public string YtDlpPath { get => _store.Get("ytdlp_path") ?? ""; set => _store.Set("ytdlp_path", value); }
     /// <summary>"" | "chrome" | "edge" | "firefox" | "brave"</summary>
     public string YtCookiesBrowser { get => _store.Get("yt_cookies_browser") ?? ""; set => _store.Set("yt_cookies_browser", value); }
+    /// <summary>Preferred quality and container used when a playlist is added. The playlist dialog always shows
+    /// these choices before adding the videos, so the preference can be changed for one playlist or remembered.</summary>
+    public int PlaylistPreferredHeight { get => int.TryParse(_store.Get("playlist_height"), out var v) ? Math.Clamp(v, 144, 4320) : 1080; set => _store.Set("playlist_height", Math.Clamp(value, 144, 4320).ToString()); }
+    public string PlaylistPreferredFormat { get => _store.Get("playlist_format") is "mkv" or "m4a" or "mp3" ? _store.Get("playlist_format")! : "mp4"; set => _store.Set("playlist_format", value is "mkv" or "m4a" or "mp3" ? value : "mp4"); }
 
     /// <summary>Saved built-in theme name, or "auto" to follow Windows.</summary>
     public string Theme
@@ -83,6 +88,14 @@ public sealed class AppSettings
             return ThemePalette.Normalize(Text("theme", "platinum-blue"));
         }
         set => _store.Set("theme", ThemePalette.Normalize(value));
+    }
+
+    /// <summary>One-time step for the new 6-theme list: the saved theme is reset once to Arctic Blue (the main theme); after that the choice is kept.</summary>
+    public void MigrateToSixThemes()
+    {
+        if (Flag("themes_six", false)) return;
+        Theme = "platinum-blue";   // the old choices were for the old themes; everyone starts on the main one once
+        Put("themes_six", true);
     }
 
     // ---- Connection / advanced (existing keys)
@@ -100,7 +113,23 @@ public sealed class AppSettings
     public bool MultiNetAvoidMetered { get => Flag("multi_network_avoid_metered", true); set => Put("multi_network_avoid_metered", value); }
     public int MultiNetDailyLimitMb { get => int.TryParse(_store.Get("multi_network_daily_limit_mb"), out var v) ? Math.Clamp(v, 0, 1_000_000) : 0; set => _store.Set("multi_network_daily_limit_mb", Math.Clamp(value, 0, 1_000_000).ToString()); }
     public bool MultiNetKeepOneFree { get => Flag("multi_network_keep_one_free", false); set => Put("multi_network_keep_one_free", value); }
-    public int MultiNetRetryMinutes { get => int.TryParse(_store.Get("multi_network_retry_minutes"), out var v) ? Math.Clamp(v, 1, 1440) : 5; set => _store.Set("multi_network_retry_minutes", Math.Clamp(value, 1, 1440).ToString()); }
+    /// <summary>Minutes before a dropped network is tried again. Fractions are allowed: 0.5 = 30 seconds (the smallest is 0.25 = 15 seconds).</summary>
+    public double MultiNetRetryMinutes
+    {
+        get => double.TryParse(_store.Get("multi_network_retry_minutes"), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && !double.IsNaN(v) ? Math.Clamp(v, 0.25, 1440) : 5;
+        set => _store.Set("multi_network_retry_minutes", Math.Clamp(double.IsNaN(value) ? 5 : value, 0.25, 1440).ToString("0.####", CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>Reads what the person typed: "5", "0.5" or "0,5" (comma or dot), in minutes.</summary>
+    public static bool TryParseMinutes(string? text, out double minutes)
+    {
+        minutes = 0;
+        var t = (text ?? "").Trim().Replace(',', '.');
+        return double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out minutes) && !double.IsNaN(minutes) && !double.IsInfinity(minutes) && minutes > 0;
+    }
+
+    /// <summary>How a number of minutes is shown back: 5, 0.5, 1.5.</summary>
+    public static string FormatMinutes(double minutes) => minutes.ToString("0.####", CultureInfo.InvariantCulture);
     public bool MultiNetAskNewNetwork { get => Flag("multi_network_ask_new", false); set => Put("multi_network_ask_new", value); }
     public string MultiNetKnown { get => _store.Get("multi_network_known") ?? ""; set => _store.Set("multi_network_known", value ?? ""); }
     public string MultiNetColors { get => _store.Get("multi_network_colors") ?? ""; set => _store.Set("multi_network_colors", value ?? ""); }
@@ -109,11 +138,18 @@ public sealed class AppSettings
     public bool MultiNetwork { get => Flag("multi_network", false); set => Put("multi_network", value); }
     /// <summary>Main list: hide the segment map and details line so more downloads fit on screen.</summary>
     public bool CompactRows { get => Flag("compact_rows", false); set => Put("compact_rows", value); }
-    public int Connections { get => int.TryParse(_store.Get("connections"), out var v) ? Math.Clamp(v, 1, 16) : 8; set => _store.Set("connections", Math.Clamp(value, 1, 16).ToString()); }
+    public int Connections { get => int.TryParse(_store.Get("connections"), out var v) ? Math.Clamp(v, 1, DownloadManager.MaxConnectionsPerDownload) : 8; set => _store.Set("connections", Math.Clamp(value, 1, DownloadManager.MaxConnectionsPerDownload).ToString()); }
     public bool AutoResume { get => Flag("auto_resume", false); set => Put("auto_resume", value); }
     public bool KeepAwakeWhileDownloading { get => Flag("keep_awake_downloading", true); set => Put("keep_awake_downloading", value); }
+    /// <summary>Transient server/network errors are retried this many times, but never beyond the time window.</summary>
+    public int RetryAttempts { get => int.TryParse(_store.Get("retry_attempts"), out var v) ? Math.Clamp(v, 0, 50) : 6; set => _store.Set("retry_attempts", Math.Clamp(value, 0, 50).ToString()); }
+    public int RetryWindowSeconds { get => int.TryParse(_store.Get("retry_window_seconds"), out var v) ? Math.Clamp(v, 1, 3600) : 30; set => _store.Set("retry_window_seconds", Math.Clamp(value, 1, 3600).ToString()); }
+    /// <summary>Widths of the sortable list headings, saved as invariant-culture pixels.</summary>
+    public string SortTabWidths { get => _store.Get("sort_tab_widths") ?? ColumnWidths.DefaultText; set => _store.Set("sort_tab_widths", value); }
     public string FfmpegPath { get => _store.Get("ffmpeg_path") ?? ""; set => _store.Set("ffmpeg_path", value); }
     // ---- smart connections (Options > Connection)
+    public bool AutoRetryLater { get => Flag("auto_retry_later", true); set => Put("auto_retry_later", value); }
+    public int AutoRetryRounds { get => int.TryParse(_store.Get("auto_retry_rounds"), out var v) ? Math.Clamp(v, 1, 20) : 5; set => _store.Set("auto_retry_rounds", Math.Clamp(value, 1, 20).ToString()); }
     public bool AdaptiveConnections { get => Flag("adaptive_connections", true); set => Put("adaptive_connections", value); }
     public bool SmartDownloads { get => Flag("smart_downloads", true); set => Put("smart_downloads", value); }
 
@@ -122,6 +158,7 @@ public sealed class AppSettings
     public bool TorrentDht { get => Flag("torrent_dht", true); set => Put("torrent_dht", value); }
     public bool TorrentPex { get => Flag("torrent_pex", true); set => Put("torrent_pex", value); }
     /// <summary>Ask the router to forward the listening port automatically (UPnP, then NAT-PMP).</summary>
+    public bool TorrentUtp { get => Flag("torrent_utp", true); set => Put("torrent_utp", value); }
     public bool TorrentPortMapping { get => Flag("torrent_port_mapping", true); set => Put("torrent_port_mapping", value); }
     public int TorrentUploadSlots { get => int.TryParse(_store.Get("torrent_upload_slots"), out var v) ? Math.Clamp(v, 1, 50) : 4; set => _store.Set("torrent_upload_slots", Math.Clamp(value, 1, 50).ToString()); }
     public int TorrentMaxPeers { get => int.TryParse(_store.Get("torrent_max_peers"), out var v) ? Math.Clamp(v, 5, 500) : 60; set => _store.Set("torrent_max_peers", Math.Clamp(value, 5, 500).ToString()); }
@@ -172,7 +209,7 @@ public sealed class AppSettings
         {
             var existing = _store.Get("remote_token");
             if (!string.IsNullOrEmpty(existing)) return existing;
-            var made = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(9)).ToLowerInvariant();
+            var made = RemoteAccess.NewToken();
             _store.Set("remote_token", made);
             return made;
         }

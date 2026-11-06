@@ -266,10 +266,15 @@ static class QueueTests
     static async Task Retries()
     {
         var dir = Sub(); using var m = new DownloadManager(new MemoryStore(), autoResumeUnfinished: false); using var q = Make(m, out _, out var power);
+        var oldDelay = QueueService.RetryDelaySeconds; QueueService.RetryDelaySeconds = 1;   // IDM waits 30 s; the test must not
         var s = q.Main.Schedule.Clone(); s.RetriesEnabled = true; s.Retries = 2; s.ExitWhenDone = true; q.UpdateSchedule(q.Main.Id, s);
         var bad = Item(dir, "bad.bin", "/forbidden"); var good = Item(dir, "good.bin");
+        var clock = Stopwatch.StartNew();
         q.AddLater(bad); q.AddLater(good); q.Start(q.Main.Id);
-        T.Check("the queue ends", await Until(q, () => !q.IsRunning(q.Main.Id) && good.Status == "Complete", 40));
+        var ended = await Until(q, () => !q.IsRunning(q.Main.Id) && good.Status == "Complete", 40);
+        QueueService.RetryDelaySeconds = oldDelay;
+        T.Check("the queue ends", ended);
+        T.Check("the failed file waited between its tries (IDM: a pause, then again) instead of being hammered", clock.Elapsed.TotalSeconds >= 1.8, $"{clock.Elapsed.TotalSeconds:0.0}s");
         T.Check("the failing file was tried 1 + 2 times, then given up", bad.Status == "Failed" && await Hits("/forbidden?bad.bin") == 3, $"{bad.Status} hits={await Hits("/forbidden?bad.bin")}");
         await Task.Delay(200);
         T.Check("finish actions still run once", power.Calls.SequenceEqual(new[] { "exit" }), string.Join(",", power.Calls));

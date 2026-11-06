@@ -17,7 +17,7 @@ public sealed class MediaService
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
             throw new ArgumentException("Input must be an HTTP/HTTPS URL.", nameof(url));
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.TryAddWithoutValidation("User-Agent", string.IsNullOrWhiteSpace(userAgent) ? "Mozilla/5.0 MakanDownloadManager/10" : userAgent);
+        request.Headers.TryAddWithoutValidation("User-Agent", string.IsNullOrWhiteSpace(userAgent) ? "Mozilla/5.0 EpsilonDownloadManager/2" : userAgent);
         if (!string.IsNullOrWhiteSpace(cookie)) request.Headers.TryAddWithoutValidation("Cookie", cookie);
         if (!string.IsNullOrWhiteSpace(referrer)) request.Headers.TryAddWithoutValidation("Referer", referrer);
         using var response = await _http.SendAsync(request, ct);
@@ -34,7 +34,7 @@ public sealed class MediaService
     public async Task<double?> GetHlsDurationAsync(string playlistUrl, string? cookie, string? referrer, string? userAgent, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, playlistUrl);
-        request.Headers.TryAddWithoutValidation("User-Agent", string.IsNullOrWhiteSpace(userAgent) ? "Mozilla/5.0 MakanDownloadManager/10" : userAgent);
+        request.Headers.TryAddWithoutValidation("User-Agent", string.IsNullOrWhiteSpace(userAgent) ? "Mozilla/5.0 EpsilonDownloadManager/2" : userAgent);
         if (!string.IsNullOrWhiteSpace(cookie)) request.Headers.TryAddWithoutValidation("Cookie", cookie);
         if (!string.IsNullOrWhiteSpace(referrer)) request.Headers.TryAddWithoutValidation("Referer", referrer);
         using var response = await _http.SendAsync(request, ct);
@@ -55,7 +55,7 @@ public sealed class MediaService
         candidates.AddRange((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
             .Select(dir => { try { return Path.Combine(dir.Trim().Trim('"'), file); } catch { return ""; } }));
         var found = candidates.FirstOrDefault(c => c.Length > 0 && File.Exists(c));
-        return found ?? throw new FileNotFoundException("FFmpeg was not found. Install ffmpeg (or put ffmpeg.exe next to Makan) and set its path here.", name);
+        return found ?? throw new FileNotFoundException("FFmpeg was not found. Install ffmpeg (or put ffmpeg.exe next to Epsilon) and set its path here.", name);
     }
 
     public async Task RunFfmpegAsync(string ffmpeg, string input, string output, string? cookie = null, string? referrer = null, string? userAgent = null, string? audioInput = null, CancellationToken ct = default)

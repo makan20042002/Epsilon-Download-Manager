@@ -31,7 +31,7 @@ public partial class ReportBugWindow : Window
         {
             if (DiagnosticsCheck.IsChecked == true)
             {
-                var database = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MakanDownloadManager", "downloads.db");
+                var database = Path.Combine(PortableModeService.DataDirectory, "downloads.db");
                 report = new DiagnosticsService().ExportReport(database);
             }
 

@@ -7,20 +7,29 @@ namespace MakanDownloadManager.Services.Torrent;
 /// <summary>One TCP connection speaking the BitTorrent peer wire protocol (BEP 3) with the extension protocol (BEP 10).</summary>
 public sealed partial class PeerConnection : IDisposable
 {
-    public const byte Choke = 0, Unchoke = 1, Interested = 2, NotInterested = 3, Have = 4, BitfieldId = 5, Request = 6, Piece = 7, Cancel = 8, Port = 9, Extended = 20;
+    public const byte Choke = 0, Unchoke = 1, Interested = 2, NotInterested = 3, Have = 4, BitfieldId = 5, Request = 6, Piece = 7, Cancel = 8, Port = 9, Suggest = 13, HaveAll = 14, HaveNone = 15, Reject = 16, AllowedFast = 17, Extended = 20;
     const int MaxMessage = 2 * 1024 * 1024;
     static readonly byte[] Protocol = Encoding.ASCII.GetBytes("BitTorrent protocol");
 
-    readonly TcpClient _client;
-    readonly NetworkStream _stream;
+    readonly Stream _stream;
+    readonly IDisposable _closer;
     readonly SemaphoreSlim _send = new(1, 1);
     public IPEndPoint EndPoint { get; }
     public bool Incoming { get; }
 
+    /// <summary>"TCP" or "uTP".</summary>
+    public string Transport { get; }
+
     public PeerConnection(TcpClient client, IPEndPoint endPoint, bool incoming)
     {
-        _client = client; _stream = client.GetStream(); EndPoint = endPoint; Incoming = incoming;
+        _closer = client; _stream = client.GetStream(); EndPoint = endPoint; Incoming = incoming; Transport = "TCP";
         client.NoDelay = true;
+    }
+
+    /// <summary>A connection over any other transport (uTP): the stream is disposed with the connection.</summary>
+    public PeerConnection(Stream stream, IPEndPoint endPoint, bool incoming, string transport)
+    {
+        _closer = stream; _stream = stream; EndPoint = endPoint; Incoming = incoming; Transport = transport;
     }
 
     public static async Task<PeerConnection> ConnectAsync(IPEndPoint endPoint, TimeSpan timeout, CancellationToken ct)
@@ -38,7 +47,7 @@ public sealed partial class PeerConnection : IDisposable
 
     // ---------------------------------------------------------------- handshake
 
-    public sealed record Handshake(byte[] InfoHash, byte[] PeerId, bool SupportsExtensions, bool SupportsDht);
+    public sealed record Handshake(byte[] InfoHash, byte[] PeerId, bool SupportsExtensions, bool SupportsDht, bool SupportsFast = false);
 
     public async Task SendHandshakeAsync(byte[] infoHash, byte[] peerId, CancellationToken ct)
     {
@@ -46,7 +55,7 @@ public sealed partial class PeerConnection : IDisposable
         packet[0] = 19;
         Protocol.CopyTo(packet, 1);
         packet[25] = 0x10;                      // extension protocol
-        packet[27] = 0x01;                      // DHT
+        packet[27] = 0x05;                      // DHT (0x01) and Fast Extension (0x04, BEP 6)
         infoHash.CopyTo(packet, 28);
         peerId.CopyTo(packet, 48);
         await WriteAsync(packet, ct).ConfigureAwait(false);
@@ -57,7 +66,7 @@ public sealed partial class PeerConnection : IDisposable
         var packet = new byte[68];
         await ReadExactlyAsync(packet, ct).ConfigureAwait(false);
         if (packet[0] != 19 || !packet.AsSpan(1, 19).SequenceEqual(Protocol)) throw new IOException("The peer does not speak BitTorrent.");
-        return new Handshake(packet.AsSpan(28, 20).ToArray(), packet.AsSpan(48, 20).ToArray(), (packet[25] & 0x10) != 0, (packet[27] & 0x01) != 0);
+        return new Handshake(packet.AsSpan(28, 20).ToArray(), packet.AsSpan(48, 20).ToArray(), (packet[25] & 0x10) != 0, (packet[27] & 0x01) != 0, (packet[27] & 0x04) != 0);
     }
 
     // ---------------------------------------------------------------- messages
@@ -130,7 +139,7 @@ public sealed partial class PeerConnection : IDisposable
 
     public void Dispose()
     {
-        try { _client.Close(); } catch (Exception) { }
+        try { _closer.Dispose(); } catch (Exception) { }
         _send.Dispose();
     }
 }
@@ -155,6 +164,10 @@ public sealed class PeerState
     public bool PeerInterested { get; set; }
     public bool SupportsExtensions { get; set; }
     public bool SupportsDht { get; set; }
+    /// <summary>Both sides announced the Fast Extension (BEP 6): HaveAll/HaveNone and explicit Reject messages.</summary>
+    public bool SupportsFast { get; set; }
+    /// <summary>HaveAll arrived before the metadata (magnet link): the bitfield is built when the piece count is known.</summary>
+    public bool AllPieces { get; set; }
     public int UtMetadataId { get; set; }
     public int UtPexId { get; set; }
     public int MetadataSize { get; set; }

@@ -11,23 +11,26 @@ A fast, private download manager and BitTorrent client for Windows. Epsilon comb
 
 ## Download
 
-**[Download Epsilon Download Manager 1.7.1 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v1.7.1/EpsilonDownloadManager-1.7.1-Setup.exe)**
+**[Download Epsilon Download Manager 2.0.0 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v2.0.0/EpsilonDownloadManager-2.0.0-Setup.exe)**
 
-Run the installer normally. Version 1.7.1 upgrades an existing Epsilon installation in place and preserves settings, download links, history, queues, and unfinished downloads. You do not need to uninstall an older version first.
+Run the installer normally. Version 2.0.0 installs over 1.7.1, imports your existing settings on first start, and leaves the original 1.7.1 data unchanged. You do not need to uninstall first.
+
+Prefer a portable copy? Download **[EpsilonDownloadManager-2.0.0-Portable.zip](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v2.0.0/EpsilonDownloadManager-2.0.0-Portable.zip)** and unzip it anywhere. Its settings and downloads stay in the `data` folder beside the program.
 
 SHA-256:
 
 ```text
-03748DD0151BA1D73D60AA0FBAA2F7D7471E5CFECB845AF1BE89B7825C9B778B
+54BCF6CEC8DD34F33AFA7976CBF3BF318A61A7F68C9A61CB2CD7694B93A43B93  EpsilonDownloadManager-2.0.0-Setup.exe
+93AEFAAFFFEFA314A864EBFAD192C981183D745A7B1FE518A4F6ED1D1F9806E5  EpsilonDownloadManager-2.0.0-Portable.zip
 ```
 
 ## Help test Epsilon
 
-Want to help improve Epsilon? Install version 1.7.1 and share your results in the public [tester feedback issue](https://github.com/makan20042002/Epsilon-Download-Manager/issues/1). The checklist covers download resume and retry, browser capture, queues, torrents, speed testing, Multi-Network downloads, themes, and English/Persian layouts. Please remove private URLs, cookies, tokens, and personal file paths before posting logs or screenshots.
+Want to help improve Epsilon? Install version 2.0.0 and share your results in the public [tester feedback issue](https://github.com/makan20042002/Epsilon-Download-Manager/issues/1). The checklist covers download resume and retry, browser capture, queues, torrents, speed testing, Multi-Network downloads, themes, and English/Persian layouts. Please remove private URLs, cookies, tokens, and personal file paths before posting logs or screenshots.
 
 ## Highlights
 
-- **Fast, reliable downloads** — up to 16 connections, exact-byte resume after pause/restart, retry with back-off, checksum verification, and live handling of network-speed changes.
+- **Fast, reliable downloads** — 8 connections by default and up to 48 for large files, exact-byte resume after pause/restart, retry with back-off, checksum verification, and live handling of network-speed changes.
 - **Multi-Network downloads** — optionally distribute segmented HTTP connections across connected Wi-Fi, Ethernet, or tethered networks, with automatic fallback when one link fails.
 - **Flexible speed limits** — unlimited by default, a combined global limit, and optional independent per-file limits.
 - **BitTorrent Engine 2.0** — magnet links and `.torrent` files, persistent DHT, PEX, HTTP/UDP trackers, HTTP web seeds, UPnP/NAT-PMP, file priority, seeding controls, and per-torrent bandwidth limits. Torrents have no artificial speed cap unless you set one.
@@ -35,12 +38,12 @@ Want to help improve Epsilon? Install version 1.7.1 and share your results in th
 - **Media downloads** — native HLS and DASH plus YouTube and other supported sites through yt-dlp, including quality selection, audio extraction, playlists, and subtitles.
 - **Scheduling and queues** — parallel queue limits, Start All/Schedule/Stop All controls, retryable failed items, and a complete schedule stop that does not advance to the next file.
 - **Accurate resume feedback** — separate network and disk-loading progress, so restoring a partial download never looks frozen.
-- **Redesigned desktop shell** — a compact productivity layout with a neutral title rail, left navigation, rectangular commands, and no large solid-color header or IDM-style icon ribbon.
-- **Website-matched themes** — Platinum Blue is the default for new installs, and the new Makan Lab theme uses the live site’s ink, electric-blue, and amber palette. The browser extension follows the desktop theme.
+- **Redesigned desktop shell** — a responsive glass interface with a detailed download table, persistent resizable columns, live speed cards, network status, and an expanded progress window.
+- **Six coordinated themes** — Arctic Blue, Jade Mint, Warm Ivory, Midnight Blue, Graphite Gold, and Royal Plum. Scheduler, Media Capture, History, and progress windows follow the selected theme.
 - **Windows integration** — magnet and `.torrent` handlers, tray speed display, optional keep-awake while downloading, and in-place upgrades.
 - **English and Persian** — full RTL-aware Persian localization.
 
-See [the 1.7.1 release notes](RELEASE_NOTES_1.7.1.md) for the latest changes, or [the 1.7.0 release notes](RELEASE_NOTES_1.7.0.md) for the previous release.
+See [the 2.0.0 release notes](RELEASE_NOTES_2.0.0.md) for the latest changes, or [the 1.7.1 release notes](RELEASE_NOTES_1.7.1.md) for the previous release.
 
 ## Browser extensions
 

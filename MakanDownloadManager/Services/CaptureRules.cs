@@ -17,6 +17,10 @@ public sealed class CaptureRules
     public string FileTypes { get; set; } = DefaultFileTypes;
     public string ExcludedSites { get; set; } = DefaultExcludedSites;
     public string ExcludedAddresses { get; set; } = "";
+    /// <summary>Pages on the person's own computer (XAMPP, a local dev site, phpMyAdmin...) are never taken over by themselves.</summary>
+    public bool LeaveLocalToBrowser { get; set; } = true;
+    /// <summary>Web-hosting control panels (cPanel, WHM, webmail) hand out one-time download links for the files you manage there; the browser keeps them.</summary>
+    public bool LeaveControlPanelsToBrowser { get; set; } = true;
     public string Browsers { get; set; } = string.Join(",", AllBrowsers);
 
     public readonly record struct Decision(bool Capture, string Reason);
@@ -34,6 +38,21 @@ public sealed class CaptureRules
         if (ua.Contains("Chrome/", StringComparison.OrdinalIgnoreCase) || ua.Contains("Chromium/", StringComparison.OrdinalIgnoreCase)) return "chrome";
         return "other";
     }
+
+    /// <summary>True for addresses that point at this computer: localhost, 127.x.x.x, ::1 and the usual local-site endings (.localhost, .test, .local).</summary>
+    public static bool IsLocalHost(string? host)
+    {
+        var h = (host ?? "").Trim().Trim('[', ']').TrimEnd('.').ToLowerInvariant();
+        if (h.Length == 0) return false;
+        if (h == "localhost" || h == "::1" || h.StartsWith("127.") && System.Net.IPAddress.TryParse(h, out _)) return true;
+        return h.EndsWith(".localhost") || h.EndsWith(".test") || h.EndsWith(".local");
+    }
+
+    static readonly int[] ControlPanelPorts = { 2082, 2083, 2086, 2087, 2095, 2096 };
+
+    /// <summary>True for a cPanel / WHM / webmail address (their ports, or the one-time "/cpsess..." session path).</summary>
+    public static bool IsControlPanel(Uri? uri) =>
+        uri != null && (Array.IndexOf(ControlPanelPorts, uri.Port) >= 0 || uri.AbsolutePath.Contains("/cpsess", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Case-insensitive match where * stands for any run of characters.</summary>
     public static bool Wildcard(string pattern, string text)
@@ -58,10 +77,12 @@ public sealed class CaptureRules
     {
         var browser = BrowserOf(userAgent);
         var allowed = Words(Browsers).Select(b => b.ToLowerInvariant()).ToHashSet();
-        if (allowed.Count > 0 && !allowed.Contains(browser)) return new(false, $"Makan is set not to take over downloads from this browser ({browser}). See Options > General.");
+        if (allowed.Count > 0 && !allowed.Contains(browser)) return new(false, $"Epsilon is set not to take over downloads from this browser ({browser}). See Options > General.");
 
         Uri.TryCreate(url, UriKind.Absolute, out var uri);
         var host = uri?.Host ?? "";
+        if (LeaveControlPanelsToBrowser && IsControlPanel(uri)) return new(false, "Downloads from a hosting control panel (cPanel) are left to the browser.");
+        if (LeaveLocalToBrowser && IsLocalHost(host)) return new(false, "Downloads from this computer's own web server (localhost) are left to the browser.");
         if (Words(ExcludedSites).Any(p => Wildcard(p, host))) return new(false, $"Downloads from {host} are left to the browser (Options > File types).");
         if (ExcludedAddresses.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).Any(p => p.Length > 0 && Wildcard(p, url)))
             return new(false, "This address is on the list of addresses left to the browser (Options > File types).");

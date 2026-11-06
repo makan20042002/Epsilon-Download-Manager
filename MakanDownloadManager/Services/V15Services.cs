@@ -31,7 +31,7 @@ public sealed class V15DownloadIntelligence
     {
         if (!Uri.TryCreate(item.Url, UriKind.Absolute, out var uri)) return "Invalid URL";
         var profile = Servers().FirstOrDefault(x => string.Equals(x.Host, uri.Host, StringComparison.OrdinalIgnoreCase));
-        if (profile is null) return "No history yet — Makan starts with your normal connection count and learns from this server.";
+        if (profile is null) return "No history yet — Epsilon starts with your normal connection count and learns from this server.";
         if (profile.Throttles >= 3) return $"This server has throttled {profile.Throttles} times; keep connections near {Math.Max(1, profile.Connections)}.";
         if (profile.Samples >= 4 && profile.AverageMbps >= 80) return $"Strong history ({profile.AverageMbps:0.0} Mbps); {profile.Connections} connections is a good starting point.";
         return $"Learned profile: {profile.Connections} connections, {profile.AverageMbps:0.0} Mbps average over {profile.Samples} samples.";
@@ -166,11 +166,11 @@ public sealed class V15HealthService
         checks.Add(CheckFreeSpace(i.DefaultFolder));
         checks.Add(CheckWritable(i.DefaultFolder));
 
-        var hostExe = Path.Combine(i.BaseDirectory, "EpsilonNativeHost.exe");
+        var hostExe = Path.Combine(i.BaseDirectory, ProductIdentity.NativeHostExecutableName);
         var hostPresent = File.Exists(hostExe);
         var registered = i.Browsers.Where(b => b.Registered).Select(b => b.Browser).ToList();
         checks.Add(new("Browser integration", hostPresent && registered.Count > 0,
-            !hostPresent ? "EpsilonNativeHost.exe was not found next to the application." :
+            !hostPresent ? $"{ProductIdentity.NativeHostExecutableName} was not found next to the application." :
             registered.Count == 0 ? "Not connected to any browser yet: run install-browser-integration.ps1 (or Options > General > Repair)." :
             "Connected: " + string.Join(", ", registered) + (i.Browsers.Count > registered.Count ? ". Not connected: " + string.Join(", ", i.Browsers.Where(b => !b.Registered).Select(b => b.Browser)) + "." : ".")));
 

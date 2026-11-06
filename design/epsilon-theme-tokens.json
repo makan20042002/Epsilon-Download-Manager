@@ -1,0 +1,84 @@
+{
+  "$schema": "https://example.com/epsilon-theme-tokens.schema.json",
+  "version": 1,
+  "tokenOrder": ["Bg", "Panel", "Panel2", "Surface", "Border", "Text", "Muted", "Faint", "TopBarText", "Accent", "AccentDark", "OnAccent", "Hover", "Selected", "Success", "Danger", "Warning", "SuccessBg", "HeaderBg", "Track", "Input", "InputBorder", "Popup", "IconGrey", "IconPurple", "IconTeal", "IconAmber", "ScrollThumb", "ScrollThumbHover", "Disabled"],
+  "brand": {
+    "primaryGradient": ["#39F5B0", "#38D9FF", "#4D7CFF"],
+    "connectionGradient": ["#4D7CFF", "#38D9FF"]
+  },
+  "auto": { "dark": "sapphire-noir", "light": "platinum-blue" },
+  "legacyAliases": {
+    "ivory-luxe": "champagne-minimal",
+    "light": "platinum-blue",
+    "orange": "champagne-minimal",
+    "obsidian": "obsidian-gold",
+    "uhnohh": "obsidian-gold",
+    "nebula": "royal-amethyst",
+    "lilac": "rose-titanium",
+    "makan": "sapphire-noir",
+    "dark": "sapphire-noir",
+    "epsilon": "sapphire-noir"
+  },
+  "themes": {
+    "obsidian-gold": {
+      "name": "Obsidian Gold",
+      "mode": "dark",
+      "colors": {"Bg":"#0A0907","Panel":"#11100D","Panel2":"#181611","Surface":"#201D16","Border":"#4A3B22","Text":"#FFF8E7","Muted":"#D8C7A0","Faint":"#8F7B54","TopBarText":"#120E05","Accent":"#E0B75A","AccentDark":"#A97822","OnAccent":"#120E05","Hover":"#28231A","Selected":"#3A2F1C","Success":"#64D68A","Danger":"#FF6B6B","Warning":"#F4C66A","SuccessBg":"#13251A","HeaderBg":"#11100D","Track":"#181611","Input":"#0D0C09","InputBorder":"#4A3B22","Popup":"#181611","IconGrey":"#D8C7A0","IconPurple":"#C69CFF","IconTeal":"#63D6C5","IconAmber":"#E0B75A","ScrollThumb":"#4A3B22","ScrollThumbHover":"#E0B75A","Disabled":"#6E634E"}
+    },
+    "platinum-blue": {
+      "name": "Platinum Blue",
+      "mode": "light",
+      "colors": {"Bg":"#EAF4FF","Panel":"#F4F9FF","Panel2":"#DCEBFA","Surface":"#FFFFFF","Border":"#B7CEE6","Text":"#12263F","Muted":"#4D6680","Faint":"#7890A8","TopBarText":"#FFFFFF","Accent":"#1467D8","AccentDark":"#0C4FAE","OnAccent":"#FFFFFF","Hover":"#E2EFFC","Selected":"#C8DFFF","Success":"#197347","Danger":"#B4233E","Warning":"#9A5700","SuccessBg":"#E1F3EA","HeaderBg":"#F4F9FF","Track":"#DCEBFA","Input":"#FFFFFF","InputBorder":"#AFC8E2","Popup":"#FFFFFF","IconGrey":"#536B84","IconPurple":"#7047B8","IconTeal":"#08798A","IconAmber":"#9A5700","ScrollThumb":"#AFC8E2","ScrollThumbHover":"#1467D8","Disabled":"#8B9DB0"}
+    },
+    "royal-amethyst": {
+      "name": "Royal Amethyst",
+      "mode": "dark",
+      "colors": {"Bg":"#0C081A","Panel":"#150D2C","Panel2":"#211343","Surface":"#2A1854","Border":"#54338B","Text":"#F8F2FF","Muted":"#C7B5E5","Faint":"#856AAA","TopBarText":"#180A2A","Accent":"#A873F0","AccentDark":"#6C2CC1","OnAccent":"#FFFFFF","Hover":"#321E61","Selected":"#432777","Success":"#55DDA6","Danger":"#FF668C","Warning":"#F4C96B","SuccessBg":"#142A24","HeaderBg":"#150D2C","Track":"#211343","Input":"#100921","InputBorder":"#54338B","Popup":"#211343","IconGrey":"#C7B5E5","IconPurple":"#C794FF","IconTeal":"#63D8EA","IconAmber":"#F4C96B","ScrollThumb":"#54338B","ScrollThumbHover":"#A873F0","Disabled":"#6E5C86"}
+    },
+    "emerald-executive": {
+      "name": "Emerald Executive",
+      "mode": "dark",
+      "colors": {"Bg":"#061412","Panel":"#08221D","Panel2":"#0D3029","Surface":"#123B32","Border":"#245C4E","Text":"#EDFFF9","Muted":"#A7D7C8","Faint":"#5E9B89","TopBarText":"#041410","Accent":"#45D8AE","AccentDark":"#15896B","OnAccent":"#03140F","Hover":"#17483D","Selected":"#1D594A","Success":"#55E6A8","Danger":"#FF6F78","Warning":"#F1C75B","SuccessBg":"#0D3125","HeaderBg":"#08221D","Track":"#0D3029","Input":"#071A17","InputBorder":"#245C4E","Popup":"#0D3029","IconGrey":"#A7D7C8","IconPurple":"#BD91FF","IconTeal":"#45D8AE","IconAmber":"#F1C75B","ScrollThumb":"#245C4E","ScrollThumbHover":"#45D8AE","Disabled":"#52796E"}
+    },
+    "champagne-minimal": {
+      "name": "Champagne Minimal",
+      "mode": "light",
+      "colors": {"Bg":"#F6F0E7","Panel":"#FBF7F1","Panel2":"#EDE2D2","Surface":"#FFFFFF","Border":"#D7C2A4","Text":"#2D241A","Muted":"#6F5E49","Faint":"#9C8870","TopBarText":"#FFFFFF","Accent":"#9B682D","AccentDark":"#754817","OnAccent":"#FFFFFF","Hover":"#F1E7D8","Selected":"#E6D3B7","Success":"#287546","Danger":"#B52D3E","Warning":"#965400","SuccessBg":"#E5F1E8","HeaderBg":"#FBF7F1","Track":"#EDE2D2","Input":"#FFFFFF","InputBorder":"#CFB999","Popup":"#FFFFFF","IconGrey":"#6F5E49","IconPurple":"#724AA2","IconTeal":"#1F7480","IconAmber":"#9B682D","ScrollThumb":"#CFB999","ScrollThumbHover":"#9B682D","Disabled":"#A2927D"}
+    },
+    "graphite-copper": {
+      "name": "Graphite Copper",
+      "mode": "dark",
+      "colors": {"Bg":"#0C0C0C","Panel":"#151311","Panel2":"#201A16","Surface":"#29211B","Border":"#5A3C28","Text":"#FFF4EC","Muted":"#D6B9A5","Faint":"#8D6D58","TopBarText":"#180B04","Accent":"#E28A4D","AccentDark":"#9B4D20","OnAccent":"#FFFFFF","Hover":"#32251D","Selected":"#463020","Success":"#66D796","Danger":"#FF6B64","Warning":"#F2B95C","SuccessBg":"#14271C","HeaderBg":"#151311","Track":"#201A16","Input":"#100E0D","InputBorder":"#5A3C28","Popup":"#201A16","IconGrey":"#D6B9A5","IconPurple":"#C59BFF","IconTeal":"#60D1C0","IconAmber":"#E28A4D","ScrollThumb":"#5A3C28","ScrollThumbHover":"#E28A4D","Disabled":"#745E50"}
+    },
+    "sapphire-noir": {
+      "name": "Sapphire Noir",
+      "mode": "dark",
+      "colors": {"Bg":"#030A17","Panel":"#071429","Panel2":"#0B2140","Surface":"#102B50","Border":"#1B477A","Text":"#EFF7FF","Muted":"#A7C4E5","Faint":"#5C83AD","TopBarText":"#030A17","Accent":"#2E86FF","AccentDark":"#1558C0","OnAccent":"#FFFFFF","Hover":"#123561","Selected":"#174474","Success":"#51DBA3","Danger":"#FF657A","Warning":"#F4C65B","SuccessBg":"#0C2A22","HeaderBg":"#071429","Track":"#0B2140","Input":"#050F20","InputBorder":"#1B477A","Popup":"#0B2140","IconGrey":"#A7C4E5","IconPurple":"#A98CFF","IconTeal":"#45CFEA","IconAmber":"#F4C65B","ScrollThumb":"#1B477A","ScrollThumbHover":"#2E86FF","Disabled":"#4E6B8B"}
+    },
+    "rose-titanium": {
+      "name": "Rose Titanium",
+      "mode": "dark",
+      "colors": {"Bg":"#120B10","Panel":"#20111B","Panel2":"#301825","Surface":"#3C1E30","Border":"#6A3B56","Text":"#FFF3F9","Muted":"#D9B4C8","Faint":"#93677E","TopBarText":"#260C18","Accent":"#E187B1","AccentDark":"#9D3F6E","OnAccent":"#FFFFFF","Hover":"#48243A","Selected":"#5B2C48","Success":"#63D59A","Danger":"#FF6680","Warning":"#F2C565","SuccessBg":"#17291F","HeaderBg":"#20111B","Track":"#301825","Input":"#180D14","InputBorder":"#6A3B56","Popup":"#301825","IconGrey":"#D9B4C8","IconPurple":"#C69AFF","IconTeal":"#66D2D6","IconAmber":"#F2C565","ScrollThumb":"#6A3B56","ScrollThumbHover":"#E187B1","Disabled":"#79596A"}
+    },
+    "arctic-glass": {
+      "name": "Arctic Glass",
+      "mode": "dark",
+      "colors": {"Bg":"#07131F","Panel":"#0B2133","Panel2":"#103049","Surface":"#153C58","Border":"#2B6687","Text":"#EDF9FF","Muted":"#A9D4E8","Faint":"#6E9DB5","TopBarText":"#07131F","Accent":"#45C7FF","AccentDark":"#0D86C6","OnAccent":"#03131D","Hover":"#174C6D","Selected":"#1E5D80","Success":"#62E0B1","Danger":"#FF6F91","Warning":"#FFD166","SuccessBg":"#10382E","HeaderBg":"#0B2133","Track":"#103049","Input":"#081A28","InputBorder":"#2B6687","Popup":"#103049","IconGrey":"#A9D4E8","IconPurple":"#BFA5FF","IconTeal":"#55DFE5","IconAmber":"#FFD166","ScrollThumb":"#2B6687","ScrollThumbHover":"#45C7FF","Disabled":"#557F95"}
+    },
+    "crystal-noir": {
+      "name": "Crystal Noir",
+      "mode": "dark-translucent",
+      "colors": {"Bg":"#B20A0D18","Panel":"#C4141928","Panel2":"#B91C2235","Surface":"#CC242B40","Border":"#805E6A86","Text":"#FFF8FAFF","Muted":"#FFD2D8E8","Faint":"#FF909AB1","TopBarText":"#FF100C1D","Accent":"#FFB89CFF","AccentDark":"#FF8063D8","OnAccent":"#FF100C1D","Hover":"#753A435E","Selected":"#8A46516F","Success":"#FF6DE0B3","Danger":"#FFFF6F91","Warning":"#FFFFD37A","SuccessBg":"#99213B34","HeaderBg":"#C4141928","Track":"#A91B2233","Input":"#C8101421","InputBorder":"#8A5E6A86","Popup":"#D81B2031","IconGrey":"#FFD2D8E8","IconPurple":"#FFD89BFF","IconTeal":"#FF65D9E8","IconAmber":"#FFFFC56E","ScrollThumb":"#995E6A86","ScrollThumbHover":"#FFB89CFF","Disabled":"#FF6F7890"}
+    },
+    "dracula": {
+      "name": "Dracula",
+      "mode": "dark",
+      "colors": {"Bg":"#1E1F29","Panel":"#282A36","Panel2":"#343746","Surface":"#3C3F51","Border":"#5A5F78","Text":"#F8F8F2","Muted":"#C9C9C2","Faint":"#8B8D9A","TopBarText":"#1E1F29","Accent":"#BD93F9","AccentDark":"#8B5CC7","OnAccent":"#171820","Hover":"#44475A","Selected":"#50536A","Success":"#50FA7B","Danger":"#FF6E78","Warning":"#F1FA8C","SuccessBg":"#243C2B","HeaderBg":"#282A36","Track":"#343746","Input":"#21222C","InputBorder":"#5A5F78","Popup":"#343746","IconGrey":"#C9C9C2","IconPurple":"#FF79C6","IconTeal":"#8BE9FD","IconAmber":"#FFB86C","ScrollThumb":"#5A5F78","ScrollThumbHover":"#BD93F9","Disabled":"#6B6E82"}
+    },
+    "makan-lab": {
+      "name": "Makan Lab",
+      "mode": "dark",
+      "colors": {"Bg":"#05070D","Panel":"#0A0E17","Panel2":"#101724","Surface":"#151E2E","Border":"#24324A","Text":"#F2F6FC","Muted":"#A9B6C8","Faint":"#718096","TopBarText":"#F2F6FC","Accent":"#58A6FF","AccentDark":"#2F81F7","OnAccent":"#07111F","Hover":"#152238","Selected":"#1B3150","Success":"#4ED6A8","Danger":"#FF6B7D","Warning":"#FFB44A","SuccessBg":"#102A24","HeaderBg":"#0A0E17","Track":"#111A28","Input":"#080C14","InputBorder":"#293A55","Popup":"#101724","IconGrey":"#A9B6C8","IconPurple":"#B79CFF","IconTeal":"#55D6E8","IconAmber":"#FFB44A","ScrollThumb":"#293A55","ScrollThumbHover":"#58A6FF","Disabled":"#59677A"}
+    }
+  }
+}

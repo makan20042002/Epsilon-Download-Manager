@@ -23,6 +23,9 @@ tests/**/obj/
 .vscode/
 domains/
 Epsilon_Theme_System_Cleanup_TASK.md
+_preview/
+_devsum.txt
+packaging/_winget-pkgs-fork/
 
 # Old installers, source snapshots and recordings kept locally only
 _archive/

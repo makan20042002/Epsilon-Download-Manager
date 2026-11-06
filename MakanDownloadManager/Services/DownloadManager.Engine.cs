@@ -159,14 +159,18 @@ public sealed partial class DownloadManager
         }
     }
 
-    int ChooseConnections(DownloadItem item, ProbeResult probe)
+    /// <summary>Most connections worth opening for a file of this size: 8 from 16 MB up (the default), everything asked for from 256 MB up (up to 48).</summary>
+    internal static int SizeConnectionCap(long size) =>
+        size >= 256L << 20 ? MaxConnectionsPerDownload : size >= 16L << 20 ? 8 : size >= 4L << 20 ? 4 : 2;
+
+    internal int ChooseConnections(DownloadItem item, ProbeResult probe)
     {
         if (!probe.AcceptRanges || probe.Length is null || probe.Length < 2 * 1024 * 1024) return 1;
         var configured = Math.Clamp(item.Connections > 0 ? item.Connections : DefaultConnections, 1, MaxConnectionsPerDownload);
         configured = SuggestConnections(item, configured);
-        var size = probe.Length.Value;
-        var adaptive = size >= 1L << 30 ? 16 : size >= 256L << 20 ? 8 : size >= 32L << 20 ? 4 : 2;
-        return Math.Clamp(Math.Min(configured, adaptive), 1, MaxConnectionsPerDownload);
+        var chosen = Math.Clamp(Math.Min(configured, SizeConnectionCap(probe.Length.Value)), 1, MaxConnectionsPerDownload);
+        item.UsedConnections = chosen;
+        return chosen;
     }
 
     static string Norm(string? etag) => (etag ?? "").Trim().Replace("W/", "", StringComparison.Ordinal);
@@ -478,7 +482,7 @@ public sealed partial class DownloadManager
                 // download simply stops using that network.
                 if (Interlocked.Increment(ref live.LinkFailures[link]) == LinkFailureLimit)
                 {
-                    Volatile.Write(ref live.LinkRetryAt[link], DateTime.UtcNow.AddMinutes(Math.Max(1, MultiNetworkRetryMinutes)).Ticks);
+                    Volatile.Write(ref live.LinkRetryAt[link], DateTime.UtcNow.AddMinutes(Math.Max(0.25, MultiNetworkRetryMinutes)).Ticks);
                     _diagnostics.Error($"Multi-Network: download #{item.Id} stopped using {links[link].Kind} after repeated errors", ex);
                 }
                 throw new LinkFailedException(ex.Message, ex);
@@ -667,21 +671,52 @@ public sealed partial class DownloadManager
     /// <summary>Does the server allow resuming (null = not known yet)?</summary>
     public bool? SupportsResume(DownloadItem item) => _live.TryGetValue(item.Id, out var live) ? live.ResumeSupported : null;
 
+    /// <summary>How many segments (parts) the running download is made of and how many of them are finished; (0, 0) when it has no segment map.</summary>
+    public (int Total, int Complete) GetSegmentCounts(DownloadItem item)
+    {
+        if (!_live.TryGetValue(item.Id, out var live) || live.Map is not { Total: > 0 } map) return (0, 0);
+        var complete = 0;
+        for (var i = 0; i < map.Count; i++)
+            if (Volatile.Read(ref map.Done[i]) >= map.LengthOf(i)) complete++;
+        return (map.Count, complete);
+    }
+
+    /// <summary>
+    /// Moves a download that has not fetched anything yet to another folder (the "Change" button of the progress window).
+    /// Refused while it runs or once partial data exists, because that data lives beside the target file name.
+    /// Returns null on success, otherwise the reason (already translated).
+    /// </summary>
+    public string? ChangeSaveFolder(DownloadItem item, string newFolder)
+    {
+        if (Is(item, DownloadStatus.Downloading) || Is(item, DownloadStatus.Queued)) return Loc.T("Stop the download first, then change its folder.");
+        if (Is(item, DownloadStatus.Complete)) return Loc.T("This download is already finished.");
+        if (item.DoneBytes > 0 || PartialFilesExist(item)) return Loc.T("Part of this file is already saved, so its folder can no longer be changed. Cancel the download and add it again to save it somewhere else.");
+        if (string.IsNullOrWhiteSpace(newFolder)) return Loc.T("Choose a folder.");
+        try
+        {
+            var folder = Path.GetFullPath(newFolder.Trim());
+            Directory.CreateDirectory(folder);
+            var name = Path.GetFileName(item.FilePath);
+            if (string.IsNullOrWhiteSpace(name)) return Loc.T("This download has no file name yet.");
+            var target = DownloadFileNamer.MakeUnique(Path.Combine(folder, name), p => IsPathClaimed(item, p));
+            item.FilePath = target;
+            item.Category = CategoryService.For(target);
+            _store.Save(item);
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return Loc.F("The folder could not be used: {0}", ex.Message);
+        }
+    }
+
     // ---------------------------------------------------------------- yt-dlp (YouTube and other protected sites)
 
     async Task YtDlpDownloadAsync(DownloadItem item, string pageUrl, string key, CancellationToken ct)
     {
         var yt = YtDlp ?? throw new InvalidOperationException("yt-dlp is not set up. Open Options > YouTube & other sites and click \"Download / update tools\".");
         var outputBase = Path.ChangeExtension(item.FilePath, null);
-        try
-        {
-            var folder = Path.GetDirectoryName(outputBase)!;
-            var stem = Path.GetFileName(outputBase);
-            item.DiskLoadedBytes = Directory.Exists(folder)
-                ? Directory.GetFiles(folder, stem + "*.part").Sum(path => new FileInfo(path).Length)
-                : 0;
-        }
-        catch (Exception) { item.DiskLoadedBytes = 0; }
+        item.DiskLoadedBytes = YtDlpService.ExistingPartialBytes(outputBase);
         var live = Live(item); live.Workers = 1; live.Info[0] = "Receiving data..."; live.ResumeSupported = true;
         item.ActiveConnections = 1;
         var streams = new Dictionary<string, (long Done, long Total)>();

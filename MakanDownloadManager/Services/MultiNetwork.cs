@@ -84,7 +84,7 @@ public sealed partial class DownloadManager
     public bool MultiNetworkAskNewNetwork { get; set; }
     public IReadOnlySet<string> MultiNetworkKnown { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<string, string> MultiNetworkColors { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    public int MultiNetworkRetryMinutes { get; set; } = 5;
+    public double MultiNetworkRetryMinutes { get; set; } = 5;   // fractions allowed: 0.5 = 30 seconds
     public long MultiNetworkDailyLimitBytes { get; set; }
     public long MultiNetworkTodayBytes => Interlocked.Read(ref _multiNetworkTodayBytes);
     public Action<DateOnly, long>? MultiNetworkUsageChanged { get; set; }

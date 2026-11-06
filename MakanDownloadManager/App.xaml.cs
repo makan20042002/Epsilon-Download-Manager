@@ -45,7 +45,7 @@ public partial class App : Application
         try
         {
             var instanceName = Environment.GetEnvironmentVariable("EPSILON_INSTANCE_NAME");
-            if (string.IsNullOrWhiteSpace(instanceName)) instanceName = "MakanDownloadManager.SingleInstance";
+            if (string.IsNullOrWhiteSpace(instanceName)) instanceName = ProductIdentity.SingleInstanceName;
             _singleInstance = new Mutex(true, @"Local\" + instanceName, out isFirst);
         }
         catch (System.Threading.AbandonedMutexException)
@@ -54,7 +54,7 @@ public partial class App : Application
         }
 
         var currentPid = Environment.ProcessId;
-        var otherProcesses = System.Diagnostics.Process.GetProcessesByName("EpsilonDownloadManager")
+        var otherProcesses = System.Diagnostics.Process.GetProcessesByName(ProductIdentity.ProcessName)
             .Where(p => p.Id != currentPid)
             .ToList();
 
@@ -72,6 +72,7 @@ public partial class App : Application
         }
         LocUi.Register();
         ThemeManager.Initialize();
+        Settings.MigrateToSixThemes();
         ThemeManager.Apply(Settings.Theme);
         Bridge = new NativeBridge(Manager, () => Settings.DefaultFolder, () => CategoryService.FolderFor("Video", Settings.DefaultFolder), FolderForFile);
         Bridge.CaptureRulesProvider = () => Settings.BuildCaptureRules();
@@ -86,7 +87,7 @@ public partial class App : Application
         catch (Exception ex)
         {
             try { new DiagnosticsService().Error("Creating the main window failed", ex); } catch (Exception) { }
-            MessageBox.Show("Makan could not create its window:\n\n" + ex + "\n\nPlease send this text to the developer.", "Epsilon Download Manager", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("Epsilon could not create its window:\n\n" + ex + "\n\nPlease send this text to the developer.", ProductIdentity.ProductName, MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
             return;
         }
@@ -126,6 +127,7 @@ public partial class App : Application
         Db = new DownloadDb(Path.Combine(dir, "downloads.db"));
         try { Db.Initialize(); }
         catch (InvalidDataException) when (Db.RestoreBackup()) { Db.Initialize(); }
+        V1MigrationService.CopySafeSettingsOnce(Db);
         SmartDownloads = new SmartDownloadController(Db);
         Settings = new AppSettings(Db);
         BandwidthProfiles = new V15BandwidthProfiles(Db, kbps => { Settings.SpeedKbps = kbps; RaiseSettingsChanged(); });
@@ -151,7 +153,7 @@ public partial class App : Application
     {
         var options = new TorrentEngineOptions
         {
-            ListenPort = Settings.TorrentPort, EnableDht = Settings.TorrentDht, EnablePex = Settings.TorrentPex, EnablePortMapping = Settings.TorrentPortMapping,
+            ListenPort = Settings.TorrentPort, EnableDht = Settings.TorrentDht, EnablePex = Settings.TorrentPex, EnablePortMapping = Settings.TorrentPortMapping, EnableUtp = Settings.TorrentUtp,
             UploadSlots = Settings.TorrentUploadSlots, MaxPeersPerTorrent = Settings.TorrentMaxPeers,
             SeedAfterCompletion = Settings.TorrentSeedAfterCompletion, SeedRatioLimit = Settings.TorrentSeedRatioLimit,
             SeedTimeLimit = TimeSpan.FromMinutes(Settings.TorrentSeedTimeMinutes),
@@ -170,6 +172,9 @@ public partial class App : Application
     {
         Manager.MaxActive = Settings.MaxActive;
         Manager.DefaultConnections = Settings.Connections;
+        Manager.RetryAttempts = Settings.RetryAttempts;
+        Manager.AutoRetryLater = Settings.AutoRetryLater; Manager.AutoRetryRounds = Settings.AutoRetryRounds;
+        Manager.RetryWindow = TimeSpan.FromSeconds(Settings.RetryWindowSeconds);
         Manager.LimitScope = Settings.SpeedLimitScope == "per_file" ? SpeedLimitScope.PerDownload : SpeedLimitScope.Combined;
         Manager.GlobalLimitBytesPerSec = Settings.SpeedKbps * 1024;
         Manager.MultiNetworkEnabled = Settings.MultiNetwork;
@@ -320,7 +325,7 @@ public partial class App : Application
     {
         try
         {
-            using var pipe = new NamedPipeClientStream(".", NativeBridge.PipeName, PipeDirection.InOut, PipeOptions.CurrentUserOnly);
+            using var pipe = new NamedPipeClientStream(".", NativeBridge.EffectivePipeName, PipeDirection.InOut, PipeOptions.CurrentUserOnly);
             pipe.Connect(2000);
             var bytes = new UTF8Encoding(false).GetBytes("{\"kind\":\"show\"}\n");
             pipe.Write(bytes, 0, bytes.Length);
@@ -337,7 +342,7 @@ public partial class App : Application
     {
         try
         {
-            using var pipe = new NamedPipeClientStream(".", NativeBridge.PipeName, PipeDirection.InOut, PipeOptions.CurrentUserOnly);
+            using var pipe = new NamedPipeClientStream(".", NativeBridge.EffectivePipeName, PipeDirection.InOut, PipeOptions.CurrentUserOnly);
             pipe.Connect(2000);
             var bytes = new UTF8Encoding(false).GetBytes(System.Text.Json.JsonSerializer.Serialize(new { url = urlOrPath }) + "\n");
             pipe.Write(bytes, 0, bytes.Length);

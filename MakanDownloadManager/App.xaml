@@ -4,8 +4,12 @@
              xmlns:local="clr-namespace:MakanDownloadManager">
   <Application.Resources>
     <local:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+    <local:OneBasedIndexConverter x:Key="OneBasedIndexConverter"/>
     <!-- Colours: Makan Luxury Theme Palette. ThemeManager replaces them when switching themes. -->
     <SolidColorBrush x:Key="Bg" Color="#07111F"/>
+    <SolidColorBrush x:Key="Aurora" Color="#07111F"/>
+    <SolidColorBrush x:Key="GlassEdge" Color="#213650"/>
+    <SolidColorBrush x:Key="BarTrack" Color="#30FFFFFF"/>
     <SolidColorBrush x:Key="Panel" Color="#0B1728"/>
     <SolidColorBrush x:Key="Panel2" Color="#101D30"/>
     <SolidColorBrush x:Key="Surface" Color="#14243A"/>
@@ -39,7 +43,7 @@
     <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI, Inter</FontFamily>
     <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI</FontFamily>
     <FontFamily x:Key="IconFont">Segoe MDL2 Assets</FontFamily>
-    <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Courier New</FontFamily>
+    <FontFamily x:Key="MonoFont">Segoe UI Variable Text, Segoe UI</FontFamily>
 
     <!-- Brand & Connection Gradients -->
     <LinearGradientBrush x:Key="BrandGrad" StartPoint="0,0.5" EndPoint="1,0.5">
@@ -57,7 +61,7 @@
     <Style x:Key="AppWindow" TargetType="Window">
       <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
       <Setter Property="FontSize" Value="13"/>
-      <Setter Property="Background" Value="{DynamicResource Bg}"/>
+      <Setter Property="Background" Value="{DynamicResource Aurora}"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="UseLayoutRounding" Value="True"/>
       <Setter Property="SnapsToDevicePixels" Value="True"/>
@@ -101,10 +105,11 @@
 
     <Style x:Key="CardBorder" TargetType="Border">
       <Setter Property="Background" Value="{DynamicResource Surface}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource GlassEdge}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="CornerRadius" Value="16"/>
       <Setter Property="SnapsToDevicePixels" Value="True"/>
+      <Setter Property="Effect"><Setter.Value><DropShadowEffect BlurRadius="22" ShadowDepth="4" Direction="270" Opacity="0.13" Color="#2A6FD6"/></Setter.Value></Setter>
     </Style>
 
     <Style x:Key="StatusPill" TargetType="Border">

@@ -35,6 +35,7 @@ public sealed class YtDlpNotReadyException : Exception
 /// </summary>
 public sealed class YtDlpService
 {
+    public const string FfmpegRequiredMessage = "FFmpeg is required to combine YouTube video and sound. Open Options > YouTube & other sites, enable FFmpeg, and click Download / update tools. Then press Resume; already downloaded video and audio parts will be reused.";
     public const string FragmentKey = "#makan-ytdl=";
     public const string ProgressPrefix = "MAKAN|";
     public const string ProgressTemplate = "download:" + ProgressPrefix +
@@ -82,20 +83,28 @@ public sealed class YtDlpService
 
     // ---------------------------------------------------------------- what a key means
 
-    static readonly Regex KeyPattern = new(@"^(v\d{3,4}|a|a-mp3|s:[A-Za-z0-9_-]{2,16})$", RegexOptions.Compiled);
+    static readonly Regex KeyPattern = new(@"^(v\d{3,4}(?:-mkv)?|a|a-mp3|s:[A-Za-z0-9_-]{2,16})$", RegexOptions.Compiled);
 
     public static YtPlan PlanFor(string key)
     {
         if (key == null || !KeyPattern.IsMatch(key)) throw new ArgumentException("Unknown format \"" + key + "\".");
         if (key[0] == 'v')
         {
-            var h = int.Parse(key[1..], CultureInfo.InvariantCulture);
-            return new YtPlan(key, $"bv*[height<={h}][ext=mp4]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/b", false, null, null, "mp4");
+            var mkv = key.EndsWith("-mkv", StringComparison.Ordinal);
+            var digits = mkv ? key[1..^4] : key[1..];
+            var h = int.Parse(digits, CultureInfo.InvariantCulture);
+            var selector = mkv
+                ? $"bv*[height<={h}]+ba/b[height<={h}]/b"
+                : $"bv*[height<={h}][ext=mp4]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/b";
+            return new YtPlan(key, selector, false, null, null, mkv ? "mkv" : "mp4");
         }
         if (key == "a") return new YtPlan(key, "ba[ext=m4a]/ba/b", true, null, null, "m4a");
         if (key == "a-mp3") return new YtPlan(key, "ba/b", true, "mp3", null, "mp3");
         return new YtPlan(key, "", false, null, key[2..], "srt");
     }
+
+    public static bool RequiresFfmpeg(YtPlan plan) =>
+        (!plan.AudioOnly && plan.SubtitleLanguage == null) || plan.AudioFormat != null;
 
     /// <summary>The command line for one download (the address goes last).</summary>
     public IReadOnlyList<string> BuildDownloadArguments(string pageUrl, string key, string outputBaseWithoutExtension)
@@ -118,7 +127,7 @@ public sealed class YtDlpService
         {
             args.Add("-f"); args.Add(plan.Selector);
             if (plan.AudioOnly) { if (plan.AudioFormat != null) { args.Add("-x"); args.Add("--audio-format"); args.Add(plan.AudioFormat); } }
-            else { args.Add("--merge-output-format"); args.Add("mp4/mkv"); }
+            else { args.Add("--merge-output-format"); args.Add(plan.OutputExtension); }
         }
         args.Add(pageUrl.Split('#')[0]);
         return args;
@@ -318,6 +327,14 @@ public sealed class YtDlpService
     /// </summary>
     public async Task<string> DownloadAsync(string pageUrl, string key, string outputBaseWithoutExtension, Action<YtProgress> onProgress, Action<string> onStage, CancellationToken ct)
     {
+        var plan = PlanFor(key);
+        // YouTube normally serves HD video and audio as two separate files.  Starting that transfer without
+        // FFmpeg leaves apparently "half downloaded" .f### files which can never become the requested movie.
+        // Fail before any network work instead.  Existing component files are deliberately kept: after the
+        // user installs FFmpeg, Resume lets yt-dlp reuse them and perform only the missing merge.
+        var needsFfmpeg = RequiresFfmpeg(plan);
+        if (needsFfmpeg && (string.IsNullOrWhiteSpace(FfmpegPath) || !File.Exists(FfmpegPath)))
+            throw new YtDlpNotReadyException(FfmpegRequiredMessage);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputBaseWithoutExtension))!);
         using var process = Process.Start(Start(BuildDownloadArguments(pageUrl, key, outputBaseWithoutExtension))) ?? throw new YtDlpNotReadyException("yt-dlp could not be started.");
         using var reg = ct.Register(() => { try { process.Kill(entireProcessTree: true); } catch (Exception) { } });
@@ -338,11 +355,126 @@ public sealed class YtDlpService
         await errors;
         ct.ThrowIfCancellationRequested();
         if (process.ExitCode != 0) throw new InvalidOperationException(CleanError(lastError));
-        return FindResult(outputBaseWithoutExtension, PlanFor(key))
-               ?? throw new FileNotFoundException("yt-dlp finished but the file was not found next to " + outputBaseWithoutExtension + ".*");
+        if (FindResult(outputBaseWithoutExtension, plan) is { } result) return result;
+
+        // yt-dlp deliberately exits with code 0 when both streams downloaded successfully but it could not
+        // launch FFmpeg.  That used to leave a valid .f399.mp4 + .f140.m4a pair behind and Epsilon reported
+        // the misleading "file was not found" error forever.  Invoke the configured FFmpeg ourselves so a
+        // Resume can finish those existing components without downloading them again.
+        if (needsFfmpeg && FindMergeComponents(outputBaseWithoutExtension, plan) is { } parts)
+        {
+            onStage("[Merger] Combining the downloaded video and audio");
+            return await MergeComponentsAsync(outputBaseWithoutExtension, plan, parts.Video, parts.Audio, ct);
+        }
+
+        var detail = string.IsNullOrWhiteSpace(lastError) ? "" : " " + CleanError(lastError);
+        throw new FileNotFoundException("yt-dlp finished but the final file was not created next to " + outputBaseWithoutExtension + ".*" + detail);
     }
 
-    static readonly Regex Leftover = new(@"(\.part$|\.ytdl$|\.temp\.|\.f\d+\.|\.part-Frag\d+$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // yt-dlp component names include both .f399.mp4 and newer variants such as .f399-sr.mp4.
+    // Neither is a finished movie: accepting the latter used to mark a silent video-only stream as Complete.
+    static readonly Regex Leftover = new(@"(\.part$|\.ytdl$|\.temp\.|\.f\d+(?:[-.]|$)|\.part-Frag\d+$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    internal sealed record MergeComponents(string Video, string Audio);
+
+    /// <summary>Find the complete video-only and audio-only files left by yt-dlp after a skipped merge.</summary>
+    internal static MergeComponents? FindMergeComponents(string outputBaseWithoutExtension, YtPlan plan)
+    {
+        if (plan.AudioOnly || plan.SubtitleLanguage != null) return null;
+        try
+        {
+            var dir = Path.GetDirectoryName(Path.GetFullPath(outputBaseWithoutExtension))!;
+            var name = Path.GetFileName(outputBaseWithoutExtension);
+            if (!Directory.Exists(dir)) return null;
+            var components = Directory.GetFiles(dir)
+                .Where(f => Path.GetFileName(f).StartsWith(name + ".f", StringComparison.OrdinalIgnoreCase))
+                .Where(f => Regex.IsMatch(Path.GetFileName(f), @"\.f\d+(?:-[^.\\/]+)?\.[^.\\/]+$", RegexOptions.IgnoreCase))
+                .Where(f => !f.EndsWith(".part", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            // YouTube MP4 selections use MP4 for video and M4A for audio.  MKV may use WebM for either;
+            // prefer the unambiguous pair first and otherwise let FFmpeg inspect the two largest components.
+            var audio = components.Where(f => f.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase) ||
+                                               f.EndsWith(".aac", StringComparison.OrdinalIgnoreCase) ||
+                                               f.EndsWith(".opus", StringComparison.OrdinalIgnoreCase) ||
+                                               f.EndsWith(".weba", StringComparison.OrdinalIgnoreCase))
+                                  .OrderByDescending(f => new FileInfo(f).Length).FirstOrDefault();
+            var video = components.Where(f => !string.Equals(f, audio, StringComparison.OrdinalIgnoreCase) &&
+                                               (f.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+                                                f.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
+                                                f.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase)))
+                                  .OrderByDescending(f => new FileInfo(f).Length).FirstOrDefault();
+            if (video != null && audio != null && new FileInfo(video).Length > 0 && new FileInfo(audio).Length > 0)
+                return new MergeComponents(video, audio);
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
+    }
+
+    async Task<string> MergeComponentsAsync(string outputBaseWithoutExtension, YtPlan plan, string video, string audio, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(FfmpegPath) || !File.Exists(FfmpegPath))
+            throw new YtDlpNotReadyException(FfmpegRequiredMessage);
+
+        var final = outputBaseWithoutExtension + "." + plan.OutputExtension;
+        var temp = Path.Combine(Path.GetDirectoryName(final)!, ".epsilon-merge-" + Guid.NewGuid().ToString("N") + "." + plan.OutputExtension);
+        var psi = new ProcessStartInfo(FfmpegPath)
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8
+        };
+        foreach (var arg in new[] { "-hide_banner", "-nostdin", "-y", "-i", video, "-i", audio, "-map", "0:v:0", "-map", "1:a:0", "-c", "copy", temp })
+            psi.ArgumentList.Add(arg);
+
+        try
+        {
+            using var ffmpeg = Process.Start(psi) ?? throw new InvalidOperationException("FFmpeg could not be started.");
+            using var reg = ct.Register(() => { try { ffmpeg.Kill(entireProcessTree: true); } catch (Exception) { } });
+            var stdout = ffmpeg.StandardOutput.ReadToEndAsync();
+            var stderr = ffmpeg.StandardError.ReadToEndAsync();
+            await ffmpeg.WaitForExitAsync(CancellationToken.None);
+            await stdout;
+            var error = await stderr;
+            ct.ThrowIfCancellationRequested();
+            if (ffmpeg.ExitCode != 0 || !File.Exists(temp) || new FileInfo(temp).Length == 0)
+            {
+                var last = error.Split('\n').Select(x => x.Trim()).LastOrDefault(x => x.Length > 0);
+                throw new InvalidOperationException("FFmpeg could not combine the downloaded YouTube video and audio" +
+                                                    (string.IsNullOrWhiteSpace(last) ? "." : ": " + last));
+            }
+
+            File.Move(temp, final, overwrite: true);
+            try { File.Delete(video); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            try { File.Delete(audio); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            return final;
+        }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    /// <summary>Bytes already saved by yt-dlp for this item (partial downloads and unmerged video/audio streams).</summary>
+    public static long ExistingPartialBytes(string outputBaseWithoutExtension)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(Path.GetFullPath(outputBaseWithoutExtension))!;
+            var name = Path.GetFileName(outputBaseWithoutExtension);
+            if (!Directory.Exists(dir)) return 0;
+            return Directory.GetFiles(dir)
+                .Where(f => Path.GetFileName(f).StartsWith(name + ".", StringComparison.OrdinalIgnoreCase) && Leftover.IsMatch(Path.GetFileName(f)))
+                .Sum(f => new FileInfo(f).Length);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return 0; }
+    }
+
+    /// <summary>Repairs paths saved by the old detector when it mistook a .f399[-sr].mp4 component for the final movie.</summary>
+    public static string ExpectedFinalPath(string currentPath, YtPlan plan)
+    {
+        var match = Regex.Match(currentPath, @"\.f\d+(?:-[^.\\/]+)?\.[^.\\/]+$", RegexOptions.IgnoreCase);
+        return match.Success ? currentPath[..match.Index] + "." + plan.OutputExtension : currentPath;
+    }
 
     /// <summary>The finished file: the biggest file called "&lt;base&gt;.*" that is not a partial or per-stream leftover.</summary>
     public static string? FindResult(string outputBaseWithoutExtension, YtPlan plan)
@@ -390,7 +522,7 @@ public sealed class YtDlpService
 public static class YtDlpTools
 {
     public static string DefaultToolsDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MakanDownloadManager", "tools");
+        Path.Combine(PortableModeService.DataDirectory, "tools");
 
     public static string? FindExecutable(string fileName, string? configured, string toolsDirectory)
     {

@@ -1,6 +1,6 @@
 # Epsilon Download Manager — Firefox
 
-This package is the Firefox browser integration for **Epsilon Download Manager 1.7.1**.
+This package is the Firefox browser integration for **Epsilon Download Manager 1.8.0**.
 
 ## Features
 - Download interception with user-safe fallback: the browser transfer is only cancelled after Epsilon acknowledges the job.

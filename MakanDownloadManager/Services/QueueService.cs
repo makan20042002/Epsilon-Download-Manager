@@ -17,8 +17,9 @@ public sealed class QueueSchedule
     public int Days { get; set; } = 0x7F;                      // bit 0 = Sunday ... bit 6 = Saturday
     public bool StopAtEnabled { get; set; }
     public string StopTime { get; set; } = "07:30";
-    public bool RetriesEnabled { get; set; }
+    public bool RetriesEnabled { get; set; } = true;           // like IDM: a file that failed goes to the end of the queue and is tried again
     public int Retries { get; set; } = 3;                      // extra tries per file that failed
+    public int RetryRulesVersion { get; set; }                 // 0 = saved by an older version (retries were off by default then)
     public bool OpenFileEnabled { get; set; }
     public string? OpenFile { get; set; }
     public bool ExitWhenDone { get; set; }
@@ -62,12 +63,15 @@ public interface IPowerActions
 public sealed class QueueService : IDisposable
 {
     const int StartWindowMinutes = 5;
+    /// <summary>IDM waits 30 seconds before it tries a failed file again.</summary>
+    public static int RetryDelaySeconds { get; set; } = 30;
 
     sealed class Run
     {
         public DateTime StartedAt;
         public Queue<long> Pending = new();
         public Dictionary<long, int> RetriesLeft = new();
+        public Dictionary<long, DateTime> RetryAt = new();
         public bool StartedAny;
     }
 
@@ -333,10 +337,16 @@ public sealed class QueueService : IDisposable
             var active = items.Count(IsActive);
 
             // per-file retries (only for files this run started)
+            // IDM rule: a failed file goes to the END of the queue. Everything else is tried first; then, after a pause of
+            // RetryDelaySeconds, the failed file is tried again - up to the number of retries - and only then the queue is finished.
             foreach (var item in items.Where(i => i.Status == nameof(DownloadStatus.Failed)))
             {
                 if (!run.RetriesLeft.TryGetValue(item.Id, out var left) || left <= 0) continue;
+                if (!run.RetryAt.TryGetValue(item.Id, out var due)) { run.RetryAt[item.Id] = due = _now().AddSeconds(RetryDelaySeconds); }
+                if (run.Pending.Count > 0 || _now() < due) continue;
                 run.RetriesLeft[item.Id] = left - 1;
+                run.RetryAt.Remove(item.Id);
+                item.LastError = null;
                 _manager.StartFromQueue(item);
                 active++;
             }
@@ -447,6 +457,12 @@ public sealed class QueueService : IDisposable
         lock (_gate)
         {
             if (state != null) { _queues.AddRange(state.Queues); _nextId = Math.Max(2, state.NextId); }
+            foreach (var queue in _queues.Where(x => x.Schedule.RetryRulesVersion < 1))   // older versions had retries switched off by default: switch them on, like IDM
+            {
+                queue.Schedule.RetriesEnabled = true;
+                if (queue.Schedule.Retries <= 0) queue.Schedule.Retries = 3;
+                queue.Schedule.RetryRulesVersion = 1;
+            }
             if (!_queues.Any(q => q.IsMain)) _queues.Insert(0, new DownloadQueue { Id = 1, Name = "Main download queue", IsMain = true });
             _nextId = Math.Max(_nextId, _queues.Max(q => q.Id) + 1);
         }

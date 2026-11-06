@@ -33,43 +33,70 @@ public sealed class SegmentBar : FrameworkElement
 
     protected override Size MeasureOverride(Size availableSize) => new(0, double.IsNaN(Height) ? 7 : Height);
 
+    static readonly Brush Gloss = MakeGloss();
+    static Brush MakeGloss()
+    {
+        var g = new LinearGradientBrush(Color.FromArgb(0x55, 255, 255, 255), Color.FromArgb(0x00, 255, 255, 255), 90);
+        g.Freeze();
+        return g;
+    }
+
+    /// <summary>A smooth rounded glass bar: soft track, a filled capsule with a light gloss on top (the percentage is drawn over it by the row).</summary>
     protected override void OnRender(DrawingContext dc)
     {
         double w = ActualWidth, h = ActualHeight;
-        if (w < Buckets * 2 || h <= 0) return;
-        var item = Item;
-        double[] map;
-        try { map = item != null && App.Manager != null ? App.Manager.GetPositionMap(item, Buckets) : new double[Buckets]; }
-        catch (Exception) { map = new double[Buckets]; }
+        if (w < 8 || h <= 0) return;
         var complete = Status == nameof(DownloadStatus.Complete);
+        var item = Item;
         var torrent = item != null && DownloadManager.IsTorrentUrl(item.Url);
         var fill = complete ? DoneFill ?? Fill : torrent ? TorrentFill ?? Fill : Fill;
-        const double gap = 2;
-        var cell = (w - gap * (Buckets - 1)) / Buckets;
-        for (var i = 0; i < Buckets; i++)
+        var radius = h / 2;
+        if (Track != null) dc.DrawRoundedRectangle(Track, null, new Rect(0, 0, w, h), radius, radius);
+        var part = complete ? 1 : Math.Clamp(Progress / 100.0, 0, 1);
+        if (part > 0 && fill != null)
         {
-            var x = Math.Round(i * (cell + gap));
-            var width = Math.Max(1, Math.Round((i + 1) * (cell + gap) - gap) - x);
-            if (Track != null) dc.DrawRoundedRectangle(Track, null, new Rect(x, 0, width, h), 2, 2);
-            var part = complete ? 1 : i < map.Length ? Math.Clamp(map[i], 0, 1) : 0;
-            if (part > 0.02 && fill != null) dc.DrawRoundedRectangle(fill, null, new Rect(x, 0, Math.Max(2, width * part), h), 2, 2);
-        }
-        if (item != null)
-        {
-            IReadOnlyList<(NetworkLink Link, long Bytes, bool Active)> raw;
-            try { raw = App.Manager?.GetLinkUsage(item) ?? Array.Empty<(NetworkLink, long, bool)>(); } catch (Exception) { raw = Array.Empty<(NetworkLink, long, bool)>(); }
-            var usage = raw.Where(x => x.Bytes > 0).ToList();
-            var total = usage.Sum(x => (double)x.Bytes);
-            if (total > 0)
-            {
-                double x = 0;
-                foreach (var entry in usage)
-                {
-                    var width = w * entry.Bytes / total;
-                    try { dc.DrawRectangle((Brush)new BrushConverter().ConvertFromString(entry.Link.Color)!, null, new Rect(x, Math.Max(0, h - 2), width, 2)); } catch (FormatException) { }
-                    x += width;
-                }
-            }
+            var fw = Math.Max(h, w * part);
+            var rect = new Rect(0, 0, Math.Min(w, fw), h);
+            dc.DrawRoundedRectangle(fill, null, rect, radius, radius);
+            dc.DrawRoundedRectangle(Gloss, null, new Rect(rect.X, rect.Y, rect.Width, h / 2), radius, radius);
         }
     }
+}
+
+/// <summary>A small rounded progress bar with a soft gloss, for tables built in code (the torrent file list).</summary>
+public sealed class ProgressPill : FrameworkElement
+{
+    public static readonly DependencyProperty ValueProperty = DependencyProperty.Register(nameof(Value), typeof(double), typeof(ProgressPill), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender));
+    public double Value { get => (double)GetValue(ValueProperty); set => SetValue(ValueProperty, value); }
+    static readonly Brush Gloss = MakeGloss();
+    static Brush MakeGloss() { var g = new LinearGradientBrush(Color.FromArgb(0x55, 255, 255, 255), Color.FromArgb(0x00, 255, 255, 255), 90); g.Freeze(); return g; }
+    protected override Size MeasureOverride(Size availableSize) => new(double.IsInfinity(availableSize.Width) ? 60 : availableSize.Width, double.IsNaN(Height) ? 14 : Height);
+    protected override void OnRender(DrawingContext dc)
+    {
+        double w = ActualWidth, h = ActualHeight;
+        if (w < 4 || h <= 0) return;
+        var radius = h / 2;
+        var track = TryFindResource("BarTrack") as Brush; var fill = TryFindResource("Accent") as Brush;
+        if (track != null) dc.DrawRoundedRectangle(track, null, new Rect(0, 0, w, h), radius, radius);
+        var part = Math.Clamp(Value / 100.0, 0, 1);
+        if (part > 0 && fill != null)
+        {
+            var rect = new Rect(0, 0, Math.Min(w, Math.Max(h, w * part)), h);
+            dc.DrawRoundedRectangle(fill, null, rect, radius, radius);
+            dc.DrawRoundedRectangle(Gloss, null, new Rect(rect.X, rect.Y, rect.Width, h / 2), radius, radius);
+        }
+    }
+}
+
+
+/// <summary>White text once a bar is more than half full, normal text colour before that.</summary>
+public sealed class ProgressTextBrush : System.Windows.Data.IValueConverter
+{
+    public static readonly ProgressTextBrush Instance = new();
+    public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        var p = value is double d ? d : 0;
+        return p >= 45 ? System.Windows.Media.Brushes.White : (System.Windows.Application.Current.TryFindResource("Text") ?? System.Windows.Media.Brushes.Black);
+    }
+    public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new System.NotSupportedException();
 }

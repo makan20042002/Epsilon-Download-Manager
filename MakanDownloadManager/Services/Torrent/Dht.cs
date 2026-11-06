@@ -24,6 +24,10 @@ public sealed class DhtNode : IDisposable
     readonly byte[] _secret = RandomNumberGenerator.GetBytes(16);
     int _transaction;
     public int Port { get; }
+    /// <summary>Datagrams that are not DHT messages (uTP shares this UDP port): return true when handled.</summary>
+    public Func<byte[], int, IPEndPoint, bool>? ForeignPacket { get; set; }
+    /// <summary>Sends a raw datagram from the DHT's socket (used by uTP, which must come from the same port).</summary>
+    public void SendRaw(byte[] buffer, int length, IPEndPoint to) => _udp.Client.SendTo(buffer, 0, length, SocketFlags.None, to);
     public int KnownNodes => _nodes.Count;
     /// <summary>Contact this node before anything else (tests use it to point at a local node).</summary>
     public List<IPEndPoint> Bootstrap { get; } = new();
@@ -37,6 +41,7 @@ public sealed class DhtNode : IDisposable
     {
         try { _udp = new UdpClient(new IPEndPoint(IPAddress.Any, port)); }
         catch (SocketException) { _udp = new UdpClient(new IPEndPoint(IPAddress.Any, 0)); }
+        try { _udp.Client.ReceiveBufferSize = 4 << 20; _udp.Client.SendBufferSize = 4 << 20; } catch (SocketException) { }
         Port = ((IPEndPoint)_udp.Client.LocalEndPoint!).Port;
         _ = Task.Run(() => ReceiveLoopAsync(_cts.Token));
     }
@@ -122,6 +127,11 @@ public sealed class DhtNode : IDisposable
             catch (OperationCanceledException) { return; }
             catch (ObjectDisposedException) { return; }
             catch (SocketException) { continue; }      // ICMP "port unreachable" from a dead node
+            if (received.Buffer.Length > 0 && received.Buffer[0] != (byte)'d' && ForeignPacket != null)
+            {
+                try { ForeignPacket(received.Buffer, received.Buffer.Length, received.RemoteEndPoint); } catch (Exception) { }
+                continue;
+            }
             try { Handle(received.Buffer, received.RemoteEndPoint); } catch (Exception ex) when (ex is FormatException or ArgumentException or IndexOutOfRangeException or InvalidCastException) { /* garbage from the network */ }
         }
     }

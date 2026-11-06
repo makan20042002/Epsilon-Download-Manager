@@ -1,4 +1,5 @@
 using MakanDownloadManager.Models;
+using MakanDownloadManager.Services.Torrent;
 
 namespace MakanDownloadManager.Services;
 
@@ -15,10 +16,57 @@ public sealed partial class DownloadManager
     static readonly HashSet<string> StreamableExtensions = new(StringComparer.OrdinalIgnoreCase)
         { ".mp4", ".m4v", ".mov", ".mkv", ".webm", ".avi", ".mp3", ".m4a", ".flac", ".wav", ".ogg", ".aac" };
 
+    public static bool IsStreamablePath(string? path) =>
+        !string.IsNullOrWhiteSpace(path) && StreamableExtensions.Contains(Path.GetExtension(path));
+
     /// <summary>Whether this item is a plain, non-segmented-manifest HTTP file (not HLS/DASH, not a torrent) whose
     /// extension looks like something a media player can open.</summary>
     public static bool LooksStreamable(DownloadItem item) =>
-        !IsTorrentUrl(item.Url) && StreamableExtensions.Contains(Path.GetExtension(item.FilePath));
+        !IsTorrentUrl(item.Url) && IsStreamablePath(item.FilePath);
+
+    /// <summary>
+    /// Creates a preview from the verified, gap-free beginning of one torrent file. Only known media extensions are
+    /// accepted, so double-clicking a partially downloaded executable can never launch it.
+    /// </summary>
+    public string? PrepareTorrentPlayableCopy(TorrentSession session, int fileIndex, long minimumBytes = 2 * 1024 * 1024)
+    {
+        var source = session.FilePath(fileIndex);
+        if (!IsStreamablePath(source) || source == null || !File.Exists(source)) return null;
+        var safe = session.SafeFilePrefixBytes(fileIndex);
+        if (safe < minimumBytes) return null;
+
+        var previewDirectory = Path.Combine(Path.GetTempPath(), ProductIdentity.DataDirectoryName, "preview");
+        try { Directory.CreateDirectory(previewDirectory); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _diagnostics.Error("Could not create the torrent preview folder", ex);
+            return null;
+        }
+
+        var target = Path.Combine(previewDirectory,
+            $"torrent-{Convert.ToHexString(session.InfoHash.AsSpan(0, Math.Min(6, session.InfoHash.Length))).ToLowerInvariant()}-{fileIndex}{Path.GetExtension(source)}");
+        try
+        {
+            using var src = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var dst = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.Read);
+            var buffer = new byte[1024 * 1024];
+            long remaining = safe;
+            while (remaining > 0)
+            {
+                var count = src.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+                if (count == 0) break;
+                dst.Write(buffer, 0, count);
+                remaining -= count;
+            }
+            return target;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _diagnostics.Error("Could not prepare a torrent file preview", ex);
+            try { if (File.Exists(target)) File.Delete(target); } catch (Exception) { }
+            return null;
+        }
+    }
 
     /// <summary>How many bytes, from the start of the file, are confirmed fully downloaded with no gap - the part that
     /// is safe to open in a player. 0 if nothing is safely playable yet (including once the file is already complete,
@@ -60,7 +108,7 @@ public sealed partial class DownloadManager
         var source = File.Exists(SegPath(item)) ? SegPath(item) : PartBase(item) + ".part";
         if (!File.Exists(source)) return null;
 
-        var dir = Path.Combine(Path.GetTempPath(), "MakanDownloadManager", "preview");
+        var dir = Path.Combine(Path.GetTempPath(), ProductIdentity.DataDirectoryName, "preview");
         try { Directory.CreateDirectory(dir); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
         var target = Path.Combine(dir, item.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) + Path.GetExtension(item.FilePath));
         try

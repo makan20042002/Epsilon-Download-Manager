@@ -19,21 +19,31 @@ function Check([string]$name, [scriptblock]$test) {
   else { Write-Host "FAIL  $name" -ForegroundColor Red; $script:failed.Add($name) }
 }
 
-Check "Version $version is used everywhere" {
-  ((Match-First 'MakanDownloadManager/Branding.cs' 'Version = "([^"]+)"') -eq $version) -and
-  ((Match-First 'MakanDownloadManager/Services/NativeBridge.cs' 'Version = "([^"]+)"') -eq $version) -and
-  ((Match-First 'browser-extension/manifest.json' '"version":\s*"([^"]+)"') -eq $version) -and
-  ((Match-First 'browser-extension-firefox/manifest.json' '"version":\s*"([^"]+)"') -eq $version) -and
+Check "Desktop version $version is used everywhere" {
+  ((Match-First 'MakanDownloadManager/ProductIdentity.cs' 'Version = "([^"]+)"') -eq $version) -and
+  ((Match-First 'MakanDownloadManager/EpsilonDownloadManager.csproj' '<Version>([^<]+)</Version>') -eq $version) -and
+  ((Match-First 'MakanNativeHost/EpsilonNativeHost.csproj' '<Version>([^<]+)</Version>') -eq $version) -and
   ((Match-First 'updater/Program.cs' 'ProductVersion = "([^"]+)"') -eq $version) -and
   ((Match-First 'installer/EpsilonDownloadManager.iss' '#define MyAppVersion "([^"]+)"') -eq $version)
 }
 
-Check 'One native-messaging identity everywhere' {
+Check 'Published extension versions remain unchanged and match each other' {
+  $chrome = Match-First 'browser-extension/manifest.json' '"version":\s*"([^"]+)"'
+  $firefox = Match-First 'browser-extension-firefox/manifest.json' '"version":\s*"([^"]+)"'
+  ($chrome -eq $firefox) -and ($chrome -eq '1.8.0')
+}
+
+Check 'Store extensions keep one public native-messaging host identity' {
   $id = 'com.makan.downloadmanager'
-  $files = @('MakanDownloadManager/Services/NativeBridge.cs', 'MakanNativeHost/Program.cs', 'install-browser-integration.ps1',
-             'MakanDownloadManager/Services/WindowsIntegration.cs', 'browser-extension/background.js', 'browser-extension-firefox/background.js')
+  $files = @('MakanDownloadManager/ProductIdentity.cs', 'install-browser-integration.ps1',
+             'browser-extension/background.js', 'browser-extension-firefox/background.js')
   $missing = @($files | Where-Object { -not (Read-Src $_).Contains($id) })
   $missing.Count -eq 0
+}
+
+Check 'V2 desktop and native relay use the same private pipe' {
+  $pipe = Match-First 'MakanDownloadManager/ProductIdentity.cs' 'NativePipeName = "([^"]+)"'
+  ($pipe -eq 'com.makan.downloadmanager.v2') -and ((Read-Src 'MakanNativeHost/Program.cs').Contains($pipe))
 }
 
 Check 'Both extensions are Manifest V3 with a toolbar popup' {
@@ -85,6 +95,16 @@ Check 'Every event handler named in XAML exists in its code-behind' {
     }
   }
   $missing.Count -eq 0
+}
+
+Check 'Download table renders model fields through GridView columns' {
+  $xaml = Read-Src 'MakanDownloadManager/MainWindow.xaml'
+  $xaml.Contains('<GridViewRowPresenter') -and
+  $xaml.Contains('Text="{Binding FileName}"') -and
+  $xaml.Contains('Text="{Binding QueueMark, TargetNullValue=' + [char]0x2014 + '}"') -and
+  $xaml.Contains('Text="{Binding SizeDisplay}"') -and
+  $xaml.Contains('Text="{Binding DownloadedDisplay}"') -and
+  $xaml.Contains('Text="{Binding RemainingDisplay}"')
 }
 
 Check 'No conflict markers, TODO/FIXME or NotImplementedException in production source' {

@@ -13,11 +13,12 @@ namespace MakanDownloadManager.Services;
 /// </summary>
 public sealed class SmartDownloadController
 {
-    public const int NoLimit = 16;
+    /// <summary>"No restriction learned" for a server. Equal to the per-download maximum so the 32/48-connection modes are not silently held at 16.</summary>
+    public const int NoLimit = DownloadManager.MaxConnectionsPerDownload;
 
     sealed class Profile
     {
-        /// <summary>Most connections this server has tolerated so far (16 = no restriction learned).</summary>
+        /// <summary>Most connections this server has tolerated so far (NoLimit = no restriction learned).</summary>
         public int Connections { get; set; } = NoLimit;
         public double AverageMbps { get; set; }
         public int Samples { get; set; }

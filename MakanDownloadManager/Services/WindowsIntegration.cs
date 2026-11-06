@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using Windows.ApplicationModel;
 
 namespace MakanDownloadManager.Services;
@@ -8,8 +9,8 @@ namespace MakanDownloadManager.Services;
 public static class WindowsIntegration
 {
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    const string RunName = "MakanDownloadManager";
-    const string HostName = "com.makan.downloadmanager";
+    const string RunName = "EpsilonDownloadManager";
+    const string HostName = ProductIdentity.NativeHostName;
 
     public static bool IsPackaged
     {
@@ -90,7 +91,13 @@ public static class WindowsIntegration
             {
                 using var k = Registry.CurrentUser.OpenSubKey(key);
                 var manifest = k?.GetValue(null) as string;
-                ok = !string.IsNullOrWhiteSpace(manifest) && File.Exists(manifest);
+                if (!string.IsNullOrWhiteSpace(manifest) && File.Exists(manifest))
+                {
+                    using var document = JsonDocument.Parse(File.ReadAllText(manifest));
+                    var hostPath = document.RootElement.TryGetProperty("path", out var path) ? path.GetString() : null;
+                    ok = !string.IsNullOrWhiteSpace(hostPath) && File.Exists(hostPath) &&
+                         string.Equals(Path.GetFileName(hostPath), ProductIdentity.NativeHostExecutableName, StringComparison.OrdinalIgnoreCase);
+                }
             }
             catch (Exception) { }
             list.Add(new BrowserStatus(name, ok));

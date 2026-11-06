@@ -5,6 +5,8 @@ using System.Windows.Controls;
 using MakanDownloadManager.Services;
 using MakanDownloadManager.Services.Torrent;
 using Forms = System.Windows.Forms;
+using QRCoder;
+using System.Windows.Media.Imaging;
 
 namespace MakanDownloadManager;
 
@@ -30,7 +32,7 @@ public partial class SettingsWindow : Window
         BrChrome.IsChecked = allowed.Contains("chrome"); BrEdge.IsChecked = allowed.Contains("edge"); BrFirefox.IsChecked = allowed.Contains("firefox");
         BrOpera.IsChecked = allowed.Contains("opera"); BrVivaldi.IsChecked = allowed.Contains("vivaldi"); BrOther.IsChecked = allowed.Contains("other");
         LanguageBox.SelectedIndex = s.Language == "fa" ? 1 : 0;
-        ThemeBox.SelectedIndex = ThemePalette.Normalize(s.Theme) switch { "obsidian-gold" => 0, "platinum-blue" => 1, "royal-amethyst" => 2, "emerald-executive" => 3, "champagne-minimal" => 4, "graphite-copper" => 5, "sapphire-noir" => 6, "rose-titanium" => 7, "arctic-glass" => 8, "crystal-noir" => 9, "dracula" => 10, "makan-lab" => 11, "auto" => 12, _ => 1 };
+        ThemeBox.SelectedIndex = ThemePalette.Normalize(s.Theme) switch { "platinum-blue" => 0, "mint-glass" => 1, "champagne-minimal" => 2, "sapphire-noir" => 3, "graphite-copper" => 4, "royal-amethyst" => 5, "auto" => 6, _ => ThemePalette.IsDarkTheme(ThemePalette.Normalize(s.Theme)) ? 3 : 0 };
 
         // File types
         FileTypesBox.Text = s.FileTypes; SitesBox.Text = s.ExcludedSites; AddressesBox.Text = s.ExcludedAddresses;
@@ -55,15 +57,17 @@ public partial class SettingsWindow : Window
         Slots.Value = s.MaxActive; SpeedLimitOn.IsChecked = s.SpeedKbps > 0; Speed.Text = (s.SpeedKbps > 0 ? s.SpeedKbps : 1024).ToString(CultureInfo.InvariantCulture);
         MultiNetOn.IsChecked = s.MultiNetwork; MultiNetStatus.Text = DescribeNetworks();
         MultiNetAvoidMetered.IsChecked = s.MultiNetAvoidMetered; MultiNetKeepOneFree.IsChecked = s.MultiNetKeepOneFree; MultiNetAskNew.IsChecked = s.MultiNetAskNewNetwork;
-        MultiNetDailyLimitBox.Text = s.MultiNetDailyLimitMb.ToString(CultureInfo.InvariantCulture); MultiNetRetryBox.Text = s.MultiNetRetryMinutes.ToString(CultureInfo.InvariantCulture);
+        MultiNetDailyLimitBox.Text = s.MultiNetDailyLimitMb.ToString(CultureInfo.InvariantCulture); MultiNetRetryBox.Text = AppSettings.FormatMinutes(s.MultiNetRetryMinutes);
         SpeedScope.SelectedIndex = s.SpeedLimitScope == "per_file" ? 1 : 0; Connections.Value = s.Connections;
         AutoResume.IsChecked = s.AutoResume; KeepAwake.IsChecked = s.KeepAwakeWhileDownloading; Ffmpeg.Text = s.FfmpegPath;
+        RetryAttemptsBox.Text = s.RetryAttempts.ToString(CultureInfo.InvariantCulture); RetryWindowBox.Text = s.RetryWindowSeconds.ToString(CultureInfo.InvariantCulture);
+        AutoRetryLaterBox.IsChecked = s.AutoRetryLater; AutoRetryRoundsBox.Text = s.AutoRetryRounds.ToString(CultureInfo.InvariantCulture);
         SmartConnections.IsChecked = s.AdaptiveConnections && s.SmartDownloads;
         BoostSpeed.IsChecked = s.BoostDownloadSpeed;
 
         // BitTorrent
         TorrentPortBox.Text = s.TorrentPort.ToString(CultureInfo.InvariantCulture);
-        TorrentDht.IsChecked = s.TorrentDht; TorrentPex.IsChecked = s.TorrentPex; TorrentPortMapping.IsChecked = s.TorrentPortMapping;
+        TorrentDht.IsChecked = s.TorrentDht; TorrentPex.IsChecked = s.TorrentPex; TorrentPortMapping.IsChecked = s.TorrentPortMapping; TorrentUtp.IsChecked = s.TorrentUtp;
         TorrentEncryptionBox.SelectedIndex = s.TorrentEncryption switch { "require" => 1, "off" => 2, _ => 0 };
         TorrentDownloadBox.Text = s.TorrentDownloadKbps.ToString(CultureInfo.InvariantCulture);
         TorrentUploadBox.Text = s.TorrentUploadKbps.ToString(CultureInfo.InvariantCulture);
@@ -100,6 +104,12 @@ public partial class SettingsWindow : Window
         CategoryCombo.SelectedIndex = 0;
         RefreshToolStatus(initial: true);
         if (WindowsIntegration.IsPackaged) _ = LoadPackagedStartupAsync();
+    }
+
+    public void SelectRemoteTab()
+    {
+        if (MainTabs != null && MainTabs.Items.Count > 0)
+            MainTabs.SelectedIndex = MainTabs.Items.Count - 1;
     }
 
     async Task LoadPackagedStartupAsync()
@@ -266,7 +276,7 @@ public partial class SettingsWindow : Window
         var newLanguage = LanguageBox.SelectedIndex == 1 ? "fa" : "en";
         var languageChanged = newLanguage != s.Language;
         s.Language = newLanguage;
-        s.Theme = ThemeBox.SelectedIndex switch { 0 => "obsidian-gold", 1 => "platinum-blue", 2 => "royal-amethyst", 3 => "emerald-executive", 4 => "champagne-minimal", 5 => "graphite-copper", 6 => "sapphire-noir", 7 => "rose-titanium", 8 => "arctic-glass", 9 => "crystal-noir", 10 => "dracula", 11 => "makan-lab", 12 => "auto", _ => "platinum-blue" };
+        s.Theme = ThemeBox.SelectedIndex switch { 0 => "platinum-blue", 1 => "mint-glass", 2 => "champagne-minimal", 3 => "sapphire-noir", 4 => "graphite-copper", 5 => "royal-amethyst", 6 => "auto", _ => "platinum-blue" };
 
         // File types
         s.FileTypes = FileTypesBox.Text.Trim(); s.ExcludedSites = SitesBox.Text.Trim(); s.ExcludedAddresses = AddressesBox.Text.Trim();
@@ -311,14 +321,17 @@ public partial class SettingsWindow : Window
         s.MultiNetwork = MultiNetOn.IsChecked == true;
         s.MultiNetAvoidMetered = MultiNetAvoidMetered.IsChecked == true; s.MultiNetKeepOneFree = MultiNetKeepOneFree.IsChecked == true; s.MultiNetAskNewNetwork = MultiNetAskNew.IsChecked == true;
         s.MultiNetDailyLimitMb = int.TryParse(MultiNetDailyLimitBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var dailyMb) ? Math.Max(0, dailyMb) : 0;
-        s.MultiNetRetryMinutes = int.TryParse(MultiNetRetryBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var retryMinutes) ? Math.Max(1, retryMinutes) : 5;
+        s.MultiNetRetryMinutes = AppSettings.TryParseMinutes(MultiNetRetryBox.Text, out var retryMinutes) ? retryMinutes : 5;
         s.MaxActive = (int)Slots.Value; s.SpeedKbps = kb; s.SpeedLimitScope = SpeedScope.SelectedIndex == 1 ? "per_file" : "combined"; s.Connections = (int)Connections.Value; s.AutoResume = AutoResume.IsChecked == true; s.KeepAwakeWhileDownloading = KeepAwake.IsChecked == true; s.FfmpegPath = Ffmpeg.Text.Trim();
+        s.RetryAttempts = int.TryParse(RetryAttemptsBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var retryAttempts) ? retryAttempts : 6;
+        s.RetryWindowSeconds = int.TryParse(RetryWindowBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var retryWindow) ? retryWindow : 30;
+        s.AutoRetryLater = AutoRetryLaterBox.IsChecked == true; s.AutoRetryRounds = int.TryParse(AutoRetryRoundsBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var rounds) ? rounds : 5;
         s.AdaptiveConnections = SmartConnections.IsChecked == true; s.SmartDownloads = SmartConnections.IsChecked == true;
         s.BoostDownloadSpeed = BoostSpeed.IsChecked == true;
 
         // BitTorrent
         s.TorrentPort = int.TryParse(TorrentPortBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var port) ? port : 6881;
-        s.TorrentDht = TorrentDht.IsChecked == true; s.TorrentPex = TorrentPex.IsChecked == true; s.TorrentPortMapping = TorrentPortMapping.IsChecked == true;
+        s.TorrentDht = TorrentDht.IsChecked == true; s.TorrentPex = TorrentPex.IsChecked == true; s.TorrentPortMapping = TorrentPortMapping.IsChecked == true; s.TorrentUtp = TorrentUtp.IsChecked == true;
         s.TorrentEncryption = TorrentEncryptionBox.SelectedIndex switch { 1 => "require", 2 => "off", _ => "prefer" };
         s.TorrentDownloadKbps = long.TryParse(TorrentDownloadBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var downKbps) ? Math.Max(0, downKbps) : 0;
         s.TorrentUploadKbps = long.TryParse(TorrentUploadBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var upKbps) ? Math.Max(0, upKbps) : 0;
@@ -367,9 +380,40 @@ public partial class SettingsWindow : Window
 
     void RefreshRemoteUrl()
     {
-        var ip = PortMapper.GetLocalAddress() ?? "<this computer's IP>";
-        var port = int.TryParse(RemotePortBox.Text.Trim(), out var p) ? p : App.Settings.RemotePort;
-        RemoteUrlBox.Text = $"http://{ip}:{port}/?token={App.Settings.RemoteToken}";
+        var ip = PortMapper.GetLocalAddress() ?? RemoteAccess.NoAddressPlaceholder;
+        var port = RemoteAccess.ParsePort(RemotePortBox.Text, App.Settings.RemotePort);
+        RemoteUrlBox.Text = RemoteAccess.BuildUrl(ip, port, App.Settings.RemoteToken);
+        RefreshRemoteQr(ip);
+    }
+
+    void RefreshRemoteQr(string ip)
+    {
+        if (RemoteQrImage == null || RemoteQrHint == null) return;
+        if (!RemoteAccess.HasAddress(ip))
+        {
+            RemoteQrImage.Source = null;
+            RemoteQrHint.Text = Loc.T("Connect this computer to a local network so Epsilon can create a phone address.");
+            return;
+        }
+        try
+        {
+            var bytes = RemoteQr.Png(RemoteUrlBox.Text);
+            using var stream = new MemoryStream(bytes);
+            var image = new BitmapImage();
+            image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad; image.StreamSource = stream; image.EndInit(); image.Freeze();
+            RemoteQrImage.Source = image;
+            RemoteQrHint.Text = Loc.T("The phone and this PC must be connected to the same private Wi-Fi or local network.");
+        }
+        catch (Exception ex)
+        {
+            RemoteQrImage.Source = null;
+            RemoteQrHint.Text = Loc.F("The QR code could not be created: {0}", ex.Message);
+        }
+    }
+
+    void RemotePortBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (RemoteUrlBox != null) RefreshRemoteUrl();
     }
 
     void RemoteCopy_Click(object sender, RoutedEventArgs e)
@@ -380,7 +424,7 @@ public partial class SettingsWindow : Window
 
     void RemoteNewToken_Click(object sender, RoutedEventArgs e)
     {
-        App.Settings.RemoteToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(9)).ToLowerInvariant();
+        App.Settings.RemoteToken = RemoteAccess.NewToken();
         RefreshRemoteUrl();
         App.RaiseSettingsChanged();
     }

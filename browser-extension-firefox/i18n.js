@@ -5,6 +5,7 @@
   const FA = {
     // overlay on videos
     "Download this video": "دانلود این ویدیو",
+    "Drag to move this button": "برای جابه‌جایی این دکمه بکشید",
     "Open Epsilon Download Manager": "باز کردن اپسیلون دانلود منیجر",
     "Hide this button on this page": "پنهان کردن این دکمه در این صفحه",
     "Looking for video streams…": "در حال جستجوی جریان‌های ویدیو…",

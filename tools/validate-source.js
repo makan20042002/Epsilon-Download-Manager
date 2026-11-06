@@ -19,23 +19,33 @@ const version = read("VERSION.txt").trim();
 const checks = [];
 const check = (name, fn) => checks.push({ name, fn });
 
-check(`version ${version} is used everywhere`, () => {
+check(`desktop version ${version} is used everywhere`, () => {
   const problems = [];
   const expect = (label, text, re) => { const m = text.match(re); if (!m || m[1] !== version) problems.push(`${label}: ${m ? m[1] : "not found"}`); };
-  expect("Branding.cs", read("MakanDownloadManager/Branding.cs"), /Version = "([^"]+)"/);
-  expect("NativeBridge.cs", read("MakanDownloadManager/Services/NativeBridge.cs"), /Version = "([^"]+)"/);
-  expect("Chrome manifest", read("browser-extension/manifest.json"), /"version":\s*"([^"]+)"/);
-  expect("Firefox manifest", read("browser-extension-firefox/manifest.json"), /"version":\s*"([^"]+)"/);
+  expect("ProductIdentity.cs", read("MakanDownloadManager/ProductIdentity.cs"), /Version = "([^"]+)"/);
+  expect("desktop project", read("MakanDownloadManager/EpsilonDownloadManager.csproj"), /<Version>([^<]+)<\/Version>/);
+  expect("native host project", read("MakanNativeHost/EpsilonNativeHost.csproj"), /<Version>([^<]+)<\/Version>/);
   expect("updater", read("updater/Program.cs"), /ProductVersion = "([^"]+)"/);
   expect("installer", read("installer/EpsilonDownloadManager.iss"), /#define MyAppVersion "([^"]+)"/);
   return problems.length ? problems.join("; ") : true;
 });
 
-check("one native-messaging identity (bridge pipe, host, installer script, Windows integration, extensions)", () => {
+check("published extension versions remain unchanged and match", () => {
+  const chrome = JSON.parse(read("browser-extension/manifest.json")).version;
+  const firefox = JSON.parse(read("browser-extension-firefox/manifest.json")).version;
+  return chrome === firefox && chrome === "1.8.0";
+});
+
+check("store extensions keep one public native-messaging host identity", () => {
   const id = "com.makan.downloadmanager";
-  const files = ["MakanDownloadManager/Services/NativeBridge.cs", "MakanNativeHost/Program.cs", "install-browser-integration.ps1", "MakanDownloadManager/Services/WindowsIntegration.cs", "browser-extension/background.js", "browser-extension-firefox/background.js"];
+  const files = ["MakanDownloadManager/ProductIdentity.cs", "install-browser-integration.ps1", "browser-extension/background.js", "browser-extension-firefox/background.js"];
   const missing = files.filter((f) => !read(f).includes(id));
   return missing.length ? "missing in: " + missing.join(", ") : true;
+});
+
+check("V2 desktop and native relay use the same private pipe", () => {
+  const match = read("MakanDownloadManager/ProductIdentity.cs").match(/NativePipeName = "([^"]+)"/);
+  return !!match && match[1] === "com.makan.downloadmanager.v2" && read("MakanNativeHost/Program.cs").includes(match[1]);
 });
 
 check("both extensions are Manifest V3 with a toolbar popup", () => {
@@ -74,6 +84,71 @@ check("every named StaticResource exists in application, control, or window reso
     for (const m of text.matchAll(/\{StaticResource\s+([A-Za-z_]\w*)\}/g)) if (!available.has(m[1])) missing.push(`${f}: ${m[1]}`);
   }
   return missing.length ? missing.join("; ") : true;
+});
+
+check("XAML resources are defined before they are used (a StaticResource cannot look forward)", () => {
+  // App.xaml and ControlStyles.xaml (merged into the application resources at start-up, before any window opens) are always available.
+  const app = read("MakanDownloadManager/App.xaml") + "\n" + read("MakanDownloadManager/Themes/ControlStyles.xaml");
+  const global = new Set([...app.matchAll(/x:Key="([A-Za-z_]\w*)"/g)].map((m) => m[1]));
+  const bad = [];
+  for (const f of walk("MakanDownloadManager", (p) => p.endsWith(".xaml") && !p.endsWith(path.join("Themes", "ControlStyles.xaml")))) {
+    const text = read(f);
+    const defined = new Map();
+    for (const m of text.matchAll(/x:Key="([A-Za-z_]\w*)"/g)) if (!defined.has(m[1])) defined.set(m[1], m.index);
+    for (const m of text.matchAll(/\{StaticResource\s+([A-Za-z_]\w*)\}/g)) {
+      if (global.has(m[1])) continue;
+      const at = defined.get(m[1]);
+      if (at === undefined || at > m.index) bad.push(`${f}: ${m[1]}`);
+    }
+  }
+  return bad.length ? [...new Set(bad)].join("; ") : true;
+});
+
+check("progress window: tabs, 1/5/30 min graph, segment legend, network breakdown, logs, SHA-256 and save-folder footer", () => {
+  const xaml = read("MakanDownloadManager/DownloadProgressWindow.xaml");
+  const code = read("MakanDownloadManager/DownloadProgressWindow.xaml.cs");
+  const need = ['Tag="Overview"', 'Tag="Segments"', 'Tag="Connections"', 'Tag="Sources"', 'Tag="Networks"', 'Tag="Logs"', 'Content="Multi-Network"',
+    'Tag="60"', 'Tag="300"', 'Tag="1800"', 'Content="1 min"', 'Content="5 min"', 'Content="30 min"',
+    'x:Name="SpeedCanvas"', 'x:Name="SegmentGrid"', 'x:Name="LegDownloading"', 'x:Name="LegComplete"', 'x:Name="LegWaiting"', 'x:Name="LegError"', 'x:Name="LegUnassigned"',
+    'x:Name="NetList"', 'x:Name="NetListFull"', 'x:Name="LogList"', 'x:Name="Sha256Text"', 'x:Name="SaveFooterText"', 'x:Name="ChangeSaveButton"',
+    'x:Name="ConnList"', 'x:Name="PositionGrid"', 'x:Name="UseLimiter"', 'x:Name="StartPauseButton"'];
+  const missing = need.filter((n) => !xaml.includes(n));
+  const wiring = ["SpeedHistory", "SegmentMap.Classify", "NetworkBreakdown.FromConnections", "ProgressLog", "VerificationText.For", "ChangeSaveFolder"].filter((n) => !code.includes(n));
+  return missing.length || wiring.length ? "missing in XAML: " + missing.join(", ") + " | not used by the window: " + wiring.join(", ") : true;
+});
+
+check("main window: minimum size, horizontal scrolling table, 15 saved column widths, cards and sidebar", () => {
+  const xaml = read("MakanDownloadManager/MainWindow.xaml");
+  const code = read("MakanDownloadManager/MainWindow.xaml.cs");
+  const widths = read("MakanDownloadManager/Services/ColumnWidths.cs");
+  const problems = [];
+  if (!/MinWidth="980"/.test(xaml) || !/MinHeight="620"/.test(xaml)) problems.push("window minimum size is not 980x620");
+  if (!/x:Name="Downloads"[^>]*ScrollViewer\.HorizontalScrollBarVisibility="(Auto|Visible)"/.test(xaml)) problems.push("the download table has no horizontal scroll bar");
+  const names = [...xaml.matchAll(/x:Name="(Grid(?!Index)\w+Column)"/g)].map((m) => m[1]);
+  const listed = (code.match(/GridViewColumn\[\] GridColumns\(\) => new\[\] \{([^}]*)\}/) || [, ""])[1].split(",").map((x) => x.trim()).filter(Boolean);
+  const defaults = ((widths.match(/Defaults = \{([^}]*)\}/) || [, ""])[1].split(",").map((x) => x.trim()).filter(Boolean));
+  if (names.length !== 15) problems.push("expected 15 resizable columns, found " + names.length);
+  if (listed.length !== 15 || names.some((n) => !listed.includes(n))) problems.push("GridColumns() does not list every column");
+  if (defaults.length !== 15) problems.push("ColumnWidths.Defaults has " + defaults.length + " values, not 15");
+  if (!/ColumnWidths\.Parse\(/.test(code) || !/ColumnWidths\.Serialize\(/.test(code)) problems.push("MainWindow does not use ColumnWidths to restore/save widths");
+  if (!/ColumnWidths\.DefaultText/.test(read("MakanDownloadManager/Services/AppSettings.cs"))) problems.push("AppSettings default is not ColumnWidths.DefaultText");
+  if (!/Property="MinWidth" Value="70"/.test(xaml)) problems.push("column header minimum width missing");
+  for (const n of ["HeaderDownloadSpeed", "HeaderUploadSpeed", "HeaderActiveCount", "HeaderQueueCount", "HeaderMultiNet"]) if (!xaml.includes('x:Name="' + n + '"')) problems.push("dashboard card " + n + " missing");
+  return problems.length ? problems.join("; ") : true;
+});
+
+check("remote control: QR code, address helper and beginner connection guide; retry settings reach the engine", () => {
+  const xaml = read("MakanDownloadManager/SettingsWindow.xaml");
+  const code = read("MakanDownloadManager/SettingsWindow.xaml.cs");
+  const app = read("MakanDownloadManager/App.xaml.cs");
+  const problems = [];
+  for (const n of ['x:Name="RemoteQrImage"', 'x:Name="RemoteQrHint"', 'x:Name="RemoteUrlBox"', 'Header="Phone connection guide"', 'If it does not connect', 'x:Name="RetryAttemptsBox"', 'x:Name="RetryWindowBox"'])
+    if (!xaml.includes(n)) problems.push("SettingsWindow.xaml: " + n);
+  for (let i = 1; i <= 5; i++) if (!xaml.includes('Text="' + i + '. ')) problems.push("guide step " + i + " missing");
+  for (const n of ["RemoteAccess.BuildUrl", "RemoteAccess.ParsePort", "RemoteQr.Png", "RemoteAccess.NewToken"]) if (!code.includes(n)) problems.push("SettingsWindow.xaml.cs does not use " + n);
+  for (const n of ["Manager.RetryAttempts = Settings.RetryAttempts", "Manager.RetryWindow = TimeSpan.FromSeconds(Settings.RetryWindowSeconds)"]) if (!app.includes(n)) problems.push("App.xaml.cs: " + n);
+  if (!/s\.RetryAttempts = /.test(code) || !/s\.RetryWindowSeconds = /.test(code)) problems.push("Settings window does not save the retry values");
+  return problems.length ? problems.join("; ") : true;
 });
 
 check("every event handler named in XAML exists in its code-behind", () => {

@@ -3,7 +3,7 @@ namespace MakanDownloadManager;
 /// <summary>Single source of truth for product identity and public branding.</summary>
 public static class Branding
 {
-    public const string ProductName = "Epsilon Download Manager";
+    public const string ProductName = ProductIdentity.ProductName;
     public const string ShortName = "EPSILON";
     public const string Creator = "Makan A.D.";
     public const string CoCreator = "Uhnohh";
@@ -18,7 +18,7 @@ public static class Branding
     public const string CreatorGitHubUrl = "https://github.com/makan20042002";
     public const string CoCreatorGitHubUrl = "https://github.com/Uhnohh";
     public const string Tagline = "Fast, intelligent, private — built for Windows";
-    public const string Version = "1.7.1";
+    public const string Version = ProductIdentity.Version;
 
     public static string Copyright => $"Created by {Creator}  ·  {WebsiteHost}";
 }

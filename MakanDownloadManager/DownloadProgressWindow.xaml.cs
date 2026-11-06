@@ -48,6 +48,26 @@ public partial class DownloadProgressWindow : Window
         }
     }
 
+    /// <summary>One row of the network breakdown (Overview and Multi-Network tabs).</summary>
+    public sealed class NetworkView : INotifyPropertyChanged
+    {
+        string _name = "", _connectionsText = "", _bytesText = "", _percentText = "";
+        double _percent;
+        public string Name { get => _name; set => Set(ref _name, value); }
+        public string ConnectionsText { get => _connectionsText; set => Set(ref _connectionsText, value); }
+        public string BytesText { get => _bytesText; set => Set(ref _bytesText, value); }
+        public string PercentText { get => _percentText; set => Set(ref _percentText, value); }
+        public double Percent { get => _percent; set => Set(ref _percent, value); }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value)) return;
+            field = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+    }
+
     const int Buckets = 100;
     static readonly Dictionary<long, DownloadProgressWindow> Open = new();
 
@@ -56,6 +76,14 @@ public partial class DownloadProgressWindow : Window
     readonly Border[] _cells = new Border[Buckets];
     readonly ObservableCollection<ConnectionView> _connections = new();
     readonly Stopwatch _clock = Stopwatch.StartNew();
+    readonly SpeedHistory _history = new();
+    readonly ProgressLog _log = new();
+    readonly ObservableCollection<string> _logLines = new();
+    readonly ObservableCollection<NetworkView> _networks = new();
+    readonly Border[] _segmentCells = new Border[Buckets];
+    IReadOnlyList<ConnectionInfo> _lastRows = Array.Empty<ConnectionInfo>();
+    string _tab = "Overview";
+    int _rangeSeconds = 60;
     double _lastTick;
     bool _loading = true;
     bool? _resume;
@@ -89,12 +117,23 @@ public partial class DownloadProgressWindow : Window
         var workArea = SystemParameters.WorkArea;
         MaxHeight = Math.Max(360, workArea.Height - 24);
         MaxWidth = Math.Max(520, workArea.Width - 24);
-        MinWidth = Math.Min(620, MaxWidth);
-        Width = Math.Min(720, MaxWidth);
+        MinWidth = Math.Min(700, MaxWidth);
+        Width = Math.Min(860, MaxWidth);
         SourceInitialized += (_, _) => ThemeManager.ApplyToWindow(this);
         StateChanged += (_, _) => RefreshMaximizeButton();
         _item = item;
         ConnList.ItemsSource = _connections;
+        LogList.ItemsSource = _logLines;
+        NetList.ItemsSource = _networks;
+        NetListFull.ItemsSource = _networks;
+        var emptyCell = (Brush)FindResource("Track");
+        for (var i = 0; i < Buckets; i++)
+        {
+            _segmentCells[i] = new Border { Background = emptyCell, Margin = new Thickness(1), MinHeight = 13, CornerRadius = new CornerRadius(2) };
+            SegmentGrid.Children.Add(_segmentCells[i]);
+        }
+        _log.Add(DateTime.Now, "Progress window opened");
+        AppendLog(new[] { _log.Lines[^1] });
 
         var fill = (Brush)FindResource("Accent");
         for (var i = 0; i < Buckets; i++)
@@ -106,6 +145,7 @@ public partial class DownloadProgressWindow : Window
         // start values from the download itself
         SaveToText.Text = System.IO.Path.GetDirectoryName(item.FilePath) is { Length: > 0 } dir ? dir : item.FilePath;
         SaveToText.ToolTip = SaveToText.Text;
+        SaveFooterText.Text = SaveToText.Text; SaveFooterText.ToolTip = SaveToText.Text;
         UseLimiter.IsChecked = item.SpeedLimitBytesPerSec > 0;
         if (item.SpeedLimitBytesPerSec > 0) LimitBox.Text = Math.Max(1, item.SpeedLimitBytesPerSec / 1024).ToString(CultureInfo.InvariantCulture);
         RememberLimit.IsChecked = item.SpeedLimitBytesPerSec > 0 && !item.LimitIsTemporary;
@@ -188,7 +228,13 @@ public partial class DownloadProgressWindow : Window
         StartPauseButton.IsEnabled = item.Status != nameof(DownloadStatus.Complete);
 
         RefreshConnections(running);
-        if (DetailsPanel.Visibility == Visibility.Visible) RefreshPositions();
+        _history.Add(DateTime.UtcNow, running ? item.SpeedBytesPerSec : 0, 0);
+        AppendLog(_log.Observe(DateTime.Now, item.Status, item.LastError, running ? _lastRows.Count : 0, item.RetryCount));
+        Sha256Text.Text = VerificationText.For(item);
+        var canChange = !running && item.DoneBytes == 0 && item.Status != nameof(DownloadStatus.Complete);
+        ChangeSaveButton.IsEnabled = canChange;
+        ChangeSaveButton.ToolTip = Loc.T(canChange ? "Choose another folder for this download" : "The folder can only be changed before any data is saved (stop the download first).");
+        RefreshTabs(running);
 
         if (item.Status is nameof(DownloadStatus.Complete) or nameof(DownloadStatus.Cancelled)) Close();
     }
@@ -222,6 +268,8 @@ public partial class DownloadProgressWindow : Window
         var rows = App.Manager.GetConnections(_item);
         if (rows.Count == 0) rows = new List<ConnectionInfo> { new(1, _item.DoneBytes, _item.Status == nameof(DownloadStatus.Downloading) ? "Receiving data..." : "Disconnect.") };
 
+        _lastRows = rows;
+        UpdateNetworks();
         var count = rows.Count;
         ConnCountText.Text = count == 1 ? Loc.T("1 connection") : Loc.F("{0} connections", count);
         ConnPill.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
@@ -256,6 +304,183 @@ public partial class DownloadProgressWindow : Window
                 : row.Info == "Send GET..." ? Loc.T("connecting")
                 : Loc.T("idle");
         }
+    }
+
+    // ---------------------------------------------------------------- tabs: Overview / Segments / Connections / Sources / Multi-Network / Logs
+
+    void Tab_Checked(object sender, RoutedEventArgs e)
+    {
+        if (PanelLogs == null || sender is not RadioButton { Tag: string tag }) return;   // fires once while the window is being built
+        _tab = tag;
+        PanelOverview.Visibility = tag is "Overview" or "Segments" ? Visibility.Visible : Visibility.Collapsed;   // the segment grid now lives on the Overview, like the design
+        PanelConnections.Visibility = tag == "Connections" ? Visibility.Visible : Visibility.Collapsed;
+        PanelSources.Visibility = tag == "Sources" ? Visibility.Visible : Visibility.Collapsed;
+        PanelNetworks.Visibility = tag == "Networks" ? Visibility.Visible : Visibility.Collapsed;
+        PanelLogs.Visibility = tag == "Logs" ? Visibility.Visible : Visibility.Collapsed;
+        if (!IsLoaded) return;
+        Refresh();
+        if (tag == "Logs") LogScroll.ScrollToEnd();
+        FitToContent();
+    }
+
+    void RefreshTabs(bool running)
+    {
+        if (DetailsPanel.Visibility != Visibility.Visible) return;
+        switch (_tab)
+        {
+            case "Overview": RefreshOverview(running); break;
+            case "Segments": RefreshSegments(); break;
+            case "Connections": RefreshPositions(); break;
+            case "Sources": RefreshSources(running); break;
+            case "Networks": RefreshNetworks(); break;
+        }
+    }
+
+    void RefreshOverview(bool running)
+    {
+        var shares = NetworkBreakdown.FromConnections(_lastRows);
+        StatConnections.Text = (running ? _lastRows.Count : 0) + " / " + _item.Connections;
+        var (total, complete) = App.Manager.GetSegmentCounts(_item);
+        StatSegments.Text = total > 0 ? complete + " / " + total : "—";
+        StatSources.Text = running ? "1 / 1" : "0 / 1";
+        StatMulti.Text = NetworkBreakdown.IsMultiNetwork(shares) ? Loc.F("Active ({0} networks)", shares.Count)
+            : App.Manager.MultiNetworkEnabled ? Loc.T("On (one network)") : Loc.T("Off");
+        StatUpload.Text = "—";            // an ordinary HTTP download does not upload anything
+        DrawGraph();
+    }
+
+    void Range_Checked(object sender, RoutedEventArgs e)
+    {
+        if (SpeedCanvas == null || sender is not RadioButton { Tag: string tag } || !int.TryParse(tag, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds)) return;
+        _rangeSeconds = seconds;
+        DrawGraph();
+    }
+
+    void SpeedCanvas_SizeChanged(object sender, SizeChangedEventArgs e) => DrawGraph();
+
+    /// <summary>Draws the download (and upload) speed of the last 1, 5 or 30 minutes. The graph starts when this window opens.</summary>
+    void DrawGraph()
+    {
+        var width = SpeedCanvas.ActualWidth; var height = SpeedCanvas.ActualHeight;
+        if (width < 20 || height < 20) return;
+        var now = DateTime.UtcNow;
+        var points = (int)Math.Clamp(width / 4, 20, 150);
+        var down = _history.Series(_rangeSeconds, points, now);
+        var up = _history.Series(_rangeSeconds, points, now, upload: true);
+        var peak = Math.Max(down.Max(), up.Max());
+        var top = SpeedHistory.AxisMaximum(peak);
+        AxisTop.Text = Speed((long)top); AxisMid.Text = Speed((long)(top / 2));
+
+        PointCollection Line(double[] values)
+        {
+            var line = new PointCollection(values.Length);
+            for (var i = 0; i < values.Length; i++)
+                line.Add(new Point(values.Length == 1 ? 0 : i * width / (values.Length - 1), height - 1 - Math.Clamp(values[i] / top, 0, 1) * (height - 4)));
+            return line;
+        }
+        var downLine = Line(down);
+        SpeedLine.Points = downLine;
+        var fill = new PointCollection(downLine) { new Point(width, height), new Point(0, height) };
+        SpeedFill.Points = fill;
+        UploadLine.Points = up.Max() > 0 ? Line(up) : new PointCollection();
+
+        var range = _rangeSeconds switch { 60 => "1 min", 300 => "5 min", _ => "30 min" };
+        GraphSummaryText.Text = _history.SampleCount < 3
+            ? Loc.T("The graph starts when this window opens.")
+            : Loc.T("Peak") + " " + Speed((long)_history.Peak(_rangeSeconds, now)) + "  ·  " + Loc.T("last") + " " + range;
+    }
+
+    void RefreshSegments()
+    {
+        var map = App.Manager.GetPositionMap(_item, Buckets);
+        var states = SegmentMap.Classify(map, _item.Status, _item.ActiveConnections);
+        var brushes = new Dictionary<SegmentState, Brush>
+        {
+            [SegmentState.Downloading] = ResourceBrush("Accent"),
+            [SegmentState.Complete] = ResourceBrush("Success"),
+            [SegmentState.Waiting] = ResourceBrush("Faint"),
+            [SegmentState.Error] = ResourceBrush("Danger"),
+            [SegmentState.Unassigned] = ResourceBrush("Track"),
+        };
+        for (var i = 0; i < Buckets && i < states.Length; i++) _segmentCells[i].Background = brushes[states[i]];
+        var counts = SegmentMap.Count(states);
+        LegDownloading.Text = Loc.T("Downloading") + " (" + counts.Downloading + ")";
+        LegComplete.Text = Loc.T("Complete") + " (" + counts.Complete + ")";
+        LegWaiting.Text = Loc.T("Waiting") + " (" + counts.Waiting + ")";
+        LegError.Text = Loc.T("Error") + " (" + counts.Error + ")";
+        LegUnassigned.Text = Loc.T("Unassigned") + " (" + counts.Unassigned + ")";
+        var (total, complete) = App.Manager.GetSegmentCounts(_item);
+        SegmentSummaryText.Text = total > 0 ? Loc.F("{0} of {1} parts finished", complete, total) : "";
+    }
+
+    void RefreshSources(bool running)
+    {
+        var address = _item.Url.Split('#')[0];
+        SourceUrlText.Text = address;
+        var valid = Uri.TryCreate(address, UriKind.Absolute, out var uri);
+        SourceHostText.Text = valid ? uri!.Host : "—";
+        SourceSecurityText.Text = !valid ? "—" : uri!.Scheme == Uri.UriSchemeHttps ? Loc.T("HTTPS (encrypted)") : Loc.T("HTTP (not encrypted)");
+        SourceResumeText.Text = _resume == null ? "—" : Loc.T(_resume == true ? "Yes" : "No");
+        SourceCountText.Text = (running ? "1" : "0") + " / 1";
+    }
+
+    void RefreshNetworks()
+    {
+        var shares = NetworkBreakdown.FromConnections(_lastRows);
+        MultiStatusText.Text = NetworkBreakdown.IsMultiNetwork(shares)
+            ? Loc.F("Multi-Network is active: this download uses {0} networks at the same time.", shares.Count)
+            : App.Manager.MultiNetworkEnabled
+                ? Loc.T("Multi-Network is on, but this download uses only one network right now (it needs two connected networks and a large file).")
+                : Loc.T("Multi-Network is off. Turn it on in Options to add up the speed of several connected networks.");
+    }
+
+    /// <summary>Keeps the network rows in place (so the bars move instead of flickering).</summary>
+    void UpdateNetworks()
+    {
+        var shares = NetworkBreakdown.FromConnections(_lastRows);
+        while (_networks.Count > shares.Count) _networks.RemoveAt(_networks.Count - 1);
+        for (var i = 0; i < shares.Count; i++)
+        {
+            if (i >= _networks.Count) _networks.Add(new NetworkView());
+            var view = _networks[i]; var share = shares[i];
+            view.Name = share.Network == NetworkBreakdown.DefaultRoute ? Loc.T(share.Network) : share.Network;
+            view.ConnectionsText = share.Connections == 1 ? Loc.T("1 connection") : Loc.F("{0} connections", share.Connections);
+            view.BytesText = DownloadItem.FormatBytes(share.Bytes);
+            view.Percent = share.Percent;
+            view.PercentText = share.Percent.ToString("0", CultureInfo.InvariantCulture) + "%";
+        }
+        NetEmptyText.Visibility = shares.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    void AppendLog(IReadOnlyList<string> lines)
+    {
+        if (lines.Count == 0) return;
+        foreach (var line in lines) _logLines.Add(line);
+        while (_logLines.Count > 300) _logLines.RemoveAt(0);
+        if (_tab == "Logs" && IsLoaded) LogScroll.ScrollToEnd();
+    }
+
+    void CopyLog_Click(object sender, RoutedEventArgs e)
+    {
+        try { Clipboard.SetText(string.Join(Environment.NewLine, _log.Lines)); } catch (Exception) { /* clipboard busy */ }
+    }
+
+    /// <summary>"Change": picks another folder. Only possible before any data is saved (the engine refuses otherwise and says why).</summary>
+    void ChangeSave_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = Loc.T("Choose the folder for this download"),
+            InitialDirectory = System.IO.Path.GetDirectoryName(_item.FilePath) ?? "",
+        };
+        if (dialog.ShowDialog(this) != true) return;
+        var error = App.Manager.ChangeSaveFolder(_item, dialog.FolderName);
+        if (error != null) { Dlg.Show(this, error, icon: MessageBoxImage.Warning); return; }
+        var folder = System.IO.Path.GetDirectoryName(_item.FilePath) ?? _item.FilePath;
+        SaveToText.Text = folder; SaveToText.ToolTip = folder;
+        SaveFooterText.Text = folder; SaveFooterText.ToolTip = folder;
+        _log.Add(DateTime.Now, "Save folder changed: " + folder);
+        AppendLog(new[] { _log.Lines[^1] });
     }
 
     // ---------------------------------------------------------------- title bar

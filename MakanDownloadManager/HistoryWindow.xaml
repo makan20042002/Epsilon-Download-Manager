@@ -1,4 +1,4 @@
-<Window Style="{StaticResource AppWindow}" x:Class="MakanDownloadManager.HistoryWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Download History" Width="1050" Height="620" Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}">
+<Window Style="{StaticResource AppWindow}" x:Class="MakanDownloadManager.HistoryWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Download History" Width="1050" Height="620" Background="{DynamicResource Aurora}" Foreground="{DynamicResource Text}">
 <Grid Margin="22">
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
   <DockPanel Margin="0,0,0,14">

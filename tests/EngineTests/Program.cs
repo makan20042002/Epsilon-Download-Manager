@@ -47,6 +47,61 @@ public static class Program
             try { Directory.Delete(Dir, true); } catch { }
             return T.Fail == 0 ? 0 : 1;
         }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "connections")  // only the 48-connection / adaptive tests (needs no web server)
+        {
+            try { ConnectionLimitTests.Run(); } catch (Exception ex) { T.Check("connection limit suite", false, ex.ToString()); }
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "localization")  // only the Persian-text checks (needs no web server)
+        {
+            try { SettingsTests.Localization().GetAwaiter().GetResult(); } catch (Exception ex) { T.Check("localization suite", false, ex.ToString()); }
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "themes")       // only the theme palette checks (needs no web server)
+        {
+            try { SettingsTests.ThemesOnly().GetAwaiter().GetResult(); } catch (Exception ex) { T.Check("themes suite", false, ex.ToString()); }
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "v2")           // V2 logic without a web server: column widths, pieces, remote QR, identity
+        {
+            try { V2LogicTests.Run(); } catch (Exception ex) { T.Check("V2 logic suite", false, ex.ToString()); }
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "retry")        // only the configurable-retry test (needs the test server)
+        {
+            await V2LogicTests.RunLive(Base, Dir, Http);
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "queues")       // only the queue / scheduler tests (needs the test server)
+        {
+            await QueueTests.RunAll(Base, Dir, Http);
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "retrylater")   // retry-like-IDM, 8 default connections and the smart increase
+        {
+            try { RetryLaterTests.Run(); } catch (Exception ex) { T.Check("retry-later logic suite", false, ex.ToString()); }
+            await RetryLaterTests.RunLive(Base, Dir, Http);
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "utp")          // only the uTP transport tests (needs no web server)
+        {
+            await UtpTests.Run();
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
+        if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "progress")     // only the progress-window logic tests (needs no web server)
+        {
+            try { ProgressInsightsTests.Run(); } catch (Exception ex) { T.Check("progress insights suite", false, ex.ToString()); }
+            Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
+            return T.Fail == 0 ? 0 : 1;
+        }
         if (Environment.GetEnvironmentVariable("MAKAN_TESTS") == "torrent")      // only the BitTorrent suite (needs no web server)
         {
             await TorrentTests.RunAll(Dir);
@@ -85,6 +140,16 @@ public static class Program
         await Extra.RunAll(Base, Dir, Http);
         Console.WriteLine("\n== V12 feature tests");
         try { V12FeatureTests.Run(); T.Check("V12 feature suite", true); } catch (Exception ex) { T.Check("V12 feature suite", false, ex.ToString()); }
+        Console.WriteLine("\n== 48-connection maximum and adaptive fallback");
+        try { ConnectionLimitTests.Run(); } catch (Exception ex) { T.Check("connection limit suite", false, ex.ToString()); }
+        Console.WriteLine("\n== Progress window insights (speed graph, networks, segment map, logs, change folder)");
+        try { ProgressInsightsTests.Run(); } catch (Exception ex) { T.Check("progress insights suite", false, ex.ToString()); }
+        await ProgressInsightsTests.RunLive(Base, Dir, Http);
+        await UtpTests.Run();
+        try { RetryLaterTests.Run(); } catch (Exception ex) { T.Check("retry-later logic suite", false, ex.ToString()); }
+        await RetryLaterTests.RunLive(Base, Dir, Http);
+        try { V2LogicTests.Run(); } catch (Exception ex) { T.Check("V2 logic suite", false, ex.ToString()); }
+        await V2LogicTests.RunLive(Base, Dir, Http);
 
         Console.WriteLine($"\n{T.Pass} passed, {T.Fail} failed");
         try { Directory.Delete(Dir, true); } catch { }

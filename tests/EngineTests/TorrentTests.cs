@@ -111,6 +111,8 @@ static class TorrentTests
         await Run("Torrent: download and upload speed limits (global and per torrent)", Limits);
         await Run("Torrent: seeding uploads to another client", Seeding);
         await Run("Torrent: protocol encryption (MSE) between two engines, required on both sides; fallback to plain peers", Encryption);
+        await Run("Torrent: whole download over uTP (UDP) between two engines, plain and encrypted", OverUtp);
+        await Run("Torrent: Fast Extension (HaveAll, Reject) and sequential download order", FastAndSequential);
         await Run("Torrent: trackerless magnet through the DHT", DhtLookup);
         await Run("Torrent: remove with and without deleting the files", Removal);
         await Run("Torrent: items in the download list (start, pause, resume, .torrent file, remove)", InDownloadList);
@@ -442,6 +444,89 @@ static class TorrentTests
         }
     }
 
+    static async Task OverUtp()
+    {
+        using var swarm = new Swarm(Script(), "--files", "u.bin:1500000", "--piece", "32768");
+        var meta = MetaInfo.Parse(File.ReadAllBytes(swarm.TorrentPath));
+        using var seeder = NewEngine(tweak: o => o.Encryption = EncryptionMode.Prefer);
+        var seed = seeder.AddTorrent(meta, Sub());
+        seed.Start();
+        T.Check("the seeder gets the torrent from the mock swarm", await Done(seed, 40), seed.Error + " / " + seed.State);
+        await Until(() => seed.State == TorrentState.Seeding, 10);
+        T.Check("the seeder listens for uTP", seeder.Utp != null);
+        static Dictionary<string, object> Strip(Dictionary<string, object> top) { top.Remove("announce"); top.Remove("announce-list"); return top; }
+        var none = MetaInfo.Parse(Bencode.Encode(Strip((Dictionary<string, object>)Bencode.Parse(File.ReadAllBytes(swarm.TorrentPath)))));
+        foreach (var mode in new[] { EncryptionMode.Off, EncryptionMode.Require })
+        {
+            seeder.Options.Encryption = mode == EncryptionMode.Require ? EncryptionMode.Require : EncryptionMode.Prefer;
+            var dir = Sub();
+            using var leecher = NewEngine(tweak: o => { o.Encryption = mode; o.UtpOnly = true; });
+            var leech = leecher.AddTorrent(none, dir);
+            leech.Start();
+            leech.AddCandidate(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, seeder.ListenPort));
+            T.Check($"[{mode}] a uTP-only engine connects to the seeder", await Until(() => leech.PeerCount > 0, 15), leech.State.ToString());
+            T.Check($"[{mode}] the connection is uTP on both ends", leech.Peers().Any(p => p.Transport == "uTP") && seed.Peers().Any(p => p.Transport == "uTP"));
+            T.Check($"[{mode}] the whole torrent downloads over uTP", await Done(leech, 60), leech.Error + " / " + leech.State);
+            T.Check($"[{mode}] and is byte-exact", Directory.GetFiles(dir, "*", SearchOption.AllDirectories).Where(f => new FileInfo(f).Length == swarm.Total).Any(f => T.Sha(f) == T.Sha(swarm.Payload)));
+            if (mode == EncryptionMode.Require) T.Check("[Require] encrypted over uTP", leech.Peers().Any(p => p.Encrypted));
+        }
+    }
+
+    static async Task FastAndSequential()
+    {
+        using var swarm = new Swarm(Script(), "--files", "f.bin:3200000", "--piece", "32768");
+        var meta = MetaInfo.Parse(File.ReadAllBytes(swarm.TorrentPath));
+        using var seeder = NewEngine();
+        var seed = seeder.AddTorrent(meta, Sub());
+        seed.Start();
+        T.Check("the seeder gets the torrent", await Done(seed, 40), seed.Error + " / " + seed.State);
+        await Until(() => seed.State == TorrentState.Seeding, 10);
+
+        // talk to the seeder by hand
+        using (var raw = await PeerConnection.ConnectAsync(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, seeder.ListenPort), TimeSpan.FromSeconds(5), CancellationToken.None))
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var id = new byte[20]; Random.Shared.NextBytes(id);
+            await raw.SendHandshakeAsync(seed.InfoHash, id, cts.Token);
+            var hs = await raw.ReadHandshakeAsync(cts.Token);
+            T.Check("the handshake announces the Fast Extension", hs.SupportsFast);
+            var sawHaveAll = false;
+            for (var i = 0; i < 6 && !sawHaveAll; i++) { var (mid, _) = await raw.ReadMessageAsync(cts.Token); sawHaveAll = mid == PeerConnection.HaveAll; if (mid == PeerConnection.BitfieldId) break; }
+            T.Check("a complete seeder says HaveAll instead of sending a bitfield", sawHaveAll);
+            await raw.SendAsync(PeerConnection.Request, PeerConnection.RequestPayload(0, 0, 16384), cts.Token);
+            var rejected = false;
+            for (var i = 0; i < 8 && !rejected; i++)
+            {
+                var (mid, payload) = await raw.ReadMessageAsync(cts.Token);
+                if (mid == PeerConnection.Reject) rejected = payload.Length == 12 && PeerConnection.ReadInt(payload, 0) == 0 && PeerConnection.ReadInt(payload, 4) == 0 && PeerConnection.ReadInt(payload, 8) == 16384;
+                if (mid == PeerConnection.Piece) break;
+            }
+            T.Check("a request that is not served (we never unchoked it) gets an explicit Reject", rejected);
+        }
+
+        // sequential download from a rate-limited seeder: the start (and the last pieces) come first, the middle comes in order
+        seeder.UploadLimit.Rate = 500 * 1024;
+        static Dictionary<string, object> Strip(Dictionary<string, object> top) { top.Remove("announce"); top.Remove("announce-list"); return top; }
+        var none = MetaInfo.Parse(Bencode.Encode(Strip((Dictionary<string, object>)Bencode.Parse(File.ReadAllBytes(swarm.TorrentPath)))));
+        var dir = Sub();
+        using var leecher = NewEngine();
+        var leech = leecher.AddTorrent(none, dir);
+        leech.Sequential = true;
+        leech.Start();
+        leech.AddCandidate(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, seeder.ListenPort));
+        var count = meta.PieceCount;
+        T.Check("some pieces arrive", await Until(() => leech.PiecesHave >= count / 3, 40), leech.PiecesHave + " / " + count);
+        var middleAhead = 0; var gap = 0;
+        for (var i = 2; i < count - 2; i++) { if (leech.HasPiece(i)) { if (i > count / 3 + 12) middleAhead++; } }
+        for (var i = 0; i < count / 4; i++) if (!leech.HasPiece(i)) gap++;
+        T.Check("the first two and the last two pieces were fetched first", leech.HasPiece(0) && leech.HasPiece(1) && leech.HasPiece(count - 1) && leech.HasPiece(count - 2));
+        T.Check("the first quarter has no holes", gap == 0, gap.ToString());
+        T.Check("pieces far ahead of the front are not fetched yet", middleAhead <= 2, middleAhead.ToString());
+        seeder.UploadLimit.Rate = 0;
+        T.Check("it still completes", await Done(leech, 60), leech.Error + " / " + leech.State);
+        T.Check("and is byte-exact", Directory.GetFiles(dir, "*", SearchOption.AllDirectories).Where(f => new FileInfo(f).Length == swarm.Total).Any(f => T.Sha(f) == T.Sha(swarm.Payload)));
+    }
+
     static async Task Encryption()
     {
         using var swarm = new Swarm(Script(), "--files", "e.bin:900000", "--piece", "32768");
@@ -657,8 +742,8 @@ static class TorrentTests
         T.Check("before it's even added, a plain item has no peers/upload text at all", item.PeersText == "" && item.UpSpeedText == "");
 
         manager.Enqueue(item);
-        T.Check("once connected to the mock swarm, the peers/seeds text is populated", await Until(() => item.PeersText != "" && item.PeersText != "0 (0)", 20), item.PeersText);
-        T.Check("the peers text follows the 'seeds (known peers)' shape other torrent clients use", System.Text.RegularExpressions.Regex.IsMatch(item.PeersText, @"^\d+ \(\d+\)$"), item.PeersText);
+        T.Check("once connected to the mock swarm, the peers/seeds text is populated", await Until(() => item.PeersText != "" && item.PeersText != "Seeds 0/0 · Peers 0/0", 20), item.PeersText);
+        T.Check("the peers text shows seeds and peers as 'connected/in the swarm' (Seeds 1/4 · Peers 3/20)", System.Text.RegularExpressions.Regex.IsMatch(item.PeersText, @"^Seeds \d+/\d+ · Peers \d+/\d+$"), item.PeersText);
         T.Check("the upload text, whatever it is right now, is either blank or a real '.../s' reading - never garbage", item.UpSpeedText == "" || item.UpSpeedText.EndsWith("/s"), item.UpSpeedText);
 
         await manager.RemoveAsync(item, true);

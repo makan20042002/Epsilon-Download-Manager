@@ -13,6 +13,10 @@ public sealed class TorrentEngineOptions
     public int ListenPort { get; set; } = 6881;
     public bool EnableDht { get; set; } = true;
     public bool EnablePex { get; set; } = true;
+    /// <summary>uTP (BEP 29) next to TCP: reaches peers that only accept uTP and copes better with congested or throttled networks.</summary>
+    public bool EnableUtp { get; set; } = true;
+    /// <summary>Use only uTP for outgoing connections (for tests; normally TCP and uTP are raced).</summary>
+    public bool UtpOnly { get; set; }
     /// <summary>Ask the router to forward the listening port automatically (UPnP, then NAT-PMP). Torrents work
     /// without this - it only affects how many peers can connect in rather than only out.</summary>
     public bool EnablePortMapping { get; set; } = true;
@@ -49,6 +53,9 @@ public sealed class TorrentEngine : IDisposable
     public byte[] PeerId { get; } = MakePeerId();
     public int ListenPort { get; private set; }
     public DhtNode? Dht { get; private set; }
+    /// <summary>The uTP transport (null when switched off). It shares the DHT's UDP port.</summary>
+    public UtpManager? Utp { get; private set; }
+    UdpClient? _utpSocket;
     /// <summary>Whether the router opened the listening port for us, and how (for a status line in the UI - "Port 6881 open (UPnP)" vs nothing yet).</summary>
     public bool PortMapped => _portMapper?.IsMapped ?? false;
     public PortMapMethod PortMapMethod => _portMapper?.MethodInUse ?? PortMapMethod.None;
@@ -104,6 +111,28 @@ public sealed class TorrentEngine : IDisposable
             Dht = new DhtNode(ListenPort);
             foreach (var endpoint in LoadDhtBootstrap()) Dht.Bootstrap.Add(endpoint);
         }
+        if (Options.EnableUtp)
+        {
+            try
+            {
+                if (Dht != null)
+                {
+                    var dht = Dht;
+                    Utp = new UtpManager((buffer, length, to) => dht.SendRaw(buffer, length, to));
+                    dht.ForeignPacket = Utp.HandlePacket;
+                }
+                else
+                {
+                    _utpSocket = new UdpClient(new IPEndPoint(IPAddress.Any, ListenPort));
+                    try { _utpSocket.Client.ReceiveBufferSize = 4 << 20; _utpSocket.Client.SendBufferSize = 4 << 20; } catch (SocketException) { }
+                    var socket = _utpSocket;
+                    Utp = new UtpManager((buffer, length, to) => socket.Client.SendTo(buffer, 0, length, SocketFlags.None, to));
+                    _ = Task.Run(() => UtpReceiveLoopAsync(socket, _cts.Token));
+                }
+                Utp.Accepted += stream => { var ct = _cts.Token; _ = Task.Run(() => HandleIncomingConnectionAsync(new PeerConnection(stream, stream.Remote, true, "uTP"), ct), ct); };
+            }
+            catch (Exception ex) when (ex is SocketException or ObjectDisposedException) { Utp = null; }   // uTP is an extra: TCP carries on without it
+        }
         if (Options.EnablePortMapping) { _portMapper = new PortMapper(); _portMapper.Start(ListenPort); }   // best-effort; torrents work fine while it's still trying, or if it never succeeds
         _ = Task.Run(() => AcceptLoopAsync(_cts.Token));
     }
@@ -121,12 +150,32 @@ public sealed class TorrentEngine : IDisposable
         }
     }
 
-    async Task HandleIncomingAsync(TcpClient client, CancellationToken ct)
+    async Task UtpReceiveLoopAsync(UdpClient socket, CancellationToken ct)
     {
-        if (!TryReserveConnection()) { client.Dispose(); return; }
+        while (!ct.IsCancellationRequested)
+        {
+            UdpReceiveResult received;
+            try { received = await socket.ReceiveAsync(ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
+            catch (ObjectDisposedException) { return; }
+            catch (SocketException) { continue; }
+            try { Utp?.HandlePacket(received.Buffer, received.Buffer.Length, received.RemoteEndPoint); } catch (Exception) { }
+        }
+    }
+
+    Task HandleIncomingAsync(TcpClient client, CancellationToken ct)
+    {
+        PeerConnection conn;
+        try { conn = new PeerConnection(client, (IPEndPoint)client.Client.RemoteEndPoint!, true); }
+        catch (Exception) { client.Dispose(); return Task.CompletedTask; }
+        return HandleIncomingConnectionAsync(conn, ct);
+    }
+
+    async Task HandleIncomingConnectionAsync(PeerConnection conn, CancellationToken ct)
+    {
+        if (!TryReserveConnection()) { conn.Dispose(); return; }
         try
         {
-            var conn = new PeerConnection(client, (IPEndPoint)client.Client.RemoteEndPoint!, true);
             PeerConnection.Handshake hs;
             using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
@@ -137,7 +186,7 @@ public sealed class TorrentEngine : IDisposable
             if (!_sessions.TryGetValue(Convert.ToHexString(hs.InfoHash).ToLowerInvariant(), out var session)) { conn.Dispose(); return; }
             await session.AcceptAsync(conn, hs).ConfigureAwait(false);
         }
-        catch (Exception) { client.Dispose(); }
+        catch (Exception) { conn.Dispose(); }
         finally { ReleaseConnection(); }
     }
 
@@ -262,6 +311,8 @@ public sealed class TorrentEngine : IDisposable
         try { _listener?.Stop(); } catch (Exception) { }
         foreach (var session in _sessions.Values) session.DiskPipeline.Dispose();
         SaveDhtBootstrap();
+        Utp?.Dispose();
+        try { _utpSocket?.Dispose(); } catch (Exception) { }
         Dht?.Dispose();
         if (_portMapper != null) _ = _portMapper.DisposeAsync().AsTask();   // best-effort, fire-and-forget: Dispose() itself cannot await
     }

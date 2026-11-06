@@ -227,7 +227,7 @@ public sealed partial class DownloadManager
         {
             if (!_items.TryGetValue(id, out var item)) continue;
             item.UpSpeedText = session.UploadRate > 0 ? Format(session.UploadRate) + "/s" : "";
-            item.PeersText = $"{session.SeedCount} ({session.KnownPeers})";
+            item.PeersText = $"Seeds {session.SeedCount}/{session.SwarmSeeders} · Peers {session.PeerCount}/{Math.Max(session.SwarmSeeders + session.SwarmLeechers, session.KnownPeers)}";
             if (!Is(item, DownloadStatus.Complete)) continue;
             item.Note = TorrentNote(session);
             item.SpeedText = session.UploadRate > 0 ? "↑ " + Format(session.UploadRate) + "/s" : "";

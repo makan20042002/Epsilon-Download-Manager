@@ -24,7 +24,7 @@ public sealed class ToolsInstaller
     {
         ToolsDirectory = toolsDirectory;
         _http = http ?? new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
-        if (http == null) _http.DefaultRequestHeaders.UserAgent.ParseAdd("MakanDownloadManager");
+        if (http == null) _http.DefaultRequestHeaders.UserAgent.ParseAdd("EpsilonDownloadManager/2.0");
     }
 
     public string YtDlpPath => Path.Combine(ToolsDirectory, "yt-dlp.exe");
