@@ -125,6 +125,12 @@ static class SettingsTests
         T.Check("defaults: ask first, complete dialog on, queue choosers on, duplicate = ask, language English", s.AskBeforeDownload && !s.OnlyAddToQueue && s.ShowCompleteDialog && s.AskQueueOnLater && s.AskQueueOnBatch && s.DuplicateAction == "ask" && s.Language == "en" && !s.AutoResume && !s.ClipboardWatch);
         T.Check("defaults: file types and sites are IDM's, user agent looks like a browser, Defender command", s.FileTypes.Contains("MKV") && s.ExcludedSites.Contains("windowsupdate") && s.UserAgent.StartsWith("Mozilla/5.0") && s.AntivirusProgram.EndsWith("MpCmdRun.exe") && s.AntivirusArguments.Contains("%1"));
         T.Check("defaults: temporary errors retry for about 30 seconds and playlists prefer 1080p MP4", s.RetryAttempts == 6 && s.RetryWindowSeconds == 30 && s.PlaylistPreferredHeight == 1080 && s.PlaylistPreferredFormat == "mp4");
+        // copying a link must not open a download window: an old "watch the clipboard" = on is switched off exactly once
+        var oldStore = new MemSettings(); oldStore.Set("clipboard_watch", "1"); var old = new AppSettings(oldStore);
+        old.ApplyOneTimeFixes();
+        T.Check("clipboard watch left on by an older version is switched off once", !old.ClipboardWatch);
+        old.ClipboardWatch = true; old.ApplyOneTimeFixes();
+        T.Check("a later deliberate choice of clipboard watch is kept", old.ClipboardWatch);
         s.Language = "fa"; s.AskBeforeDownload = false; s.OnlyAddToQueue = true; s.DuplicateAction = "overwrite"; s.TempDirectory = @"D:\tmp"; s.SetFileDateFromServer = true; s.MaxActive = 99; s.Connections = 0; s.Language = "xx";
         T.Check("values round trip; clamps and unknown languages are handled", store.Values["ask_before_download"] == "0" && s.OnlyAddToQueue && s.DuplicateAction == "overwrite" && s.TempDirectory == @"D:\tmp" && s.SetFileDateFromServer && s.MaxActive == 16 && s.Connections == 1 && s.Language == "en");
         s.Connections = 99;

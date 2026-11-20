@@ -384,6 +384,16 @@ function isYouTubeWatch(url) {
   } catch { return false; }
 }
 
+/** An Instagram post, reel, IGTV or story page: like YouTube, only yt-dlp can read these (the video is not a plain file). */
+function isInstagramPost(url) {
+  try {
+    const u = new URL(url); const host = u.hostname.toLowerCase();
+    if (host !== "instagram.com" && !host.endsWith(".instagram.com")) return false;
+    return /^(\/[\w.]+)?\/(p|reel|reels|tv)\/[\w-]{5,}/i.test(u.pathname) || /^\/stories\/[\w.]+\/\d{5,}/i.test(u.pathname);
+  } catch { return false; }
+}
+const isYtDlpPage = (url) => isYouTubeWatch(url) || isInstagramPost(url);
+
 const ytCache = new Map();           // page url -> { at, items }
 
 function ytText(title, o, duration) {
@@ -415,7 +425,7 @@ async function buildYtMenu(pageUrl, fallbackTitle, strict) {
 async function buildMenu(tabId, directUrl) {
   let title = "video", pageUrl = "";
   try { const tab = await ext.tabs.get(tabId); pageUrl = tab.url || ""; title = (tab.title || "video").replace(/\s+/g, " ").trim().slice(0, 150) || "video"; } catch { /* tab closed */ }
-  if (isYouTubeWatch(pageUrl)) {                 // YouTube streams are chunked and protected: only yt-dlp can read them
+  if (isYtDlpPage(pageUrl)) {                 // YouTube and Instagram videos are chunked or protected: only yt-dlp can read them
     const items = await buildYtMenu(pageUrl, title.replace(/ - YouTube$/, ""), true);
     menuCache.set(tabId, { items, at: Date.now() });
     return items;
@@ -550,7 +560,7 @@ ext.runtime.onMessage.addListener((message, sender, sendResponse) => {
         await queue;
         const tabId = sender.tab?.id;
         const found = tabId === undefined ? 0 : (await loadTab(tabId)).length;
-        sendResponse({ count: isYouTubeWatch(sender.tab?.url) ? Math.max(1, found) : found });
+        sendResponse({ count: isYtDlpPage(sender.tab?.url) ? Math.max(1, found) : found });
         break;
       }
       case "menu": {                // from the page overlay or the popup

@@ -130,6 +130,7 @@ public partial class App : Application
         V1MigrationService.CopySafeSettingsOnce(Db);
         SmartDownloads = new SmartDownloadController(Db);
         Settings = new AppSettings(Db);
+        Settings.ApplyOneTimeFixes();   // copying a link must not open a download window (clipboard watch is off unless chosen in Options)
         BandwidthProfiles = new V15BandwidthProfiles(Db, kbps => { Settings.SpeedKbps = kbps; RaiseSettingsChanged(); });
         try { Basket.ImportJson(Db.Get("basket_json") ?? "[]"); } catch (Exception ex) { new DiagnosticsService().Error("The saved link basket could not be loaded; starting with an empty one", ex); }
         CategoryService.LoadJson(Settings.CategoriesJson);

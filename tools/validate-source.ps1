@@ -30,7 +30,7 @@ Check "Desktop version $version is used everywhere" {
 Check 'Published extension versions remain unchanged and match each other' {
   $chrome = Match-First 'browser-extension/manifest.json' '"version":\s*"([^"]+)"'
   $firefox = Match-First 'browser-extension-firefox/manifest.json' '"version":\s*"([^"]+)"'
-  ($chrome -eq $firefox) -and ($chrome -eq '1.8.0')
+  ($chrome -eq $firefox) -and ($chrome -eq '1.9.0')
 }
 
 Check 'Store extensions keep one public native-messaging host identity' {

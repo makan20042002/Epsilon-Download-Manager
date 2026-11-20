@@ -1,0 +1,4 @@
+# Epsilon Download Manager 2.1.0
+
+- **Instagram videos:** Epsilon downloads videos from Instagram posts, reels, IGTV and stories through yt-dlp, with the same quality choice as YouTube. The browser extension shows its download button on those pages. Public posts work without logging in. For private accounts or stories, choose your browser under Options > YouTube & other sites ("Use my browser's login"); Epsilon only tells yt-dlp the browser name and never reads or stores your cookies. If Instagram refuses, Epsilon shows its message instead of failing silently.
+- **Fix:** copying a link (including "Copy link address" in the browser) no longer opens the download window. The option "Offer to download links that I copy to the clipboard" is now switched off once after updating and stays off unless you turn it on yourself.

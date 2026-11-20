@@ -19,6 +19,15 @@ public sealed class AppSettings
     // ---- General
     public string Language { get => Text("language", "en") == "fa" ? "fa" : "en"; set => _store.Set("language", value == "fa" ? "fa" : "en"); }
     public bool ClipboardWatch { get => Flag("clipboard_watch", false); set => Put("clipboard_watch", value); }
+    /// <summary>Copying a link must never open a download window by surprise. "Offer to download links that I copy" was
+    /// switched on by older versions/imports for some users, so it is switched off once; after that only a deliberate
+    /// choice in Options turns it on again. Safe to call on every start.</summary>
+    public void ApplyOneTimeFixes()
+    {
+        if (_store.Get("fix_clipboard_off_v1") == "1") return;
+        ClipboardWatch = false;
+        _store.Set("fix_clipboard_off_v1", "1");
+    }
     public string CaptureBrowsers { get => Text("capture_browsers", string.Join(",", CaptureRules.AllBrowsers)); set => _store.Set("capture_browsers", value); }
 
     // ---- File types

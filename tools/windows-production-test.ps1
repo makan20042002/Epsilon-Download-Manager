@@ -15,10 +15,10 @@ Check 'Main project exists' { Test-Path (Join-Path $root 'MakanDownloadManager\E
 Check 'Native host exists' { Test-Path (Join-Path $root 'MakanNativeHost\EpsilonNativeHost.csproj') }
 Check 'Installer definition exists' { Test-Path (Join-Path $root 'installer\EpsilonDownloadManager.iss') }
 Check 'Updater project exists' { Test-Path (Join-Path $root 'updater\EpsilonUpdater.csproj') }
-Check 'Published browser manifests remain matched at 1.8.0' {
+Check 'Published browser manifests remain matched at 1.9.0' {
   $a=Get-Content (Join-Path $root 'browser-extension\manifest.json') -Raw | ConvertFrom-Json
   $b=Get-Content (Join-Path $root 'browser-extension-firefox\manifest.json') -Raw | ConvertFrom-Json
-  $a.version -eq '1.8.0' -and $b.version -eq '1.8.0'
+  $a.version -eq '1.9.0' -and $b.version -eq '1.9.0'
 }
 
 $publish = Join-Path $root 'publish-test'

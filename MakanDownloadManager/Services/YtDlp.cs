@@ -68,6 +68,19 @@ public sealed class YtDlpService
         return Regex.IsMatch(path, @"^/(shorts|live|embed)/[A-Za-z0-9_-]{6,}", RegexOptions.IgnoreCase);
     }
 
+    /// <summary>An Instagram post, reel, IGTV or story address (not the home page, a profile or the explore page).</summary>
+    public static bool IsInstagramUrl(string? url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https")) return false;
+        var host = uri.Host.ToLowerInvariant();
+        if (host != "instagram.com" && !host.EndsWith(".instagram.com", StringComparison.Ordinal)) return false;
+        return Regex.IsMatch(uri.AbsolutePath, @"^(/[A-Za-z0-9._]+)?/(p|reel|reels|tv)/[A-Za-z0-9_-]{5,}", RegexOptions.IgnoreCase)
+            || Regex.IsMatch(uri.AbsolutePath, @"^/stories/[A-Za-z0-9._]+/\d{5,}", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>Pages that only yt-dlp can read (YouTube, Instagram): the app asks which quality before downloading.</summary>
+    public static bool IsYtDlpPageUrl(string? url) => IsYouTubeUrl(url) || IsInstagramUrl(url);
+
     public static string WithSelection(string pageUrl, string key) => pageUrl.Split('#')[0] + FragmentKey + Uri.EscapeDataString(key);
 
     public static bool TryGetSelection(string? url, out string pageUrl, out string key)

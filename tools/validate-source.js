@@ -33,7 +33,7 @@ check(`desktop version ${version} is used everywhere`, () => {
 check("published extension versions remain unchanged and match", () => {
   const chrome = JSON.parse(read("browser-extension/manifest.json")).version;
   const firefox = JSON.parse(read("browser-extension-firefox/manifest.json")).version;
-  return chrome === firefox && chrome === "1.8.0";
+  return chrome === firefox && chrome === "1.9.0";
 });
 
 check("store extensions keep one public native-messaging host identity", () => {

@@ -657,7 +657,7 @@ public partial class MainWindow : Window
 
     void ShowDownloadDialog(DownloadPrompt p)
     {
-        if (YtDlpService.IsYouTubeUrl(p.Url)) { ShowYouTubeDialog(p.Url); return; }
+        if (YtDlpService.IsYtDlpPageUrl(p.Url)) { ShowYouTubeDialog(p.Url); return; }
         var overwrite = false;
         if (FindDuplicate(p.Url) is { } duplicate)
         {
@@ -959,7 +959,7 @@ public partial class MainWindow : Window
             return;
         }
         if (!LooksLikeUrl(p.Url)) return;
-        if (YtDlpService.IsYouTubeUrl(p.Url)) { Prompt(() => ShowYouTubeDialog(p.Url)); return; }   // YouTube: choose the quality first
+        if (YtDlpService.IsYtDlpPageUrl(p.Url)) { Prompt(() => ShowYouTubeDialog(p.Url)); return; }   // YouTube / Instagram: choose the quality first
         if (AskFirst) PromptDownload(p); else QuickAdd(p);
     }
 

@@ -4,7 +4,7 @@ namespace MakanDownloadManager;
 public static class ProductIdentity
 {
     public const string ProductName = "Epsilon Download Manager";
-    public const string Version = "2.0.0";
+    public const string Version = "2.1.0";
     public const string ProcessName = "EpsilonDownloadManager";
     public const string ExecutableName = "EpsilonDownloadManager.exe";
     public const string NativeHostExecutableName = "EpsilonNativeHost.exe";

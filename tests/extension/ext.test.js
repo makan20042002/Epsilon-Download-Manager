@@ -394,6 +394,34 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
         { key: "s:en", label: "Subtitles: en", kind: "subtitle", extension: "srt" }] }
     : { ok: true, id: 1 };
 
+  await test("Instagram: a reel page gets the same yt-dlp menu as YouTube, and a profile page does not", async () => {
+    const IG = "https://www.instagram.com/reel/Cabc123XYZ/";
+    const env = await load(ytHost);
+    env.chrome.tabs.get = async (id) => ({ id, title: "Instagram", url: IG });
+    const menu = await ask(env, { type: "menu", tabId: 7 });
+    assert.ok(menu.items.length >= 1, "qualities come from yt-dlp");
+    assert.ok(env.sent.some((m) => m.msg.kind === "ytformats" && m.msg.url === IG));
+    await ask(env, { type: "menuPick", tabId: 7, index: 0, all: false });
+    const m = env.sent.at(-1).msg;
+    assert.deepStrictEqual([m.kind, m.url, m.format], ["ytdl", IG, "v1080"]);
+    // when yt-dlp cannot read the page: a reel explains why, a profile page stays quiet (it is only a second chance)
+    const failHost = (msg) => msg.kind === "ytformats" ? { ok: false, error: "Login required" } : { ok: true, id: 1 };
+    const envReel = await load(failHost);
+    envReel.chrome.tabs.get = async (id) => ({ id, title: "Instagram", url: IG });
+    const reel = await ask(envReel, { type: "menu", tabId: 7 });
+    assert.ok(reel.items.length === 1 && reel.items[0].disabled && /Login required/.test(reel.items[0].text), "a reel page explains the error");
+    const envProfile = await load(failHost);
+    envProfile.chrome.tabs.get = async (id) => ({ id, title: "Someone", url: "https://www.instagram.com/some.user/" });
+    const profile = await ask(envProfile, { type: "menu", tabId: 7 });
+    assert.strictEqual(profile.items.length, 0, "a profile page shows no error line");
+  });
+
+  await test("Copying a link never sends anything to Epsilon", async () => {
+    const env = await load(ytHost);
+    await env.chrome.contextMenus.onClicked.fire({ menuItemId: "copy-link", linkUrl: "https://example.com/file.zip" }, { id: 7, url: "https://example.com/" });
+    assert.strictEqual(env.sent.filter((m) => m.msg.kind === "download" || m.msg.kind === "ytdl").length, 0);
+  });
+
   await test("YouTube: the menu comes from yt-dlp (qualities, audio, subtitles); a pick sends 'ytdl'; there is no 'Download all'", async () => {
     const env = await load(ytHost);
     env.chrome.tabs.get = async (id) => ({ id, title: "The #1 Workout - YouTube", url: YT });
@@ -450,7 +478,7 @@ async function test(name, fn) { try { await fn(); pass++; console.log("  PASS ",
   await test("manifests: both browsers have their toolbar popup, the same version as each other (the published store version, independent of the desktop app version), and every file they name exists", async () => {
     const fs = require("fs"), path = require("path");
     const root = path.join(__dirname, "..", "..");
-    // The store extensions keep their published version (1.8.0) while the desktop app moves to 2.0.0, so they are compared with each other.
+    // The store extensions keep their published version (1.9.0) while the desktop app moves to 2.1.0, so they are compared with each other.
     const version = JSON.parse(fs.readFileSync(path.join(root, "browser-extension", "manifest.json"), "utf8")).version;
     for (const dir of ["browser-extension", "browser-extension-firefox"]) {
       const m = JSON.parse(fs.readFileSync(path.join(root, dir, "manifest.json"), "utf8"));

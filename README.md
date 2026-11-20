@@ -11,22 +11,19 @@ A fast, private download manager and BitTorrent client for Windows. Epsilon comb
 
 ## Download
 
-**[Download Epsilon Download Manager 2.0.0 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v2.0.0/EpsilonDownloadManager-2.0.0-Setup.exe)**
+**[Download Epsilon Download Manager 2.1.0 for Windows](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v2.1.0/EpsilonDownloadManager-2.1.0-Setup.exe)**
 
-Run the installer normally. Version 2.0.0 installs over 1.7.1, imports your existing settings on first start, and leaves the original 1.7.1 data unchanged. You do not need to uninstall first.
-
-Prefer a portable copy? Download **[EpsilonDownloadManager-2.0.0-Portable.zip](https://github.com/makan20042002/Epsilon-Download-Manager/releases/download/v2.0.0/EpsilonDownloadManager-2.0.0-Portable.zip)** and unzip it anywhere. Its settings and downloads stay in the `data` folder beside the program.
+Run the installer normally. Version 2.1.0 upgrades an existing Epsilon installation in place and preserves its settings, download list, queues, and unfinished downloads. You do not need to uninstall first.
 
 SHA-256:
 
 ```text
-54BCF6CEC8DD34F33AFA7976CBF3BF318A61A7F68C9A61CB2CD7694B93A43B93  EpsilonDownloadManager-2.0.0-Setup.exe
-93AEFAAFFFEFA314A864EBFAD192C981183D745A7B1FE518A4F6ED1D1F9806E5  EpsilonDownloadManager-2.0.0-Portable.zip
+7990811DF095F64E7CE0456898D04BA2BE174A545BE4ED9990DB2744D541D282  EpsilonDownloadManager-2.1.0-Setup.exe
 ```
 
 ## Help test Epsilon
 
-Want to help improve Epsilon? Install version 2.0.0 and share your results in the public [tester feedback issue](https://github.com/makan20042002/Epsilon-Download-Manager/issues/1). The checklist covers download resume and retry, browser capture, queues, torrents, speed testing, Multi-Network downloads, themes, and English/Persian layouts. Please remove private URLs, cookies, tokens, and personal file paths before posting logs or screenshots.
+Want to help improve Epsilon? Install version 2.1.0 and share your results in the public [tester feedback issue](https://github.com/makan20042002/Epsilon-Download-Manager/issues/1). The checklist covers download resume and retry, browser capture, queues, torrents, speed testing, Multi-Network downloads, themes, Instagram media, and English/Persian layouts. Please remove private URLs, cookies, tokens, and personal file paths before posting logs or screenshots.
 
 ## Highlights
 
@@ -35,7 +32,7 @@ Want to help improve Epsilon? Install version 2.0.0 and share your results in th
 - **Flexible speed limits** — unlimited by default, a combined global limit, and optional independent per-file limits.
 - **BitTorrent Engine 2.0** — magnet links and `.torrent` files, persistent DHT, PEX, HTTP/UDP trackers, HTTP web seeds, UPnP/NAT-PMP, file priority, seeding controls, and per-torrent bandwidth limits. Torrents have no artificial speed cap unless you set one.
 - **Browser integration** — Chrome, Edge, Brave, and Firefox capture, context-menu commands, selected-link batches, page-link grabbing, and an on-video download button.
-- **Media downloads** — native HLS and DASH plus YouTube and other supported sites through yt-dlp, including quality selection, audio extraction, playlists, and subtitles.
+- **Media downloads** — native HLS and DASH plus YouTube, Instagram (posts, reels, stories) and other supported sites through yt-dlp, including quality selection, audio extraction, playlists, and subtitles.
 - **Scheduling and queues** — parallel queue limits, Start All/Schedule/Stop All controls, retryable failed items, and a complete schedule stop that does not advance to the next file.
 - **Accurate resume feedback** — separate network and disk-loading progress, so restoring a partial download never looks frozen.
 - **Redesigned desktop shell** — a responsive glass interface with a detailed download table, persistent resizable columns, live speed cards, network status, and an expanded progress window.
@@ -43,7 +40,7 @@ Want to help improve Epsilon? Install version 2.0.0 and share your results in th
 - **Windows integration** — magnet and `.torrent` handlers, tray speed display, optional keep-awake while downloading, and in-place upgrades.
 - **English and Persian** — full RTL-aware Persian localization.
 
-See [the 2.0.0 release notes](RELEASE_NOTES_2.0.0.md) for the latest changes, or [the 1.7.1 release notes](RELEASE_NOTES_1.7.1.md) for the previous release.
+See [the 2.1.0 release notes](RELEASE_NOTES_2.1.0.md) for the latest changes, or [the 2.0.0 release notes](RELEASE_NOTES_2.0.0.md) for the previous release.
 
 ## Browser extensions
 

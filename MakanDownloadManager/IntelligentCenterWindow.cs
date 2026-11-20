@@ -482,7 +482,7 @@ public sealed class IntelligentCenterWindow : Window
         var skipped = 0;
         foreach (var url in urls)
         {
-            if (YtDlpService.IsYouTubeUrl(url)) { skipped++; continue; }      // these need a quality choice: add them from the main window
+            if (YtDlpService.IsYtDlpPageUrl(url)) { skipped++; continue; }      // these need a quality choice: add them from the main window
             try
             {
                 var plan = new SmartDownloadAnalyzer().Plan(url, null, App.Settings.DefaultFolder, App.Manager.DefaultConnections);

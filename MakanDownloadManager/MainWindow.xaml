@@ -232,7 +232,7 @@
       <DockPanel>
         <Border DockPanel.Dock="Top" Height="10"/>
 
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="16,8,12,16"><Grid Width="40" Height="40" Margin="0,0,10,0"><Ellipse Fill="{DynamicResource Panel2}" Stroke="{DynamicResource Accent}" StrokeThickness="1.2"/><Image Source="Assets/epsilon-logo-hq.png" Margin="7" Stretch="Uniform" RenderOptions.BitmapScalingMode="Fant"/></Grid><StackPanel VerticalAlignment="Center"><TextBlock Text="Epsilon" FontFamily="{StaticResource DisplayFont}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource Text}"/><TextBlock Text="v2.0.0" FontSize="9.5" Foreground="{DynamicResource Faint}" Margin="0,2,0,0"/></StackPanel></StackPanel>
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="16,8,12,16"><Grid Width="40" Height="40" Margin="0,0,10,0"><Ellipse Fill="{DynamicResource Panel2}" Stroke="{DynamicResource Accent}" StrokeThickness="1.2"/><Image Source="Assets/epsilon-logo-hq.png" Margin="7" Stretch="Uniform" RenderOptions.BitmapScalingMode="Fant"/></Grid><StackPanel VerticalAlignment="Center"><TextBlock Text="Epsilon" FontFamily="{StaticResource DisplayFont}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource Text}"/><TextBlock Text="v2.1.0" FontSize="9.5" Foreground="{DynamicResource Faint}" Margin="0,2,0,0"/></StackPanel></StackPanel>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>

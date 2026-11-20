@@ -52,6 +52,12 @@ static class YtDlpTests
         foreach (var bad in new[] { "https://www.youtube.com/", "https://www.youtube.com/results?search_query=x", "https://www.youtube.com/@channel", "https://notyoutube.com/watch?v=abcdefghijk", "https://youtube.com.evil.example/watch?v=abcdefghijk", "ftp://youtube.com/watch?v=abcdefghijk", "" })
             T.Check("not a video address: " + bad, !YtDlpService.IsYouTubeUrl(bad));
 
+        foreach (var good in new[] { "https://www.instagram.com/reel/Cabc123XYZ/", "https://instagram.com/p/Cabc123XYZ/?igsh=x", "https://www.instagram.com/reels/Cabc123XYZ/", "https://www.instagram.com/tv/Cabc123XYZ/", "https://www.instagram.com/some.user/reel/Cabc123XYZ/", "https://www.instagram.com/stories/some.user/3123456789012345678/" })
+            T.Check("recognised as an Instagram video page: " + good, YtDlpService.IsInstagramUrl(good) && YtDlpService.IsYtDlpPageUrl(good));
+        foreach (var bad in new[] { "https://www.instagram.com/", "https://www.instagram.com/some.user/", "https://www.instagram.com/explore/", "https://notinstagram.com/reel/Cabc123XYZ/", "https://instagram.com.evil.example/reel/Cabc123XYZ/", "ftp://www.instagram.com/reel/Cabc123XYZ/", "" })
+            T.Check("not an Instagram video address: " + bad, !YtDlpService.IsInstagramUrl(bad));
+        T.Check("YouTube still goes through the same quality choice", YtDlpService.IsYtDlpPageUrl("https://youtu.be/abcdefghijk") && !YtDlpService.IsYtDlpPageUrl("https://example.com/file.zip"));
+
         var withKey = YtDlpService.WithSelection(Watch + "#old", "v1080");
         T.Check("selection travels in the address fragment", withKey == Watch + "#makan-ytdl=v1080" && YtDlpService.TryGetSelection(withKey, out var page, out var key) && page == Watch && key == "v1080");
         T.Check("no selection in an ordinary address", !YtDlpService.TryGetSelection(Watch, out _, out _));
